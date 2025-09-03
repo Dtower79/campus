@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenido al Campus Virtual</title>
+    <!-- Enlazamos nuestra hoja de estilos para que la página se vea bien -->
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- ¡Importante! Este script es la magia de Netlify Identity.
+         Carga el widget que gestiona el registro, login y recuperación de contraseña. -->
+    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+    <main class="container">
+        <h1>Campus Virtual de Formación Penitenciaria</h1>
+        <p>Accede para continuar con tu formación o regístrate si eres nuevo.</p>
+        <!-- Este div es un marcador especial. El widget de Netlify buscará esto y lo convertirá en un botón funcional. -->
+        <div data-netlify-identity-button>Acceder / Registrarse</div>
+    </main>
+    
+    <script>
+      // Este bloque de JavaScript se ejecuta cuando la página carga.
+      // Comprueba si el usuario ya tiene una sesión iniciada en este navegador.
+      if (netlifyIdentity.currentUser()) {
+        // Si es así, no tiene sentido que vea la página de login. Lo enviamos directamente a su panel.
+        console.log('Usuario ya logueado. Redirigiendo al dashboard...');
+        window.location.replace('/dashboard.html');
+      }
+
+      // Netlify Identity emite "eventos". Nos "suscribimos" al evento 'login'.
+      // Cuando un usuario inicie sesión con éxito...
+      netlifyIdentity.on('login', user => {
+        console.log('Login exitoso para:', user.email);
+        // ...lo enviamos a su panel de cursos.
+        window.location.replace('/dashboard.html');
+      });
+    </script>
+</body>
+</html>

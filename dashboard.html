@@ -4,24 +4,50 @@
     <meta charset="UTF-8">
     <title>El Meu Panell de Cursos</title>
     <link rel="stylesheet" href="/css/estil.css">
-    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <!-- El widget de Netlify Identity també és necessari aquí -->
+    <script type="text-javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body>
+    <!-- Aquest element crearà automàticament un menú amb l'email de l'usuari i el botó per tancar sessió -->
     <nav data-netlify-identity-menu></nav>
     
     <main class="container">
         <h1>Els Meus Cursos</h1>
         <p>Aquí apareixerà la llista dels cursos als quals estàs matriculat/da.</p>
-        <div id="courses-list"></div>
+        <div id="courses-list">
+            <!-- Aquesta secció s'omplirà més endavant amb la llista de cursos -->
+        </div>
     </main>
     
+    <!-- ======================================================= -->
+    <!--  INICI DEL BLOC DE CODI CORREGIT                          -->
+    <!-- ======================================================= -->
     <script>
-        // EL GUARDIÀ DE SEGURETAT
-        if (!netlifyIdentity.currentUser()) {
-            window.location.replace('/');
-        } else {
-            console.log('Accés permès per a:', netlifyIdentity.currentUser().email);
-        }
+        // Aquesta funció s'espera a que el widget d'Identity estigui 100% carregat
+        // i sàpiga si hi ha un usuari o no abans d'executar el codi de dins.
+        // Això resol el problema del bucle infinit.
+        netlifyIdentity.on('init', user => {
+            
+            // EL NOSTRE GUARDIÀ DE SEGURETAT (ARA A DINS DEL 'init')
+            // La variable 'user' contindrà les dades de l'usuari si ha iniciat sessió,
+            // o serà 'null' si no ho ha fet.
+            
+            if (!user) {
+                // Si 'user' és null, sabem amb certesa que no hi ha ningú connectat.
+                console.log('Accés denegat des de dashboard.html. Redirigint...');
+                // El redirigim a la pàgina d'inici per a que s'identifiqui.
+                window.location.replace('/');
+            } else {
+                // Si 'user' no és null, l'accés és permès.
+                console.log('Accés permès. Benvingut/da', user.email);
+                // Aquest és el lloc on, en futurs passos, cridarem a la funció
+                // que carregarà i mostrarà els cursos de l'usuari.
+            }
+        });
     </script>
+    <!-- ======================================================= -->
+    <!--  FI DEL BLOC DE CODI CORREGIT                             -->
+    <!-- ======================================================= -->
+
 </body>
 </html>

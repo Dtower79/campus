@@ -4,50 +4,82 @@
     <meta charset="UTF-8">
     <title>El Meu Panell de Cursos</title>
     <link rel="stylesheet" href="/css/estil.css">
-    <!-- El widget de Netlify Identity també és necessari aquí -->
-    <script type="text-javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    
+    <!-- ======================================================= -->
+    <!--  CANVI IMPORTANT: CARREGUEM EL WIDGET PRIMER AL HEAD      -->
+    <!-- ======================================================= -->
+    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    
+    <style>
+        .course-card {
+            border: 1px solid #ddd; border-radius: 8px; padding: 1rem;
+            margin-top: 1rem; text-align: left; background-color: #f9f9f9;
+            transition: box-shadow 0.2s;
+        }
+        .course-card:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        .course-card a {
+            text-decoration: none; font-size: 1.2rem;
+            font-weight: bold; color: #003366;
+        }
+        .course-card p { margin-top: 0.5rem; font-size: 0.9rem; }
+    </style>
 </head>
 <body>
-    <!-- Aquest element crearà automàticament un menú amb l'email de l'usuari i el botó per tancar sessió -->
     <nav data-netlify-identity-menu></nav>
     
     <main class="container">
         <h1>Els Meus Cursos</h1>
-        <p>Aquí apareixerà la llista dels cursos als quals estàs matriculat/da.</p>
+        <p>Aquests són els cursos als quals tens accés. Fes clic per començar.</p>
         <div id="courses-list">
-            <!-- Aquesta secció s'omplirà més endavant amb la llista de cursos -->
+            <p>Carregant els teus cursos...</p>
         </div>
     </main>
     
     <!-- ======================================================= -->
-    <!--  INICI DEL BLOC DE CODI CORREGIT                          -->
+    <!--  LA NOSTRA LÒGICA ARA VA AL FINAL DEL BODY, COM ABANS    -->
     <!-- ======================================================= -->
     <script>
-        // Aquesta funció s'espera a que el widget d'Identity estigui 100% carregat
-        // i sàpiga si hi ha un usuari o no abans d'executar el codi de dins.
-        // Això resol el problema del bucle infinit.
         netlifyIdentity.on('init', user => {
-            
-            // EL NOSTRE GUARDIÀ DE SEGURETAT (ARA A DINS DEL 'init')
-            // La variable 'user' contindrà les dades de l'usuari si ha iniciat sessió,
-            // o serà 'null' si no ho ha fet.
-            
             if (!user) {
-                // Si 'user' és null, sabem amb certesa que no hi ha ningú connectat.
-                console.log('Accés denegat des de dashboard.html. Redirigint...');
-                // El redirigim a la pàgina d'inici per a que s'identifiqui.
                 window.location.replace('/');
             } else {
-                // Si 'user' no és null, l'accés és permès.
-                console.log('Accés permès. Benvingut/da', user.email);
-                // Aquest és el lloc on, en futurs passos, cridarem a la funció
-                // que carregarà i mostrarà els cursos de l'usuari.
+                console.log('Accés permès per a:', user.email);
+                loadEnrolledCourses();
             }
         });
+        
+        function loadEnrolledCourses() {
+            const user = netlifyIdentity.currentUser();
+            user.jwt().then(token => {
+                fetch('/.netlify/functions/cursosMatriculats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(response => response.json())
+                .then(cursos => {
+                    const coursesListDiv = document.getElementById('courses-list');
+                    coursesListDiv.innerHTML = '';
+                    
+                    if (!cursos || cursos.length === 0) {
+                        coursesListDiv.innerHTML = '<p>Encara no estàs matriculat/da a cap curs.</p>';
+                        return;
+                    }
+                    
+                    cursos.forEach(curs => {
+                        const card = document.createElement('div');
+                        card.className = 'course-card';
+                        card.innerHTML = `
+                            <a href="/curs.html?slug=${curs.slug}">${curs.titol}</a>
+                            <p>${curs.descripcio}</p>
+                        `;
+                        coursesListDiv.appendChild(card);
+                    });
+                })
+                .catch(error => {
+                    console.error("Error al carregar els cursos matriculats:", error);
+                    document.getElementById('courses-list').innerHTML = '<p>Hi ha hagut un error al carregar els teus cursos.</p>';
+                });
+            });
+        }
     </script>
-    <!-- ======================================================= -->
-    <!--  FI DEL BLOC DE CODI CORREGIT                             -->
-    <!-- ======================================================= -->
-
 </body>
 </html>

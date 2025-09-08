@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <title>El Meu Panell de Cursos</title>
+    <link rel="stylesheet" href="/css/estil.css">
+    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+    <nav data-netlify-identity-menu></nav>
+    
+    <main class="container">
+        <h1>Els Meus Cursos</h1>
+        <p>Aquí apareixerà la llista dels cursos als quals estàs matriculat/da.</p>
+        <div id="courses-list"></div>
+    </main>
+    
+    <script>
+        // EL GUARDIÀ DE SEGURETAT
+        if (!netlifyIdentity.currentUser()) {
+            window.location.replace('/');
+        } else {
+            console.log('Accés permès per a:', netlifyIdentity.currentUser().email);
+        }
+    </script>
+</body>
+</html>

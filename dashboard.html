@@ -5,16 +5,13 @@
     <title>El Meu Panell de Cursos</title>
     <link rel="stylesheet" href="/css/estil.css">
     
-    <!-- Carreguem el widget de Netlify aquí, al head -->
     <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
     
     <style>
         .course-card {
             border: 1px solid #ddd; border-radius: 8px; padding: 1rem;
             margin-top: 1rem; text-align: left; background-color: #f9f9f9;
-            transition: box-shadow 0.2s;
         }
-        .course-card:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
         .course-card a {
             text-decoration: none; font-size: 1.2rem;
             font-weight: bold; color: #003366;
@@ -33,69 +30,61 @@
         </div>
     </main>
     
-    <!-- ======================================================= -->
-    <!--  INICI DEL BLOC DE CODI AMB LA MÀXIMA GARANTIA           -->
-    <!-- ======================================================= -->
     <script>
-        // Li diem al navegador: "Quan tota la pàgina, incloent TOTS els scripts externs,
-        // s'hagi carregat completament, LLAVORS i només llavors, executa aquesta funció."
-        window.addEventListener('load', () => {
-        
-            netlifyIdentity.on('init', user => {
-                if (!user) {
-                    window.location.replace('/');
-                } else {
-                    console.log('Accés permès per a:', user.email);
-                    loadEnrolledCourses();
-                }
-            });
-            
-            function loadEnrolledCourses() {
-                const user = netlifyIdentity.currentUser();
-                // Ens assegurem que tenim l'usuari abans de demanar el token
-                if(user) {
-                    user.jwt().then(token => {
-                        fetch('/.netlify/functions/cursosMatriculats', {
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                // Si hi ha un error al backend, el mostrem per a depuració
-                                return response.json().then(err => { throw new Error(err.error || 'Error del servidor') });
-                            }
-                            return response.json();
-                        })
-                        .then(cursos => {
-                            const coursesListDiv = document.getElementById('courses-list');
-                            coursesListDiv.innerHTML = '';
-                            
-                            if (!cursos || cursos.length === 0) {
-                                coursesListDiv.innerHTML = '<p>Encara no estàs matriculat/da a cap curs.</p>';
-                                return;
-                            }
-                            
-                            cursos.forEach(curs => {
-                                const card = document.createElement('div');
-                                card.className = 'course-card';
-                                card.innerHTML = `
-                                    <a href="/curs.html?slug=${curs.slug}">${curs.titol}</a>
-                                    <p>${curs.descripcio}</p>
-                                `;
-                                coursesListDiv.appendChild(card);
-                            });
-                        })
-                        .catch(error => {
-                            console.error("Error al carregar els cursos matriculats:", error);
-                            document.getElementById('courses-list').innerHTML = `<p>Hi ha hagut un error al carregar els teus cursos: ${error.message}</p>`;
-                        });
+        // Funció per carregar els cursos. Ara no s'executa automàticament.
+        const loadEnrolledCourses = (user) => {
+            console.log("Pas 2: La funció loadEnrolledCourses s'ha iniciat.");
+
+            user.jwt().then(token => {
+                console.log("Pas 3: Hem obtingut el token de l'usuari. Fent la petició fetch...");
+                
+                fetch('/.netlify/functions/cursosMatriculats', {
+                    method: 'POST', // Usem POST per a més seguretat, com Netlify recomana
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(res => {
+                    if (!res.ok) {
+                        console.error("Error en la resposta del servidor:", res.status, res.statusText);
+                        throw new Error('Error del servidor');
+                    }
+                    console.log("Pas 4: La resposta del servidor ha estat correcta (OK). Processant JSON...");
+                    return res.json();
+                })
+                .then(cursos => {
+                    console.log("Pas 5: Dades rebudes!", cursos);
+                    const listDiv = document.getElementById('courses-list');
+                    listDiv.innerHTML = '';
+                    
+                    if (!cursos || cursos.length === 0) {
+                        listDiv.innerHTML = '<p>Encara no estàs matriculat/da a cap curs.</p>';
+                        return;
+                    }
+                    
+                    cursos.forEach(curs => {
+                        const card = document.createElement('div');
+                        card.className = 'course-card';
+                        card.innerHTML = `<a href="/curs.html?slug=${curs.slug}">${curs.titol}</a><p>${curs.descripcio}</p>`;
+                        listDiv.appendChild(card);
                     });
-                }
+                })
+                .catch(error => {
+                    console.error("Ha fallat la crida fetch o el processament de les dades:", error);
+                    document.getElementById('courses-list').innerHTML = '<p>Hi ha hagut un error en carregar els teus cursos.</p>';
+                });
+            });
+        };
+
+        // El punt d'entrada del nostre script
+        netlifyIdentity.on('init', user => {
+            console.log("Pas 1: L'esdeveniment 'init' de Netlify Identity s'ha disparat.");
+            if (user) {
+                // Si hi ha usuari, cridem a la funció per carregar els cursos.
+                loadEnrolledCourses(user);
+            } else {
+                // Si no, el redirigim (el guardià).
+                window.location.replace('/');
             }
-            
-        }); // Final de l'esdeveniment window.load
+        });
     </script>
-    <!-- ======================================================= -->
-    <!--  FI DEL BLOC DE CODI                                      -->
-    <!-- ======================================================= -->
 </body>
 </html>

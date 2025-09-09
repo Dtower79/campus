@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <title>Carregant curs...</title>
+    <link rel="stylesheet" href="/css/estil.css">
+    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <style>
+        /* Estils específics per a la pàgina del curs */
+        .quiz .question { margin-bottom: 1.5rem; }
+        .quiz .options { list-style: none; padding: 0; margin: 0.5rem 0; }
+        .quiz .options li {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .quiz .options li:hover { background-color: #f0f2f5; }
+        .quiz .explanation {
+            display: none; /* Amagat per defecte */
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <main class="container" id="container">
+        <h1 id="curs-titol">Carregant...</h1>
+        <p id="curs-descripcio"></p>
+        <hr>
+        <div id="moduls-container">
+            <p>Carregant mòduls...</p>
+        </div>
+    </main>
+    
+    <!-- Enllacem el nostre nou script "motor" -->
+    <script src="/js/renderitzadorCurs.js"></script>
+</body>
+</html>

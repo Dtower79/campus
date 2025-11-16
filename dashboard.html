@@ -54,7 +54,7 @@
                 }
                 
                 cursos.forEach(curs => {
-                    const { titol, slug, descripcio } = curs.attributes;
+                    const { titol, slug, descripcio } = curs;
                     const card = document.createElement('div');
                     card.className = 'course-card';
                     const simpleDesc = descripcio[0]?.children[0]?.text || '';

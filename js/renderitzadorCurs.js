@@ -1,5 +1,6 @@
+// Arxiu: js/renderitzadorCurs.js
+
 window.addEventListener('load', () => {
-    
     if (!netlifyIdentity.currentUser()) {
         window.location.replace('/');
         return;
@@ -12,69 +13,72 @@ window.addEventListener('load', () => {
         document.body.innerHTML = '<h1>Error: No s\'ha especificat cap curs.</h1>';
         return;
     }
-
-    // --- LÍNIA DE DEPURACIÓ ---
-    const fetchUrl = `/.netlify/functions/dadesCurs?slug=${courseSlug}`;
-    console.log("Intentant carregar dades des de:", fetchUrl); 
-    // -------------------------
-
-    fetch(fetchUrl)
-        .then(res => {
-            if (!res.ok) {
-                console.error("Detalls de la resposta amb error:", res);
-                throw new Error(`El servidor ha retornat un error ${res.status}`);
-            }
-            return res.json();
-        })
+    
+    // Cridem a la funció de backend, que ara parlarà amb Strapi.
+    fetch(`/.netlify/functions/dadesCurs?slug=${courseSlug}`)
+        .then(res => res.json())
         .then(data => {
-            renderCourse(data);
+            // La nostra funció ja ens retorna l'objecte del curs net.
+            // Les dades principals estan a la propietat 'attributes'.
+            renderCourse(data.attributes); 
         })
         .catch(error => {
-            console.error("Error al carregar les dades del curs:", error);
-            document.getElementById('container').innerHTML = `<h1>Error al carregar el curs. Revisa la consola per a més detalls.</h1>`;
+            console.error("Error en carregar les dades del curs:", error);
+            document.getElementById('container').innerHTML = `<h1>Error al carregar el curs.</h1>`;
         });
 });
 
-// La resta del fitxer (les funcions renderCourse i addQuizInteractivity) es queda exactament igual.
 function renderCourse(courseData) {
     document.title = courseData.titol;
     document.getElementById('curs-titol').innerText = courseData.titol;
-    document.getElementById('curs-descripcio').innerText = courseData.descripcio;
+    
+    // La descripció de Strapi és un objecte complex, n'extraiem el text.
+    const descText = courseData.descripcio[0]?.children[0]?.text || '';
+    document.getElementById('curs-descripcio').innerText = descText;
+
     const modulsContainer = document.getElementById('moduls-container');
-    modulsContainer.innerHTML = ''; 
-    if (!courseData.moduls || courseData.moduls.length === 0) {
-        modulsContainer.innerHTML = '<p>Aquest curs encara no té mòduls.</p>';
+    modulsContainer.innerHTML = '';
+    
+    // Els mòduls estan a dins d'un objecte 'data'.
+    if (!courseData.moduls.data || courseData.moduls.data.length === 0) {
+         modulsContainer.innerHTML = '<p>Aquest curs encara no té mòduls.</p>';
         return;
     }
-    courseData.moduls.forEach(modul => {
+    
+    courseData.moduls.data.forEach(modul => {
+        const modulData = modul.attributes;
         const moduleEl = document.createElement('div');
         moduleEl.className = 'module';
+        
         let preguntesHTML = '<div class="quiz"><h4>Autoavaluació</h4>';
-        modul.preguntes.forEach((pregunta, preguntaIndex) => {
-            let opcionsHTML = '<ul class="options">';
-            pregunta.opcions.forEach((opcio, opcioIndex) => {
-                opcionsHTML += `<li data-correct="${opcio.correct}">${opcio.text}</li>`;
+        // Les preguntes (components) vénen com una llista directa.
+        if (modulData.preguntes && modulData.preguntes.length > 0) {
+            modulData.preguntes.forEach((pregunta, preguntaIndex) => {
+                let opcionsHTML = '<ul class="options">';
+                // Les opcions també són components dins de la pregunta.
+                pregunta.opcions.forEach((opcio) => {
+                    opcionsHTML += `<li data-correct="${opcio.esCorrecta}">${opcio.text}</li>`;
+                });
+                opcionsHTML += '</ul>';
+                preguntesHTML += `
+                    <div class="question" id="q-${pregunta.id}-${preguntaIndex}">
+                        <p>${preguntaIndex + 1}. ${pregunta.text}</p>
+                        ${opcionsHTML}
+                        <div class="explanation">${pregunta.explicacio}</div>
+                    </div>
+                `;
             });
-            opcionsHTML += '</ul>';
-            preguntesHTML += `
-                <div class="question" id="q-${modul.id}-${preguntaIndex}">
-                    <p>${preguntaIndex + 1}. ${pregunta.pregunta}</p>
-                    ${opcionsHTML}
-                    <div class="explanation">${pregunta.explicacio}</div>
-                </div>
-            `;
-        });
+        }
         preguntesHTML += '</div>';
-        moduleEl.innerHTML = `
-            <h3>${modul.titol}</h3>
-            <p class="summary">${modul.resum}</p>
-            ${preguntesHTML}
-        `;
+
+        moduleEl.innerHTML = `<h3>${modulData.titol}</h3><p class="summary">${modulData.resum}</p>${preguntesHTML}`;
         modulsContainer.appendChild(moduleEl);
     });
+    
     addQuizInteractivity();
 }
 
+// Aquesta funció no canvia, la deixem com estava.
 function addQuizInteractivity() {
     document.querySelectorAll('.options li').forEach(opcio => {
         opcio.addEventListener('click', (event) => {

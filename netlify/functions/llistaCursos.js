@@ -3,24 +3,26 @@ const fetch = require('node-fetch');
 exports.handler = async function(event) {
     const STRAPI_URL = process.env.STRAPI_API_URL;
     
-    // LÍNIA DE DEPURACIÓ: Veurem aquest missatge als logs de Netlify.
-    console.log("Intentant connectar a l'API de Strapi a:", STRAPI_URL);
+    console.log("URL de l'API de Strapi:", STRAPI_URL);
     
-    const apiUrl = `${STRAPI_URL}/cursos?fields[0]=titol&fields[1]=slug&fields[2]=descripcio`;
-
     try {
-        const response = await fetch(apiUrl);
+        console.log("Iniciant petició fetch...");
+        const response = await fetch(STRAPI_URL); // Crida a l'arrel de l'API
+        console.log("Resposta rebuda. Estat:", response.status);
+
         if (!response.ok) {
             const errorBody = await response.text();
-            // Aquest console.log també és clau si hi ha un error
-            console.error("Strapi ha retornat un error:", errorBody);
-            throw new Error(`Error de Strapi: ${response.status}`);
+            console.error("Cos de l'error:", errorBody);
+            throw new Error(`La crida a l'API ha fallat amb estat ${response.status}`);
         }
+        
         const data = await response.json();
+        console.log("Dades rebudes amb èxit.");
         
         return { statusCode: 200, body: JSON.stringify(data.data) };
+
     } catch (error) {
-        console.error("Error a llistaCursos.js:", error.message);
+        console.error("Error final a l'execució:", error.message);
         return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
     }
 };

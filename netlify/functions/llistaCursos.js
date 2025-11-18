@@ -1,27 +1,26 @@
-// Arxiu: netlify/functions/llistaCursos.js
+const fetch = require('node-fetch');
 
-exports.handler = async function(event, context) {
-    // Obtenim l'URL del nostre CMS des de la variable d'entorn que acabem de crear.
+exports.handler = async function(event) {
     const STRAPI_URL = process.env.STRAPI_API_URL;
     
-    // Aquesta és l'URL per demanar a Strapi tots els 'cursos'.
-    // Li demanem només els camps que necessitem per a la llista (titol, slug, descripcio)
-    // per fer la consulta més ràpida.
+    // LÍNIA DE DEPURACIÓ: Veurem aquest missatge als logs de Netlify.
+    console.log("Intentant connectar a l'API de Strapi a:", STRAPI_URL);
+    
     const apiUrl = `${STRAPI_URL}/cursos?fields[0]=titol&fields[1]=slug&fields[2]=descripcio`;
 
     try {
         const response = await fetch(apiUrl);
         if (!response.ok) {
-            throw new Error('Error al demanar la llista de cursos a Strapi');
+            const errorBody = await response.text();
+            // Aquest console.log també és clau si hi ha un error
+            console.error("Strapi ha retornat un error:", errorBody);
+            throw new Error(`Error de Strapi: ${response.status}`);
         }
         const data = await response.json();
         
-        // Retornem directament la llista de cursos.
-        // Strapi embolcalla les dades en un objecte 'data'.
         return { statusCode: 200, body: JSON.stringify(data.data) };
-
     } catch (error) {
-        console.error("Error a llistaCursos.js:", error);
+        console.error("Error a llistaCursos.js:", error.message);
         return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
     }
 };

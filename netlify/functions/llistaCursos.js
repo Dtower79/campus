@@ -1,28 +1,41 @@
-const fetch = require('node-fetch');
+exports.handler = async function(event, context) {
+  // Recuperem la URL de Strapi de les variables d'entorn
+  const STRAPI_URL = process.env.STRAPI_URL;
 
-exports.handler = async function(event) {
-    const STRAPI_URL = process.env.STRAPI_API_URL;
+  if (!STRAPI_URL) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "La variable STRAPI_URL no està configurada a Netlify" })
+    };
+  }
+
+  try {
+    // Fem la petició a l'API de Strapi
+    // ?populate=* serveix per portar imatges i relacions si calgués
+    const response = await fetch(`${STRAPI_URL}/api/curses?populate=*`);
     
-    console.log("URL de l'API de Strapi:", STRAPI_URL);
-    
-    try {
-        console.log("Iniciant petició fetch...");
-        const response = await fetch(STRAPI_URL); // Crida a l'arrel de l'API
-        console.log("Resposta rebuda. Estat:", response.status);
-
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error("Cos de l'error:", errorBody);
-            throw new Error(`La crida a l'API ha fallat amb estat ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log("Dades rebudes amb èxit.");
-        
-        return { statusCode: 200, body: JSON.stringify(data.data) };
-
-    } catch (error) {
-        console.error("Error final a l'execució:", error.message);
-        return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    if (!response.ok) {
+      throw new Error(`Error de xarxa: ${response.statusText}`);
     }
+
+    const dades = await response.json();
+
+    // Strapi retorna un objecte { data: [...], meta: {...} }
+    // El frontend espera un array directament, així que retornem dades.data
+    return {
+      statusCode: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*", // Permetre CORS
+      },
+      body: JSON.stringify(dades.data),
+    };
+
+  } catch (error) {
+    console.error("Error:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Error connectant amb el CMS", detalls: error.message }),
+    };
+  }
 };

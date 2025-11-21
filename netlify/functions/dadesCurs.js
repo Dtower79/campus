@@ -1,5 +1,5 @@
 exports.handler = async function(event, context) {
-  console.log(">>> VERSIÓ 5.0: AUDITORIA DE DADES FINALS");
+  console.log(">>> VERSIÓ 6.0: DEEP POPULATE (OPCIONS)");
 
   const STRAPI_URL = process.env.STRAPI_URL;
   const { id, slug } = event.queryStringParameters;
@@ -10,9 +10,11 @@ exports.handler = async function(event, context) {
 
   try {
     const isNumber = /^\d+$/.test(valorBusqueda);
-    // IMPORTANT: Tornem a posar el sort als mòduls a veure si Strapi v5 ho accepta així, 
-    // si no, l'ordenació JS del final ens salvarà.
-    const populateQuery = "populate[moduls][populate]=*"; 
+    
+    // --- EL CANVI CLAU ESTÀ AQUÍ ---
+    // Abans: populate[moduls][populate]=*
+    // Ara: Li diem explícitament: "Dins dels mòduls, entra a 'preguntes', i dins de 'preguntes', porta-ho TOT (opcions)"
+    const populateQuery = "populate[moduls][populate][preguntes][populate]=*"; 
     
     let url = isNumber 
       ? `${STRAPI_URL}/api/cursos/${valorBusqueda}?${populateQuery}`
@@ -22,9 +24,6 @@ exports.handler = async function(event, context) {
     if (!response.ok) return { statusCode: response.status, body: JSON.stringify({ error: response.statusText }) };
 
     const dades = await response.json();
-
-    // LOG DE VERITAT: Què ens ha donat Strapi exactament?
-    // console.log("Strapi Raw:", JSON.stringify(dades));
 
     let cursRaw;
     if (dades.data) {
@@ -36,11 +35,10 @@ exports.handler = async function(event, context) {
     }
 
     if (!cursRaw) {
-      console.warn(">>> ALERTA: Strapi ha tornat dades buides o null");
       return { statusCode: 404, body: JSON.stringify({ error: "Curs no trobat" }) };
     }
 
-    // APLANAMENT
+    // --- APLANAMENT DE DADES ---
     const props = cursRaw.attributes ? cursRaw.attributes : cursRaw;
     
     let modulsNets = [];
@@ -49,10 +47,17 @@ exports.handler = async function(event, context) {
     if (Array.isArray(modulsRaw)) {
       modulsNets = modulsRaw.map(m => {
         const mProps = m.attributes ? m.attributes : m;
+        
+        // Ara 'preguntes' ja inclourà les 'opcions' gràcies a la nova query
         const intregratedQuestions = mProps.preguntes || []; 
-        return { id: m.id, ...mProps, preguntes: intregratedQuestions };
+        
+        return { 
+          id: m.id, 
+          ...mProps, 
+          preguntes: intregratedQuestions 
+        };
       });
-      // Ordenem per si de cas
+      // Ordenació manual per seguretat
       modulsNets.sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
     }
 
@@ -61,9 +66,6 @@ exports.handler = async function(event, context) {
       ...props,
       moduls: modulsNets
     };
-
-    // EL LOG DEFINITIU: Aquest és el JSON exacte que rep la teva web
-    console.log(">>> JSON FINAL ENVIAT AL FRONTEND:", JSON.stringify(cursNet));
 
     return {
       statusCode: 200,

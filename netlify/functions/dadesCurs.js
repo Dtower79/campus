@@ -1,25 +1,19 @@
 exports.handler = async function(event, context) {
-  // AQUEST LOG ENS CONFIRMARÀ QUE EL CODI NOU S'ESTÀ EXECUTANT
-  console.log(">>> VERSIÓ 2.0 CARREGADA: Buscant per ID o SLUG");
+  console.log(">>> VERSIÓ 3.0 (FIX ORDENACIÓ): Eliminat sort de la URL");
 
   const STRAPI_URL = process.env.STRAPI_URL;
-  
-  // Recuperem 'id' O 'slug'
   const { id, slug } = event.queryStringParameters;
   const valorBusqueda = id || slug; 
 
-  console.log("Paràmetres rebuts:", { id, slug, valorBusqueda });
-
   if (!STRAPI_URL) return { statusCode: 500, body: JSON.stringify({ error: "Falta STRAPI_URL" }) };
-  
-  if (!valorBusqueda) {
-    console.error("Error: Falta paràmetre de cerca");
-    return { statusCode: 400, body: JSON.stringify({ error: "Falta el paràmetre ID o SLUG" }) };
-  }
+  if (!valorBusqueda) return { statusCode: 400, body: JSON.stringify({ error: "Falta ID o SLUG" }) };
 
   try {
     const isNumber = /^\d+$/.test(valorBusqueda);
-    const populateQuery = "populate[moduls][populate]=*&sort[0]=ordre:asc";
+    
+    // FIX: Hem tret "&sort[0]=ordre:asc" d'aquí perquè el Curs no té camp 'ordre'
+    const populateQuery = "populate[moduls][populate]=*";
+    
     let url;
 
     if (isNumber) {
@@ -28,20 +22,18 @@ exports.handler = async function(event, context) {
       url = `${STRAPI_URL}/api/cursos?filters[slug][$eq]=${valorBusqueda}&${populateQuery}`;
     }
     
-    console.log("Fent petició a:", url); // Per depurar
+    console.log("URL Sol·licitada:", url);
 
     const response = await fetch(url);
     
     if (!response.ok) {
-      console.error("Error resposta Strapi:", response.status);
+      console.error("Error Strapi:", response.status, response.statusText);
       return { statusCode: response.status, body: JSON.stringify({ error: response.statusText }) };
     }
 
     const dades = await response.json();
 
-    if (!dades.data) {
-      return { statusCode: 404, body: JSON.stringify({ error: "No s'han rebut dades" }) };
-    }
+    if (!dades.data) return { statusCode: 404, body: JSON.stringify({ error: "No data" }) };
 
     let cursRaw;
     if (Array.isArray(dades.data)) {
@@ -51,7 +43,7 @@ exports.handler = async function(event, context) {
       cursRaw = dades.data;
     }
 
-    // Aplanament de dades
+    // --- TRACTAMENT DE DADES ---
     const props = cursRaw.attributes ? cursRaw.attributes : cursRaw;
     
     let modulsNets = [];
@@ -63,9 +55,16 @@ exports.handler = async function(event, context) {
         const intregratedQuestions = mProps.preguntes || []; 
         return { id: m.id, ...mProps, preguntes: intregratedQuestions };
       });
+
+      // FIX: Ordenem els mòduls aquí, amb JavaScript, pel camp 'ordre'
+      modulsNets.sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
     }
 
-    const cursNet = { id: cursRaw.id, ...props, moduls: modulsNets };
+    const cursNet = {
+      id: cursRaw.id,
+      ...props,
+      moduls: modulsNets
+    };
 
     return {
       statusCode: 200,

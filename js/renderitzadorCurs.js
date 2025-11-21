@@ -14,19 +14,13 @@ window.addEventListener('load', () => {
         return;
     }
     
-    // Cridem a la funció de backend
     fetch(`/.netlify/functions/dadesCurs?slug=${courseSlug}`)
         .then(res => {
             if (!res.ok) throw new Error("Error de xarxa");
             return res.json();
         })
         .then(data => {
-            // CORRECCIÓ 1:
-            // El backend ja ens envia les dades netes (sense 'attributes').
-            // Passem 'data' directament.
-            if (data.error) {
-                throw new Error(data.error);
-            }
+            if (data.error) throw new Error(data.error);
             renderCourse(data); 
         })
         .catch(error => {
@@ -36,13 +30,10 @@ window.addEventListener('load', () => {
 });
 
 function renderCourse(courseData) {
-    // CORRECCIÓ 2: Accedim directament a les propietats (ja són planes)
     document.title = courseData.titol;
     document.getElementById('curs-titol').innerText = courseData.titol;
     
-    // CORRECCIÓ 3: Gestió de la descripció
-    // Si Strapi l'envia com a text simple (el més probable ara), el pintem directe.
-    // Si fos Rich Text antic, mantindríem la lògica complexa. Farem un "fallback".
+    // Gestió de la descripció del curs (Rich Text vs Text)
     let descText = '';
     if (typeof courseData.descripcio === 'string') {
         descText = courseData.descripcio;
@@ -54,27 +45,22 @@ function renderCourse(courseData) {
     const modulsContainer = document.getElementById('moduls-container');
     modulsContainer.innerHTML = '';
     
-    // CORRECCIÓ 4: Els mòduls ara són un Array directe (sense .data)
     if (!courseData.moduls || courseData.moduls.length === 0) {
          modulsContainer.innerHTML = '<p>Aquest curs encara no té mòduls.</p>';
         return;
     }
     
     courseData.moduls.forEach(modul => {
-        // CORRECCIÓ 5: El mòdul ja ve net (sense .attributes)
         const modulData = modul; 
-        
         const moduleEl = document.createElement('div');
         moduleEl.className = 'module';
         
         let preguntesHTML = '<div class="quiz"><h4>Autoavaluació</h4>';
         
-        // Les preguntes ja venen netes gràcies al backend
         if (modulData.preguntes && modulData.preguntes.length > 0) {
             modulData.preguntes.forEach((pregunta, preguntaIndex) => {
                 let opcionsHTML = '<ul class="options">';
                 
-                // Les opcions venen dins de la pregunta
                 if (pregunta.opcions && Array.isArray(pregunta.opcions)) {
                     pregunta.opcions.forEach((opcio) => {
                         opcionsHTML += `<li data-correct="${opcio.esCorrecta}">${opcio.text}</li>`;
@@ -82,11 +68,26 @@ function renderCourse(courseData) {
                 }
                 opcionsHTML += '</ul>';
                 
+                // --- CORRECCIÓ DE L'EXPLICACIÓ ---
+                // Aquí és on arreglem l'[object Object].
+                // Mirem si és text pla o Rich Text i traiem el contingut real.
+                let textExplicacio = '';
+                if (typeof pregunta.explicacio === 'string') {
+                    // Cas A: És text normal
+                    textExplicacio = pregunta.explicacio;
+                } else if (Array.isArray(pregunta.explicacio) && pregunta.explicacio[0]?.children) {
+                    // Cas B: És Rich Text de Strapi (Array de blocs)
+                    textExplicacio = pregunta.explicacio[0].children[0].text;
+                } else {
+                    // Cas C: Per si de cas falla tot
+                    textExplicacio = 'Mira la normativa per a més detalls.';
+                }
+
                 preguntesHTML += `
                     <div class="question" id="q-${pregunta.id}-${preguntaIndex}">
                         <p>${preguntaIndex + 1}. ${pregunta.text}</p>
                         ${opcionsHTML}
-                        <div class="explanation" style="display:none;">${pregunta.explicacio}</div>
+                        <div class="explanation" style="display:none;">${textExplicacio}</div>
                     </div>
                 `;
             });
@@ -118,12 +119,10 @@ function addQuizInteractivity() {
                 event.target.style.backgroundColor = '#F44336';
                 event.target.style.color = 'white';
                 
-                // Marcar la correcta en verd claret per ensenyar la solució
                 const correctOption = questionDiv.querySelector('li[data-correct="true"]');
                 if(correctOption) correctOption.style.backgroundColor = '#a5d6a7';
             }
             
-            // Mostrar explicació
             const explicacio = questionDiv.querySelector('.explanation');
             if (explicacio) explicacio.style.display = 'block';
         });

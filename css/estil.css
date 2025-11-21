@@ -1,14 +1,14 @@
 :root {
-    /* Colores Modo Claro (Inspirado en Moodle/Fepol) */
-    --primary-color: #0f4c81; /* Azul Fuerte Cabecera */
-    --bg-body: #f2f4f7;       /* Gris fondo */
-    --bg-card: #ffffff;       /* Blanco cartas */
+    /* Colores Modo Claro (Estilo Fepol/Moodle) */
+    --primary-color: #0f4c81; 
+    --bg-body: #f2f4f7;       
+    --bg-card: #ffffff;       
     --text-main: #333333;
     --border-color: #dfe1e5;
     
-    /* Colores Específicos Cuestionario */
-    --quiz-question-bg: #e7f3f5; /* Azulito pregunta */
-    --quiz-feedback-bg: #fcefdc; /* Amarillo feedback */
+    /* Colores Cuestionario */
+    --quiz-question-bg: #e7f3f5; 
+    --quiz-feedback-bg: #fcefdc; 
     --quiz-feedback-text: #6e5314;
     
     --correct-bg: #d4edda;
@@ -50,10 +50,9 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    overflow: hidden; /* El scroll lo tendrán las columnas */
+    overflow: hidden; 
 }
 
-/* --- HEADER --- */
 .top-navbar {
     background-color: var(--primary-color);
     color: white;
@@ -69,26 +68,20 @@ body {
 .btn-icon { background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem; margin-right: 10px; }
 .btn-logout { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 15px; border-radius: 4px; cursor: pointer; }
 
-/* --- LAYOUT GRID --- */
+/* LAYOUT GRID */
 .course-layout {
     display: grid;
-    grid-template-columns: 250px 1fr 280px; /* Izq | Centro | Der */
+    grid-template-columns: 250px 1fr 280px; 
     height: calc(100vh - 60px);
     gap: 20px;
     padding: 20px;
 }
 
-/* Responsive para móviles */
 @media (max-width: 900px) {
-    .course-layout {
-        grid-template-columns: 1fr;
-        overflow-y: auto;
-        display: block;
-    }
-    .sidebar-left, .sidebar-right { display: none; } /* Ocultar sidebars en móvil por ahora */
+    .course-layout { grid-template-columns: 1fr; overflow-y: auto; display: block; }
+    .sidebar-left, .sidebar-right { display: none; } 
 }
 
-/* --- COLUMNAS --- */
 aside, main {
     background-color: var(--bg-card);
     border-radius: 8px;
@@ -98,108 +91,57 @@ aside, main {
     border: 1px solid var(--border-color);
 }
 
-/* --- CONTENIDO (PREGUNTAS) --- */
-.question-card {
-    margin-bottom: 30px;
-    display: flex;
-    gap: 15px;
-}
+/* PREGUNTAS */
+.question-card { margin-bottom: 30px; display: flex; gap: 15px; }
 
 .q-number-box {
-    width: 100px;
-    flex-shrink: 0;
+    width: 100px; flex-shrink: 0;
     background: var(--bg-body);
     border: 1px solid var(--border-color);
-    padding: 10px;
-    font-size: 0.9rem;
-    height: fit-content;
+    padding: 10px; font-size: 0.9rem; height: fit-content;
 }
 .q-state { font-weight: bold; margin-bottom: 5px; display: block;}
 .q-points { font-size: 0.8rem; color: #666; }
 
-.q-content-box {
-    flex-grow: 1;
-}
+.q-content-box { flex-grow: 1; }
 
 .q-text-area {
     background-color: var(--quiz-question-bg);
-    padding: 15px;
-    border-radius: 4px;
-    margin-bottom: 15px;
-    color: var(--text-main);
-    border: 1px solid var(--border-color);
+    padding: 15px; border-radius: 4px; margin-bottom: 15px;
+    color: var(--text-main); border: 1px solid var(--border-color);
 }
 
-.options-list {
-    list-style: none;
-    padding: 0;
-}
+.options-list { list-style: none; padding: 0; }
 
 .option-item {
-    padding: 10px 15px;
-    margin-bottom: 5px;
-    cursor: pointer;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
+    padding: 10px 15px; margin-bottom: 5px; cursor: pointer;
+    border: 1px solid transparent; border-radius: 4px;
+    display: flex; align-items: center;
 }
-
 .option-item:hover { background-color: rgba(0,0,0,0.05); }
-
 .option-radio { margin-right: 10px; width: 18px; height: 18px; }
 
-/* Estados Correcto/Incorrecto */
-.option-item.correct {
-    background-color: var(--correct-bg);
-    border-color: var(--correct-border);
-    color: var(--correct-text);
-}
-.option-item.wrong {
-    background-color: var(--wrong-bg);
-    border-color: var(--wrong-border);
-    color: var(--wrong-text);
-}
+.option-item.correct { background-color: var(--correct-bg); border-color: var(--correct-border); color: var(--correct-text); }
+.option-item.wrong { background-color: var(--wrong-bg); border-color: var(--wrong-border); color: var(--wrong-text); }
 
 .explanation-box {
-    margin-top: 15px;
-    padding: 15px;
-    background-color: var(--quiz-feedback-bg);
-    color: var(--quiz-feedback-text);
-    border: 1px solid #faebcc;
-    border-radius: 4px;
+    margin-top: 15px; padding: 15px;
+    background-color: var(--quiz-feedback-bg); color: var(--quiz-feedback-text);
+    border: 1px solid #faebcc; border-radius: 4px;
     animation: fadeIn 0.5s;
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* --- DERECHA: GRID NAVEGACIÓN --- */
-.quiz-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 5px;
-    margin-top: 10px;
-}
+/* GRID NAVEGACIÓN */
+.quiz-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 10px; }
 .grid-item {
-    aspect-ratio: 1;
-    border: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    font-weight: bold;
-    font-size: 0.9rem;
-    cursor: pointer;
+    aspect-ratio: 1; border: 1px solid var(--border-color);
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; font-weight: bold; font-size: 0.9rem; cursor: pointer;
 }
 .grid-item.correct { background-color: var(--correct-bg); border-color: var(--correct-border); color: var(--correct-text); }
 .grid-item.wrong { background-color: var(--wrong-bg); border-color: var(--wrong-border); color: var(--wrong-text); }
 
-/* Índice Izquierdo */
-.module-link {
-    display: block;
-    padding: 10px;
-    border-bottom: 1px solid var(--border-color);
-    color: var(--text-main);
-    text-decoration: none;
-}
+.module-link { display: block; padding: 10px; border-bottom: 1px solid var(--border-color); color: var(--text-main); text-decoration: none; }
 .module-link:hover { background-color: var(--bg-body); }

@@ -25,19 +25,19 @@ window.addEventListener('load', () => {
 });
 
 function renderCourseLayout(courseData) {
-    // 1. Info Básica
+    // 1. Títulos
     document.title = courseData.titol;
     document.getElementById('curs-titol').innerText = courseData.titol;
     
     let descText = typeof courseData.descripcio === 'string' ? courseData.descripcio : (courseData.descripcio?.[0]?.children?.[0]?.text || '');
     document.getElementById('curs-descripcio').innerText = descText;
 
-    // 2. Renderizar Índice Izquierdo (Modules)
+    // 2. Índice Izquierdo
     const indexContainer = document.getElementById('course-index');
     indexContainer.innerHTML = '';
     
     if(courseData.moduls) {
-        courseData.moduls.forEach((mod, idx) => {
+        courseData.moduls.forEach((mod) => {
             const link = document.createElement('a');
             link.className = 'module-link';
             link.href = `#modul-${mod.id}`;
@@ -46,7 +46,7 @@ function renderCourseLayout(courseData) {
         });
     }
 
-    // 3. Renderizar Contenido Central y Grid Derecho
+    // 3. Contenido y Grid Derecho
     const contentContainer = document.getElementById('moduls-container');
     contentContainer.innerHTML = '';
 
@@ -61,22 +61,20 @@ function renderCourseLayout(courseData) {
     }
 
     courseData.moduls.forEach(modul => {
-        // Crear Título de Módulo
         const moduleTitle = document.createElement('div');
         moduleTitle.id = `modul-${modul.id}`;
         moduleTitle.innerHTML = `<h2 style="border-bottom: 2px solid var(--primary-color); padding-bottom:10px; margin-top:40px;">${modul.titol}</h2><p>${modul.resum}</p>`;
         contentContainer.appendChild(moduleTitle);
 
-        // Renderizar Preguntas
         if (modul.preguntes && modul.preguntes.length > 0) {
             modul.preguntes.forEach((preg) => {
                 globalQuestionCounter++;
                 
-                // A. Renderizar Pregunta Central (Estilo Moodle)
+                // A. Pregunta Central
                 const qCard = createMoodleQuestionCard(preg, globalQuestionCounter);
                 contentContainer.appendChild(qCard);
 
-                // B. Renderizar Grid Derecho
+                // B. Grid Derecho
                 const gridItem = document.createElement('div');
                 gridItem.className = 'grid-item';
                 gridItem.id = `grid-q-${globalQuestionCounter}`;
@@ -95,60 +93,54 @@ function createMoodleQuestionCard(pregunta, qNum) {
     card.className = 'question-card';
     card.id = `question-${qNum}`;
 
-    // Columna Izquierda (Número y Puntos)
+    // Caja Info Izquierda
     const infoBox = document.createElement('div');
     infoBox.className = 'q-number-box';
     infoBox.innerHTML = `
         <span class="q-state">Pregunta ${qNum}</span>
-        <span class="q-state" id="status-${qNum}">Sense respondre</span>
-        <div class="q-points">Puntua sobre 1,00</div>
-        <div class="q-points"><i class="fas fa-flag"></i> Marcar</div>
+        <span class="q-state" id="status-${qNum}" style="font-weight:normal; font-size:0.8rem;">Sense respondre</span>
+        <div class="q-points" style="margin-top:5px;">Puntua sobre 1,00</div>
     `;
 
-    // Columna Derecha (Texto y Opciones)
+    // Caja Contenido Derecha
     const contentBox = document.createElement('div');
     contentBox.className = 'q-content-box';
 
-    // 1. Texto Pregunta (Caja Azul)
     const qText = document.createElement('div');
     qText.className = 'q-text-area';
     qText.innerHTML = `<p>${pregunta.text}</p>`;
     contentBox.appendChild(qText);
 
-    // 2. Opciones
     const optionsList = document.createElement('div');
     optionsList.className = 'options-list';
     
-    // Extraer texto explicacion
     let explicacioText = typeof pregunta.explicacio === 'string' ? pregunta.explicacio : (pregunta.explicacio?.[0]?.children?.[0]?.text || 'Veure normativa.');
 
     if (pregunta.opcions) {
         pregunta.opcions.forEach((opcio, idx) => {
             const optRow = document.createElement('div');
             optRow.className = 'option-item';
-            optRow.dataset.correct = opcio.esCorrecta; // Guardamos si es correcta aquí
+            optRow.dataset.correct = opcio.esCorrecta; 
             
-            // Input Radio (Visual)
             const radio = document.createElement('input');
             radio.type = 'radio';
-            radio.name = `q-${qNum}`; // Agrupar por pregunta
+            radio.name = `q-${qNum}`; 
             radio.className = 'option-radio';
             
             const label = document.createElement('span');
-            label.innerText = `${String.fromCharCode(97 + idx)}. ${opcio.text}`; // a. b. c. d.
+            label.innerText = `${String.fromCharCode(97 + idx)}. ${opcio.text}`; 
 
             optRow.appendChild(radio);
             optRow.appendChild(label);
 
-            // --- LÓGICA CLICK (PRÁCTICA - FEEDBACK INMEDIATO) ---
+            // CLICK: Lógica de Feedback Inmediato
             optRow.addEventListener('click', () => {
-                if (contentBox.classList.contains('answered')) return; // Ya respondida
+                if (contentBox.classList.contains('answered')) return; 
                 
                 contentBox.classList.add('answered');
                 radio.checked = true;
                 document.getElementById(`status-${qNum}`).innerText = "Finalitzat";
 
-                // Colorear Grid Derecho
                 const gridItem = document.getElementById(`grid-q-${qNum}`);
 
                 if (opcio.esCorrecta) {
@@ -158,9 +150,9 @@ function createMoodleQuestionCard(pregunta, qNum) {
                 } else {
                     optRow.classList.add('wrong');
                     gridItem.classList.add('wrong');
-                    gridItem.innerHTML = `<i class="fas fa-times"></i>`; // X roja en el grid
+                    gridItem.innerHTML = `<i class="fas fa-times"></i>`;
                     
-                    // Marcar también la correcta en verde para que el alumno aprenda
+                    // Marcar la correcta en verde
                     const allOptions = optionsList.querySelectorAll('.option-item');
                     allOptions.forEach(opt => {
                         if (opt.dataset.correct === 'true') {
@@ -169,7 +161,6 @@ function createMoodleQuestionCard(pregunta, qNum) {
                     });
                 }
 
-                // Mostrar Explicación (Caja Amarilla)
                 const expBox = document.createElement('div');
                 expBox.className = 'explanation-box';
                 expBox.innerHTML = `<strong>Retroalimentació:</strong><br>${explicacioText}`;

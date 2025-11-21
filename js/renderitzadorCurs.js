@@ -1,3 +1,7 @@
+let currentCourseData = null; // Guardem les dades globals del curs
+let userAnswers = {};         // Guardarem les respostes aquí: { "q-1-1": 2 } (preguntaID: opcioIndex)
+let isExamFinished = false;   // Per bloquejar canvis un cop corregit
+
 window.addEventListener('load', () => {
     if (!netlifyIdentity.currentUser()) {
         window.location.replace('/');
@@ -16,6 +20,7 @@ window.addEventListener('load', () => {
         .then(res => res.json())
         .then(data => {
             if (data.error) throw new Error(data.error);
+            currentCourseData = data; // Guardem dades globalment
             renderCourseLayout(data); 
         })
         .catch(error => {
@@ -25,14 +30,14 @@ window.addEventListener('load', () => {
 });
 
 function renderCourseLayout(courseData) {
-    // 1. Títulos
+    // 1. Títols
     document.title = courseData.titol;
     document.getElementById('curs-titol').innerText = courseData.titol;
     
     let descText = typeof courseData.descripcio === 'string' ? courseData.descripcio : (courseData.descripcio?.[0]?.children?.[0]?.text || '');
     document.getElementById('curs-descripcio').innerText = descText;
 
-    // 2. Índice Izquierdo
+    // 2. Índex Esquerre
     const indexContainer = document.getElementById('course-index');
     indexContainer.innerHTML = '';
     
@@ -46,9 +51,15 @@ function renderCourseLayout(courseData) {
         });
     }
 
-    // 3. Contenido y Grid Derecho
+    // 3. Contingut Central
     const contentContainer = document.getElementById('moduls-container');
     contentContainer.innerHTML = '';
+
+    // Caixa de Nota (La creem però la deixem oculta)
+    const scoreDiv = document.createElement('div');
+    scoreDiv.id = 'final-score-card';
+    scoreDiv.className = 'score-card';
+    contentContainer.appendChild(scoreDiv);
 
     const quizGridContainer = document.getElementById('quiz-grid');
     quizGridContainer.innerHTML = '';
@@ -70,11 +81,11 @@ function renderCourseLayout(courseData) {
             modul.preguntes.forEach((preg) => {
                 globalQuestionCounter++;
                 
-                // A. Pregunta Central
-                const qCard = createMoodleQuestionCard(preg, globalQuestionCounter);
+                // Renderitzar Targeta de Pregunta
+                const qCard = createExamQuestionCard(preg, globalQuestionCounter);
                 contentContainer.appendChild(qCard);
 
-                // B. Grid Derecho
+                // Renderitzar Grid Dret
                 const gridItem = document.createElement('div');
                 gridItem.className = 'grid-item';
                 gridItem.id = `grid-q-${globalQuestionCounter}`;
@@ -86,14 +97,35 @@ function renderCourseLayout(courseData) {
             });
         }
     });
+
+    // 4. Botó Finalitzar
+    if (globalQuestionCounter > 0) {
+        const actionArea = document.createElement('div');
+        actionArea.className = 'action-area';
+        actionArea.innerHTML = `<button id="btn-submit" class="btn-finish"><i class="fas fa-check-circle"></i> Entregar i Corregir</button>`;
+        contentContainer.appendChild(actionArea);
+
+        document.getElementById('btn-submit').addEventListener('click', calculateAndShowResults);
+        
+        // També vinculem l'enllaç de la barra dreta
+        const finishLink = document.getElementById('finish-review');
+        if(finishLink) {
+            finishLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                calculateAndShowResults();
+            });
+        }
+    }
 }
 
-function createMoodleQuestionCard(pregunta, qNum) {
+function createExamQuestionCard(pregunta, qNum) {
     const card = document.createElement('div');
     card.className = 'question-card';
     card.id = `question-${qNum}`;
+    // Guardem l'ID real de la pregunta per buscar-la després
+    card.dataset.questionId = qNum; 
 
-    // Caja Info Izquierda
+    // Caixa Info
     const infoBox = document.createElement('div');
     infoBox.className = 'q-number-box';
     infoBox.innerHTML = `
@@ -102,7 +134,7 @@ function createMoodleQuestionCard(pregunta, qNum) {
         <div class="q-points" style="margin-top:5px;">Puntua sobre 1,00</div>
     `;
 
-    // Caja Contenido Derecha
+    // Caixa Contingut
     const contentBox = document.createElement('div');
     contentBox.className = 'q-content-box';
 
@@ -113,14 +145,13 @@ function createMoodleQuestionCard(pregunta, qNum) {
 
     const optionsList = document.createElement('div');
     optionsList.className = 'options-list';
-    
-    let explicacioText = typeof pregunta.explicacio === 'string' ? pregunta.explicacio : (pregunta.explicacio?.[0]?.children?.[0]?.text || 'Veure normativa.');
+    optionsList.id = `options-list-${qNum}`;
 
     if (pregunta.opcions) {
         pregunta.opcions.forEach((opcio, idx) => {
             const optRow = document.createElement('div');
             optRow.className = 'option-item';
-            optRow.dataset.correct = opcio.esCorrecta; 
+            optRow.dataset.idx = idx; // Guardem l'índex (0, 1, 2, 3)
             
             const radio = document.createElement('input');
             radio.type = 'radio';
@@ -133,47 +164,140 @@ function createMoodleQuestionCard(pregunta, qNum) {
             optRow.appendChild(radio);
             optRow.appendChild(label);
 
-            // CLICK: Lógica de Feedback Inmediato
+            // LÒGICA DE SELECCIÓ (NO CORRECCIÓ)
             optRow.addEventListener('click', () => {
-                if (contentBox.classList.contains('answered')) return; 
+                if (isExamFinished) return; // Si ja hem acabat, no deixar canviar
                 
-                contentBox.classList.add('answered');
+                // 1. Marcar visualment
+                // Treure classe 'selected' de les altres opcions d'aquesta pregunta
+                const siblings = optionsList.querySelectorAll('.option-item');
+                siblings.forEach(el => {
+                    el.classList.remove('selected');
+                    el.querySelector('input').checked = false;
+                });
+
+                // Afegir a la actual
+                optRow.classList.add('selected');
                 radio.checked = true;
-                document.getElementById(`status-${qNum}`).innerText = "Finalitzat";
 
-                const gridItem = document.getElementById(`grid-q-${qNum}`);
+                // 2. Guardar resposta en memòria
+                userAnswers[qNum] = idx; // Guardem que a la pregunta X hem triat la opció Y
 
-                if (opcio.esCorrecta) {
-                    optRow.classList.add('correct');
-                    gridItem.classList.add('correct');
-                    gridItem.innerHTML = `<i class="fas fa-check"></i>`;
-                } else {
-                    optRow.classList.add('wrong');
-                    gridItem.classList.add('wrong');
-                    gridItem.innerHTML = `<i class="fas fa-times"></i>`;
-                    
-                    // Marcar la correcta en verde
-                    const allOptions = optionsList.querySelectorAll('.option-item');
-                    allOptions.forEach(opt => {
-                        if (opt.dataset.correct === 'true') {
-                            opt.classList.add('correct');
-                        }
-                    });
-                }
-
-                const expBox = document.createElement('div');
-                expBox.className = 'explanation-box';
-                expBox.innerHTML = `<strong>Retroalimentació:</strong><br>${explicacioText}`;
-                contentBox.appendChild(expBox);
+                // 3. Actualitzar estat visual (Respost)
+                document.getElementById(`status-${qNum}`).innerText = "Resposta guardada";
+                document.getElementById(`grid-q-${qNum}`).style.backgroundColor = "#e0e0e0"; // Gris fosc al grid per saber que està resposta
             });
 
             optionsList.appendChild(optRow);
         });
     }
 
+    // Preparem la caixa d'explicació (però oculta i buida de moment)
+    const expBox = document.createElement('div');
+    expBox.className = 'explanation-box';
+    expBox.id = `explanation-${qNum}`;
+    expBox.style.display = 'none';
+    // Preparem el text de l'explicació per després
+    let explicacioText = typeof pregunta.explicacio === 'string' ? pregunta.explicacio : (pregunta.explicacio?.[0]?.children?.[0]?.text || 'Veure normativa.');
+    expBox.innerHTML = `<strong>Retroalimentació:</strong><br>${explicacioText}`;
+    
     contentBox.appendChild(optionsList);
+    contentBox.appendChild(expBox);
+    
     card.appendChild(infoBox);
     card.appendChild(contentBox);
 
     return card;
+}
+
+function calculateAndShowResults() {
+    if (isExamFinished) return; // Evitar doble click
+    if (!confirm("Segur que vols entregar l'examen i veure la nota?")) return;
+
+    isExamFinished = true; // Bloquejar canvis
+    let encerts = 0;
+    let totalPreguntes = 0;
+
+    // Recorrem les dades originals per comparar
+    let qCounter = 0;
+    currentCourseData.moduls.forEach(modul => {
+        if (modul.preguntes) {
+            modul.preguntes.forEach(preg => {
+                qCounter++;
+                totalPreguntes++;
+
+                const userSelectionIdx = userAnswers[qCounter]; // Quina opció ha triat l'usuari (0, 1, 2...)
+                const optionsListDOM = document.getElementById(`options-list-${qCounter}`);
+                const statusDOM = document.getElementById(`status-${qCounter}`);
+                const gridItemDOM = document.getElementById(`grid-q-${qCounter}`);
+                const explanationDOM = document.getElementById(`explanation-${qCounter}`);
+
+                // Busquem quina era la correcta a les dades
+                let correctIdx = -1;
+                preg.opcions.forEach((opt, i) => {
+                    if (opt.esCorrecta) correctIdx = i;
+                });
+
+                // CORREGIR VISUALMENT
+                const domOptions = optionsListDOM.querySelectorAll('.option-item');
+                
+                // 1. Marcar la correcta en VERD sempre
+                if(correctIdx !== -1 && domOptions[correctIdx]) {
+                    domOptions[correctIdx].classList.add('correct');
+                }
+
+                // 2. Si l'usuari ha fallat, marcar la seva en VERMELL
+                if (userSelectionIdx !== undefined) {
+                    if (userSelectionIdx === correctIdx) {
+                        encerts++;
+                        statusDOM.innerText = "Correcta";
+                        statusDOM.style.color = "green";
+                        statusDOM.style.fontWeight = "bold";
+                        gridItemDOM.className = 'grid-item correct'; // Grid verd
+                        gridItemDOM.innerHTML = '<i class="fas fa-check"></i>';
+                    } else {
+                        domOptions[userSelectionIdx].classList.add('wrong');
+                        domOptions[userSelectionIdx].classList.remove('selected'); // Treure blau
+                        statusDOM.innerText = "Incorrecta";
+                        statusDOM.style.color = "red";
+                        statusDOM.style.fontWeight = "bold";
+                        gridItemDOM.className = 'grid-item wrong'; // Grid vermell
+                        gridItemDOM.innerHTML = '<i class="fas fa-times"></i>';
+                    }
+                } else {
+                    statusDOM.innerText = "Sense respondre";
+                    statusDOM.style.color = "orange";
+                    gridItemDOM.className = 'grid-item wrong'; // Grid vermell si no respon
+                    gridItemDOM.innerHTML = '<i class="fas fa-minus"></i>';
+                }
+
+                // 3. Mostrar Explicació
+                explanationDOM.style.display = 'block';
+            });
+        }
+    });
+
+    // CALCULAR NOTA (Sobre 10)
+    const nota = (encerts / totalPreguntes) * 10;
+    let missatge = "";
+    if (nota >= 5) missatge = "Enhorabona! Has superat el mòdul.";
+    else missatge = "Has de repassar el temari.";
+
+    // MOSTRAR TARGETA DE RESULTATS
+    const scoreCard = document.getElementById('final-score-card');
+    scoreCard.innerHTML = `
+        <h3>Resultats de l'intent</h3>
+        <span class="score-number">${nota.toFixed(1)} / 10</span>
+        <p class="score-message">${missatge}</p>
+        <p>Has encertat <strong>${encerts}</strong> de <strong>${totalPreguntes}</strong> preguntes.</p>
+    `;
+    scoreCard.style.display = 'block';
+
+    // Fer scroll cap amunt per veure la nota
+    scoreCard.scrollIntoView({ behavior: 'smooth' });
+
+    // Desactivar botó
+    document.getElementById('btn-submit').disabled = true;
+    document.getElementById('btn-submit').innerText = "Examen Corregit";
+    document.getElementById('btn-submit').style.backgroundColor = "#999";
 }

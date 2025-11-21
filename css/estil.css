@@ -1,147 +1,65 @@
-:root {
-    /* Colores Modo Claro (Estilo Fepol/Moodle) */
-    --primary-color: #0f4c81; 
-    --bg-body: #f2f4f7;       
-    --bg-card: #ffffff;       
-    --text-main: #333333;
-    --border-color: #dfe1e5;
-    
-    /* Colores Cuestionario */
-    --quiz-question-bg: #e7f3f5; 
-    --quiz-feedback-bg: #fcefdc; 
-    --quiz-feedback-text: #6e5314;
-    
-    --correct-bg: #d4edda;
-    --correct-border: #c3e6cb;
-    --correct-text: #155724;
-    
-    --wrong-bg: #f8d7da;
-    --wrong-border: #f5c6cb;
-    --wrong-text: #721c24;
+/* ... (Mantén tot el CSS anterior igual) ... */
+
+/* AFEGIR AQUESTS NOUS ESTILS AL FINAL */
+
+/* Estat "Seleccionat" (Abans de corregir) */
+.option-item.selected {
+    background-color: #e3f2fd; /* Blau molt claret neutre */
+    border-color: #2196f3;     /* Borde blau */
+    color: #0d47a1;
+    font-weight: 500;
 }
 
-[data-theme="dark"] {
-    /* Colores Modo Oscuro */
-    --primary-color: #1a2634;
-    --bg-body: #121212;
-    --bg-card: #1e1e1e;
-    --text-main: #e0e0e0;
-    --border-color: #333;
-    
-    --quiz-question-bg: #2c3e50;
-    --quiz-feedback-bg: #4a3b20;
-    --quiz-feedback-text: #ffd700;
-    
-    --correct-bg: #1e4d2b;
-    --correct-border: #2a6b3f;
-    --correct-text: #d4edda;
-    
-    --wrong-bg: #5c1e23;
-    --wrong-border: #7a282e;
-    --wrong-text: #f8d7da;
+/* Botó d'Acció Principal */
+.action-area {
+    text-align: center;
+    margin: 40px 0;
+    padding: 20px;
+    background-color: var(--bg-card);
+    border-top: 1px solid var(--border-color);
 }
 
-* { box-sizing: border-box; }
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--bg-body);
-    color: var(--text-main);
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden; 
-}
-
-.top-navbar {
+.btn-finish {
     background-color: var(--primary-color);
     color: white;
-    padding: 0 20px;
-    height: 60px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    z-index: 10;
-}
-.top-navbar a { color: white; text-decoration: none; font-weight: bold; font-size: 1.2rem; }
-.btn-icon { background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem; margin-right: 10px; }
-.btn-logout { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 15px; border-radius: 4px; cursor: pointer; }
-
-/* LAYOUT GRID */
-.course-layout {
-    display: grid;
-    grid-template-columns: 250px 1fr 280px; 
-    height: calc(100vh - 60px);
-    gap: 20px;
-    padding: 20px;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
 }
 
-@media (max-width: 900px) {
-    .course-layout { grid-template-columns: 1fr; overflow-y: auto; display: block; }
-    .sidebar-left, .sidebar-right { display: none; } 
+.btn-finish:hover {
+    background-color: #0a3b66;
 }
 
-aside, main {
+/* Caixa de Resultats (Nota Final) */
+.score-card {
     background-color: var(--bg-card);
+    border: 2px solid var(--primary-color);
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    overflow-y: auto;
     padding: 20px;
-    border: 1px solid var(--border-color);
+    margin-bottom: 30px;
+    text-align: center;
+    display: none; /* Ocult per defecte */
+    animation: slideDown 0.5s ease;
 }
 
-/* PREGUNTAS */
-.question-card { margin-bottom: 30px; display: flex; gap: 15px; }
-
-.q-number-box {
-    width: 100px; flex-shrink: 0;
-    background: var(--bg-body);
-    border: 1px solid var(--border-color);
-    padding: 10px; font-size: 0.9rem; height: fit-content;
-}
-.q-state { font-weight: bold; margin-bottom: 5px; display: block;}
-.q-points { font-size: 0.8rem; color: #666; }
-
-.q-content-box { flex-grow: 1; }
-
-.q-text-area {
-    background-color: var(--quiz-question-bg);
-    padding: 15px; border-radius: 4px; margin-bottom: 15px;
-    color: var(--text-main); border: 1px solid var(--border-color);
+.score-number {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    display: block;
+    margin: 10px 0;
 }
 
-.options-list { list-style: none; padding: 0; }
-
-.option-item {
-    padding: 10px 15px; margin-bottom: 5px; cursor: pointer;
-    border: 1px solid transparent; border-radius: 4px;
-    display: flex; align-items: center;
-}
-.option-item:hover { background-color: rgba(0,0,0,0.05); }
-.option-radio { margin-right: 10px; width: 18px; height: 18px; }
-
-.option-item.correct { background-color: var(--correct-bg); border-color: var(--correct-border); color: var(--correct-text); }
-.option-item.wrong { background-color: var(--wrong-bg); border-color: var(--wrong-border); color: var(--wrong-text); }
-
-.explanation-box {
-    margin-top: 15px; padding: 15px;
-    background-color: var(--quiz-feedback-bg); color: var(--quiz-feedback-text);
-    border: 1px solid #faebcc; border-radius: 4px;
-    animation: fadeIn 0.5s;
+.score-message {
+    font-size: 1.2rem;
+    color: #666;
 }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-/* GRID NAVEGACIÓN */
-.quiz-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 10px; }
-.grid-item {
-    aspect-ratio: 1; border: 1px solid var(--border-color);
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 4px; font-weight: bold; font-size: 0.9rem; cursor: pointer;
+@keyframes slideDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
-.grid-item.correct { background-color: var(--correct-bg); border-color: var(--correct-border); color: var(--correct-text); }
-.grid-item.wrong { background-color: var(--wrong-bg); border-color: var(--wrong-border); color: var(--wrong-text); }
-
-.module-link { display: block; padding: 10px; border-bottom: 1px solid var(--border-color); color: var(--text-main); text-decoration: none; }
-.module-link:hover { background-color: var(--bg-body); }

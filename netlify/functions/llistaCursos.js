@@ -2,39 +2,55 @@ exports.handler = async function(event, context) {
   const STRAPI_URL = process.env.STRAPI_URL;
 
   if (!STRAPI_URL) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: "La variable STRAPI_URL no està configurada a Netlify" })
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: "Falta STRAPI_URL" }) };
   }
 
   try {
+    // 1. Petició a Strapi
     const response = await fetch(`${STRAPI_URL}/api/cursos?populate=*`);
     
     if (!response.ok) {
-      throw new Error(`Error de xarxa: ${response.statusText}`);
+      console.error("Error Strapi Response:", response.status, response.statusText);
+      return { statusCode: response.status, body: JSON.stringify({ error: response.statusText }) };
     }
 
     const dades = await response.json();
-
-    // TRACTAMENT DE DADES "PROFUND"
-    // Aplanem el curs i també les seves relacions (imatges, mòduls, etc.)
-    // perquè el frontend no es trobi amb objectes { data: ... } inesperats.
     
+    // LOG DE DEPURACIÓ: Veurem què arriba exactament als logs de Netlify
+    console.log("Strapi Raw Data:", JSON.stringify(dades));
+
+    // Si no hi ha dades o el format és incorrecte, retornem array buit per no petar
+    if (!dades || !dades.data) {
+      console.warn("Format de dades inesperat o buit");
+      return { statusCode: 200, body: JSON.stringify([]) };
+    }
+
+    // 2. Mapeig "Defensiu" (No petarà encara que faltin camps)
     const cursosNets = dades.data.map(curs => {
-      const attrs = curs.attributes;
+      // Protecció contra 'attributes' null
+      const attrs = curs.attributes || {};
+      
+      // Gestió segura de mòduls
+      let modulsNets = [];
+      if (attrs.moduls && attrs.moduls.data && Array.isArray(attrs.moduls.data)) {
+        modulsNets = attrs.moduls.data.map(m => ({
+          id: m.id,
+          ...(m.attributes || {})
+        }));
+      }
+
+      // Gestió segura d'imatge
+      let imatgeUrl = null;
+      // Utilitzem encadenament opcional (?.) per seguretat extrema
+      if (attrs.imatge?.data?.attributes?.url) {
+        imatgeUrl = attrs.imatge.data.attributes.url;
+      }
 
       return {
         id: curs.id,
         ...attrs,
-        // Si 'moduls' existeix, traiem la capa 'data' per deixar l'array net
-        moduls: attrs.moduls?.data ? attrs.moduls.data.map(m => ({ id: m.id, ...m.attributes })) : [],
-        
-        // Si tens imatges, fem el mateix. Si és null, posem null.
-        imatge: attrs.imatge?.data ? attrs.imatge.data.attributes.url : null,
-        
-        // Ídem per qualsevol altra relació que pugui causar conflicte
-        categories: attrs.categories?.data ? attrs.categories.data.map(c => c.attributes) : []
+        moduls: modulsNets, // Ara segur que és un Array, encara que estigui buit
+        imatge: imatgeUrl   // Ara segur que és una URL o null
       };
     });
 
@@ -48,10 +64,10 @@ exports.handler = async function(event, context) {
     };
 
   } catch (error) {
-    console.error("Error:", error);
+    console.error("CRASH CRÍTIC:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Error connectant amb el CMS", detalls: error.message }),
+      body: JSON.stringify({ error: "Error intern del servidor", detalls: error.message }),
     };
   }
 };

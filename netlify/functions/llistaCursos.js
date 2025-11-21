@@ -1,5 +1,4 @@
 exports.handler = async function(event, context) {
-  // Recuperem la URL de Strapi de les variables d'entorn
   const STRAPI_URL = process.env.STRAPI_URL;
 
   if (!STRAPI_URL) {
@@ -20,15 +19,22 @@ exports.handler = async function(event, context) {
 
     const dades = await response.json();
 
-    // Strapi retorna un objecte { data: [...], meta: {...} }
-    // El frontend espera un array directament, així que retornem dades.data
+    // TRACTAMENT DE DADES (Aplanament)
+    // Strapi retorna: { data: [ { id: 1, attributes: { titol: "..." } } ] }
+    // El teu frontend vol: [ { id: 1, titol: "..." } ]
+    
+    const cursosNets = dades.data.map(curs => ({
+      id: curs.id,
+      ...curs.attributes
+    }));
+
     return {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*", // Permetre CORS
+        "Access-Control-Allow-Origin": "*", 
       },
-      body: JSON.stringify(dades.data),
+      body: JSON.stringify(cursosNets),
     };
 
   } catch (error) {

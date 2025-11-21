@@ -1,5 +1,5 @@
 exports.handler = async function(event, context) {
-  console.log(">>> VERSIÓ 3.0 (FIX ORDENACIÓ): Eliminat sort de la URL");
+  console.log(">>> VERSIÓ 4.0 (DETECTIU): Buscant l'error de Slug");
 
   const STRAPI_URL = process.env.STRAPI_URL;
   const { id, slug } = event.queryStringParameters;
@@ -11,9 +11,9 @@ exports.handler = async function(event, context) {
   try {
     const isNumber = /^\d+$/.test(valorBusqueda);
     
-    // FIX: Hem tret "&sort[0]=ordre:asc" d'aquí perquè el Curs no té camp 'ordre'
+    // 1. Intentem buscar el curs
+    // Nota: Hem tret el 'sort' que donava error 400.
     const populateQuery = "populate[moduls][populate]=*";
-    
     let url;
 
     if (isNumber) {
@@ -22,28 +22,45 @@ exports.handler = async function(event, context) {
       url = `${STRAPI_URL}/api/cursos?filters[slug][$eq]=${valorBusqueda}&${populateQuery}`;
     }
     
-    console.log("URL Sol·licitada:", url);
+    console.log(`Buscant: ${valorBusqueda} | URL: ${url}`);
 
     const response = await fetch(url);
-    
-    if (!response.ok) {
-      console.error("Error Strapi:", response.status, response.statusText);
-      return { statusCode: response.status, body: JSON.stringify({ error: response.statusText }) };
-    }
-
     const dades = await response.json();
 
-    if (!dades.data) return { statusCode: 404, body: JSON.stringify({ error: "No data" }) };
-
+    // 2. VERIFICACIÓ DE RESULTATS
     let cursRaw;
-    if (Array.isArray(dades.data)) {
-      if (dades.data.length === 0) return { statusCode: 404, body: JSON.stringify({ error: "Curs no trobat" }) };
-      cursRaw = dades.data[0];
-    } else {
-      cursRaw = dades.data;
+    let trobat = false;
+
+    if (dades.data) {
+      if (Array.isArray(dades.data)) {
+        if (dades.data.length > 0) {
+          cursRaw = dades.data[0];
+          trobat = true;
+        }
+      } else if (dades.data.id) { // És un objecte
+        cursRaw = dades.data;
+        trobat = true;
+      }
     }
 
-    // --- TRACTAMENT DE DADES ---
+    // 3. SI NO EL TROBEM... FEM DE DETECTIUS
+    if (!trobat) {
+      console.warn(`⚠️ NO S'HA TROBAT EL CURS: "${valorBusqueda}"`);
+      
+      // Fem una petició extra per veure quins cursos EXISTEIXEN realment
+      // Així veurem al log quin és l'slug correcte
+      const checkResponse = await fetch(`${STRAPI_URL}/api/cursos`);
+      const checkData = await checkResponse.json();
+      
+      if (checkData.data) {
+        const slugsDisponibles = checkData.data.map(c => c.attributes ? c.attributes.slug : c.slug);
+        console.log(">>> LLISTA D'SLUGS REALS A LA DB:", JSON.stringify(slugsDisponibles));
+      }
+
+      return { statusCode: 404, body: JSON.stringify({ error: "Curs no trobat. Mira els logs de Netlify." }) };
+    }
+
+    // 4. SI EL TROBEM, PROCESSEM LES DADES
     const props = cursRaw.attributes ? cursRaw.attributes : cursRaw;
     
     let modulsNets = [];
@@ -55,8 +72,7 @@ exports.handler = async function(event, context) {
         const intregratedQuestions = mProps.preguntes || []; 
         return { id: m.id, ...mProps, preguntes: intregratedQuestions };
       });
-
-      // FIX: Ordenem els mòduls aquí, amb JavaScript, pel camp 'ordre'
+      // Ordenació per JS
       modulsNets.sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
     }
 

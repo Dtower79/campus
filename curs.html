@@ -1,44 +1,105 @@
 <!DOCTYPE html>
-<html lang="ca">
+<html lang="ca" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <title>Carregant curs...</title>
-    <link rel="stylesheet" href="/css/estil.css">
-    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-    <style>
-        /* Estils específics per a la pàgina del curs */
-        .quiz .question { margin-bottom: 1.5rem; }
-        .quiz .options { list-style: none; padding: 0; margin: 0.5rem 0; }
-        .quiz .options li {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            margin-bottom: 5px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .quiz .options li:hover { background-color: #f0f2f5; }
-        .quiz .explanation {
-            display: none; /* Amagat per defecte */
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #e3f2fd;
-            border: 1px solid #90caf9;
-            border-radius: 5px;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus E-Learning</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Iconos de FontAwesome para el menú -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body>
-    <main class="container" id="container">
-        <h1 id="curs-titol">Carregant...</h1>
-        <p id="curs-descripcio"></p>
-        <hr>
-        <div id="moduls-container">
-            <p>Carregant mòduls...</p>
+
+    <!-- Barra Superior -->
+    <header class="top-navbar">
+        <div class="logo">
+            <a href="dashboard.html"><i class="fas fa-graduation-cap"></i> SICAP Campus</a>
         </div>
-    </main>
-    
-    <!-- Enllacem el nostre nou script "motor" -->
-    <script src="/js/renderitzadorCurs.js"></script>
+        <div class="user-controls">
+            <button id="theme-toggle" class="btn-icon"><i class="fas fa-moon"></i></button>
+            <span id="user-name">Alumne</span>
+            <button id="logout-btn" class="btn-logout">Sortir</button>
+        </div>
+    </header>
+
+    <!-- Layout Principal (Grid de 3 columnas) -->
+    <div class="course-layout">
+        
+        <!-- Columna Izquierda: Índice -->
+        <aside class="sidebar-left">
+            <div class="sidebar-header">
+                <h3>Índex del Curs</h3>
+            </div>
+            <div id="course-index" class="module-list">
+                <!-- Aquí se cargará la lista de módulos -->
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+            </div>
+        </aside>
+
+        <!-- Columna Central: Contenido -->
+        <main class="main-content">
+            <div id="content-header">
+                <h1 id="curs-titol">Carregant curs...</h1>
+                <p id="curs-descripcio" class="course-intro"></p>
+            </div>
+
+            <div id="moduls-container">
+                <!-- Aquí van las preguntas y teoría -->
+                <div class="loader"></div>
+            </div>
+        </main>
+
+        <!-- Columna Derecha: Navegación Cuestionario -->
+        <aside class="sidebar-right">
+            <div class="quiz-nav-card">
+                <h4>Navegació pel qüestionari</h4>
+                <div id="quiz-grid" class="quiz-grid">
+                    <!-- Aquí saldrán los cuadraditos 1, 2, 3... -->
+                </div>
+                <div class="quiz-legend">
+                    <a href="#" id="finish-review">Finalitzar revisió</a>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <script src="js/renderitzadorCurs.js"></script>
+    <script>
+        // Lógica simple de Logout y Netlify Identity
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            netlifyIdentity.logout();
+            window.location.replace('/');
+        });
+        netlifyIdentity.on('init', user => {
+            if (!user) window.location.replace('/');
+            else document.getElementById('user-name').innerText = user.user_metadata.full_name || 'Alumne';
+        });
+        netlifyIdentity.init();
+
+        // Lógica de Modo Oscuro
+        const toggleBtn = document.getElementById('theme-toggle');
+        const htmlEl = document.documentElement;
+        
+        // Cargar preferencia guardada
+        if(localStorage.getItem('theme') === 'dark') {
+            htmlEl.setAttribute('data-theme', 'dark');
+            toggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            if(htmlEl.getAttribute('data-theme') === 'dark'){
+                htmlEl.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                toggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
+            } else {
+                htmlEl.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                toggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+        });
+    </script>
 </body>
 </html>

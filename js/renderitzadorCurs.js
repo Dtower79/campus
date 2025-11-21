@@ -1,5 +1,3 @@
-// Arxiu: js/renderitzadorCurs.js
-
 window.addEventListener('load', () => {
     if (!netlifyIdentity.currentUser()) {
         window.location.replace('/');
@@ -15,116 +13,176 @@ window.addEventListener('load', () => {
     }
     
     fetch(`/.netlify/functions/dadesCurs?slug=${courseSlug}`)
-        .then(res => {
-            if (!res.ok) throw new Error("Error de xarxa");
-            return res.json();
-        })
+        .then(res => res.json())
         .then(data => {
             if (data.error) throw new Error(data.error);
-            renderCourse(data); 
+            renderCourseLayout(data); 
         })
         .catch(error => {
-            console.error("Error en carregar les dades del curs:", error);
-            document.getElementById('container').innerHTML = `<h1>Error al carregar el curs.</h1><p>${error.message}</p>`;
+            console.error("Error:", error);
+            document.getElementById('curs-titol').innerText = "Error al carregar";
         });
 });
 
-function renderCourse(courseData) {
+function renderCourseLayout(courseData) {
+    // 1. Info Básica
     document.title = courseData.titol;
     document.getElementById('curs-titol').innerText = courseData.titol;
     
-    // Gestió de la descripció del curs (Rich Text vs Text)
-    let descText = '';
-    if (typeof courseData.descripcio === 'string') {
-        descText = courseData.descripcio;
-    } else if (Array.isArray(courseData.descripcio) && courseData.descripcio[0]?.children) {
-        descText = courseData.descripcio[0].children[0].text;
-    }
+    let descText = typeof courseData.descripcio === 'string' ? courseData.descripcio : (courseData.descripcio?.[0]?.children?.[0]?.text || '');
     document.getElementById('curs-descripcio').innerText = descText;
 
-    const modulsContainer = document.getElementById('moduls-container');
-    modulsContainer.innerHTML = '';
+    // 2. Renderizar Índice Izquierdo (Modules)
+    const indexContainer = document.getElementById('course-index');
+    indexContainer.innerHTML = '';
     
+    if(courseData.moduls) {
+        courseData.moduls.forEach((mod, idx) => {
+            const link = document.createElement('a');
+            link.className = 'module-link';
+            link.href = `#modul-${mod.id}`;
+            link.innerHTML = `<i class="fas fa-folder"></i> ${mod.titol}`;
+            indexContainer.appendChild(link);
+        });
+    }
+
+    // 3. Renderizar Contenido Central y Grid Derecho
+    const contentContainer = document.getElementById('moduls-container');
+    contentContainer.innerHTML = '';
+
+    const quizGridContainer = document.getElementById('quiz-grid');
+    quizGridContainer.innerHTML = '';
+
+    let globalQuestionCounter = 0;
+
     if (!courseData.moduls || courseData.moduls.length === 0) {
-         modulsContainer.innerHTML = '<p>Aquest curs encara no té mòduls.</p>';
+        contentContainer.innerHTML = '<p>No hi ha mòduls.</p>';
         return;
     }
-    
+
     courseData.moduls.forEach(modul => {
-        const modulData = modul; 
-        const moduleEl = document.createElement('div');
-        moduleEl.className = 'module';
-        
-        let preguntesHTML = '<div class="quiz"><h4>Autoavaluació</h4>';
-        
-        if (modulData.preguntes && modulData.preguntes.length > 0) {
-            modulData.preguntes.forEach((pregunta, preguntaIndex) => {
-                let opcionsHTML = '<ul class="options">';
-                
-                if (pregunta.opcions && Array.isArray(pregunta.opcions)) {
-                    pregunta.opcions.forEach((opcio) => {
-                        opcionsHTML += `<li data-correct="${opcio.esCorrecta}">${opcio.text}</li>`;
-                    });
-                }
-                opcionsHTML += '</ul>';
-                
-                // --- CORRECCIÓ DE L'EXPLICACIÓ ---
-                // Aquí és on arreglem l'[object Object].
-                // Mirem si és text pla o Rich Text i traiem el contingut real.
-                let textExplicacio = '';
-                if (typeof pregunta.explicacio === 'string') {
-                    // Cas A: És text normal
-                    textExplicacio = pregunta.explicacio;
-                } else if (Array.isArray(pregunta.explicacio) && pregunta.explicacio[0]?.children) {
-                    // Cas B: És Rich Text de Strapi (Array de blocs)
-                    textExplicacio = pregunta.explicacio[0].children[0].text;
-                } else {
-                    // Cas C: Per si de cas falla tot
-                    textExplicacio = 'Mira la normativa per a més detalls.';
-                }
+        // Crear Título de Módulo
+        const moduleTitle = document.createElement('div');
+        moduleTitle.id = `modul-${modul.id}`;
+        moduleTitle.innerHTML = `<h2 style="border-bottom: 2px solid var(--primary-color); padding-bottom:10px; margin-top:40px;">${modul.titol}</h2><p>${modul.resum}</p>`;
+        contentContainer.appendChild(moduleTitle);
 
-                preguntesHTML += `
-                    <div class="question" id="q-${pregunta.id}-${preguntaIndex}">
-                        <p>${preguntaIndex + 1}. ${pregunta.text}</p>
-                        ${opcionsHTML}
-                        <div class="explanation" style="display:none;">${textExplicacio}</div>
-                    </div>
-                `;
+        // Renderizar Preguntas
+        if (modul.preguntes && modul.preguntes.length > 0) {
+            modul.preguntes.forEach((preg) => {
+                globalQuestionCounter++;
+                
+                // A. Renderizar Pregunta Central (Estilo Moodle)
+                const qCard = createMoodleQuestionCard(preg, globalQuestionCounter);
+                contentContainer.appendChild(qCard);
+
+                // B. Renderizar Grid Derecho
+                const gridItem = document.createElement('div');
+                gridItem.className = 'grid-item';
+                gridItem.id = `grid-q-${globalQuestionCounter}`;
+                gridItem.innerText = globalQuestionCounter;
+                gridItem.onclick = () => {
+                    document.getElementById(`question-${globalQuestionCounter}`).scrollIntoView({behavior: "smooth"});
+                };
+                quizGridContainer.appendChild(gridItem);
             });
-        } else {
-            preguntesHTML += '<p>No hi ha preguntes en aquest mòdul.</p>';
         }
-        preguntesHTML += '</div>';
-
-        moduleEl.innerHTML = `<h3>${modulData.titol}</h3><p class="summary">${modulData.resum}</p>${preguntesHTML}`;
-        modulsContainer.appendChild(moduleEl);
     });
-    
-    addQuizInteractivity();
 }
 
-function addQuizInteractivity() {
-    document.querySelectorAll('.options li').forEach(opcio => {
-        opcio.addEventListener('click', (event) => {
-            const questionDiv = event.target.closest('.question');
-            if (questionDiv.classList.contains('answered')) return;
+function createMoodleQuestionCard(pregunta, qNum) {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.id = `question-${qNum}`;
+
+    // Columna Izquierda (Número y Puntos)
+    const infoBox = document.createElement('div');
+    infoBox.className = 'q-number-box';
+    infoBox.innerHTML = `
+        <span class="q-state">Pregunta ${qNum}</span>
+        <span class="q-state" id="status-${qNum}">Sense respondre</span>
+        <div class="q-points">Puntua sobre 1,00</div>
+        <div class="q-points"><i class="fas fa-flag"></i> Marcar</div>
+    `;
+
+    // Columna Derecha (Texto y Opciones)
+    const contentBox = document.createElement('div');
+    contentBox.className = 'q-content-box';
+
+    // 1. Texto Pregunta (Caja Azul)
+    const qText = document.createElement('div');
+    qText.className = 'q-text-area';
+    qText.innerHTML = `<p>${pregunta.text}</p>`;
+    contentBox.appendChild(qText);
+
+    // 2. Opciones
+    const optionsList = document.createElement('div');
+    optionsList.className = 'options-list';
+    
+    // Extraer texto explicacion
+    let explicacioText = typeof pregunta.explicacio === 'string' ? pregunta.explicacio : (pregunta.explicacio?.[0]?.children?.[0]?.text || 'Veure normativa.');
+
+    if (pregunta.opcions) {
+        pregunta.opcions.forEach((opcio, idx) => {
+            const optRow = document.createElement('div');
+            optRow.className = 'option-item';
+            optRow.dataset.correct = opcio.esCorrecta; // Guardamos si es correcta aquí
             
-            questionDiv.classList.add('answered');
-            const isCorrect = event.target.dataset.correct === 'true';
+            // Input Radio (Visual)
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = `q-${qNum}`; // Agrupar por pregunta
+            radio.className = 'option-radio';
             
-            if (isCorrect) {
-                event.target.style.backgroundColor = '#4CAF50';
-                event.target.style.color = 'white';
-            } else {
-                event.target.style.backgroundColor = '#F44336';
-                event.target.style.color = 'white';
+            const label = document.createElement('span');
+            label.innerText = `${String.fromCharCode(97 + idx)}. ${opcio.text}`; // a. b. c. d.
+
+            optRow.appendChild(radio);
+            optRow.appendChild(label);
+
+            // --- LÓGICA CLICK (PRÁCTICA - FEEDBACK INMEDIATO) ---
+            optRow.addEventListener('click', () => {
+                if (contentBox.classList.contains('answered')) return; // Ya respondida
                 
-                const correctOption = questionDiv.querySelector('li[data-correct="true"]');
-                if(correctOption) correctOption.style.backgroundColor = '#a5d6a7';
-            }
-            
-            const explicacio = questionDiv.querySelector('.explanation');
-            if (explicacio) explicacio.style.display = 'block';
+                contentBox.classList.add('answered');
+                radio.checked = true;
+                document.getElementById(`status-${qNum}`).innerText = "Finalitzat";
+
+                // Colorear Grid Derecho
+                const gridItem = document.getElementById(`grid-q-${qNum}`);
+
+                if (opcio.esCorrecta) {
+                    optRow.classList.add('correct');
+                    gridItem.classList.add('correct');
+                    gridItem.innerHTML = `<i class="fas fa-check"></i>`;
+                } else {
+                    optRow.classList.add('wrong');
+                    gridItem.classList.add('wrong');
+                    gridItem.innerHTML = `<i class="fas fa-times"></i>`; // X roja en el grid
+                    
+                    // Marcar también la correcta en verde para que el alumno aprenda
+                    const allOptions = optionsList.querySelectorAll('.option-item');
+                    allOptions.forEach(opt => {
+                        if (opt.dataset.correct === 'true') {
+                            opt.classList.add('correct');
+                        }
+                    });
+                }
+
+                // Mostrar Explicación (Caja Amarilla)
+                const expBox = document.createElement('div');
+                expBox.className = 'explanation-box';
+                expBox.innerHTML = `<strong>Retroalimentació:</strong><br>${explicacioText}`;
+                contentBox.appendChild(expBox);
+            });
+
+            optionsList.appendChild(optRow);
         });
-    });
+    }
+
+    contentBox.appendChild(optionsList);
+    card.appendChild(infoBox);
+    card.appendChild(contentBox);
+
+    return card;
 }

@@ -12,7 +12,7 @@ exports.handler = async function(event, context) {
   try {
     // Fem la petició a l'API de Strapi
     // ?populate=* serveix per portar imatges i relacions si calgués
-    const response = await fetch(`${STRAPI_URL}/api/curses?populate=*`);
+    const response = await fetch(`${STRAPI_URL}/api/cursos?populate=*`);
     
     if (!response.ok) {
       throw new Error(`Error de xarxa: ${response.statusText}`);

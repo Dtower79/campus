@@ -6,51 +6,49 @@ exports.handler = async function(event, context) {
   }
 
   try {
-    // 1. Petició a Strapi
     const response = await fetch(`${STRAPI_URL}/api/cursos?populate=*`);
     
     if (!response.ok) {
-      console.error("Error Strapi Response:", response.status, response.statusText);
       return { statusCode: response.status, body: JSON.stringify({ error: response.statusText }) };
     }
 
     const dades = await response.json();
-    
-    // LOG DE DEPURACIÓ: Veurem què arriba exactament als logs de Netlify
-    console.log("Strapi Raw Data:", JSON.stringify(dades));
 
-    // Si no hi ha dades o el format és incorrecte, retornem array buit per no petar
     if (!dades || !dades.data) {
-      console.warn("Format de dades inesperat o buit");
       return { statusCode: 200, body: JSON.stringify([]) };
     }
 
-    // 2. Mapeig "Defensiu" (No petarà encara que faltin camps)
+    // MAPPEO UNIVERSAL (Funciona con Strapi v4 y v5)
     const cursosNets = dades.data.map(curs => {
-      // Protecció contra 'attributes' null
-      const attrs = curs.attributes || {};
-      
-      // Gestió segura de mòduls
+      // 1. Detectamos si los datos están en 'attributes' o en la raíz
+      const props = curs.attributes ? curs.attributes : curs;
+
+      // 2. Gestión de Mòduls (Arrays)
       let modulsNets = [];
-      if (attrs.moduls && attrs.moduls.data && Array.isArray(attrs.moduls.data)) {
-        modulsNets = attrs.moduls.data.map(m => ({
-          id: m.id,
-          ...(m.attributes || {})
-        }));
+      // A veces la relación viene dentro de .data, a veces directa
+      const modulsRaw = props.moduls?.data || props.moduls;
+      
+      if (Array.isArray(modulsRaw)) {
+        modulsNets = modulsRaw.map(m => {
+          const mProps = m.attributes ? m.attributes : m;
+          return { id: m.id, ...mProps };
+        });
       }
 
-      // Gestió segura d'imatge
+      // 3. Gestión de Imagen
       let imatgeUrl = null;
-      // Utilitzem encadenament opcional (?.) per seguretat extrema
-      if (attrs.imatge?.data?.attributes?.url) {
-        imatgeUrl = attrs.imatge.data.attributes.url;
+      const imgRaw = props.imatge?.data || props.imatge;
+      if (imgRaw) {
+        // A veces es imgRaw.attributes.url, a veces imgRaw.url
+        imatgeUrl = imgRaw.attributes?.url || imgRaw.url;
       }
 
+      // 4. Construimos el objeto final plano
       return {
         id: curs.id,
-        ...attrs,
-        moduls: modulsNets, // Ara segur que és un Array, encara que estigui buit
-        imatge: imatgeUrl   // Ara segur que és una URL o null
+        ...props,       // Esparce titulo, descripcion, etc.
+        moduls: modulsNets, // Aseguramos que siempre es un array
+        imatge: imatgeUrl
       };
     });
 
@@ -64,10 +62,10 @@ exports.handler = async function(event, context) {
     };
 
   } catch (error) {
-    console.error("CRASH CRÍTIC:", error);
+    console.error("ERROR:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Error intern del servidor", detalls: error.message }),
+      body: JSON.stringify({ error: error.message }),
     };
   }
 };

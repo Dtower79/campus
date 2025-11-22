@@ -120,47 +120,61 @@
             });
         });
 
-        async function cargarCursos() {
-            const list = document.getElementById('courses-list');
+        async function cargarCursosDesdeBackend() {
+            const container = document.getElementById('courses-list');
+            
             try {
-                // Intenta cargar desde Netlify Functions
+                // Intentamos conectar con la API automática
                 const response = await fetch('/.netlify/functions/llistaCursos');
-                if(response.ok) {
-                    const data = await response.json();
-                    list.innerHTML = '';
-                    if(data.length === 0) {
-                        list.innerHTML = '<p>No hi ha cursos disponibles.</p>';
-                        return;
-                    }
-                    data.forEach(c => {
-                        const item = document.createElement('a');
-                        item.className = 'course-card-item';
-                        // AQUÍ SE GENERA EL ENLACE CON EL SLUG CORRECTO
-                        item.href = `?slug=${c.slug}`; 
-                        item.innerHTML = `
-                            <h3>${c.titol}</h3>
-                            <p>${c.descripcioBreu || 'Accedir al curs'}</p>
-                        `;
-                        list.appendChild(item);
-                    });
-                } else {
-                    throw new Error("Error api");
-                }
-            } catch (e) {
-                console.error(e);
-                // FALLBACK MANUAL POR SI FALLA LA API (Para que puedas probar YA)
-                // Esto generará un botón manual para tu curso de Strapi
-                list.innerHTML = `
-                    <div class="alert alert-warning">
-                        No s'ha pogut connectar amb el llistat automàtic.
-                        <br><strong>Accés manual detectat:</strong>
-                    </div>
-                    <a href="?slug=iniciacio-regim-disciplinari" class="course-card-item" style="border-color: var(--brand-blue);">
-                        <h3>Curs d'Iniciació al Règim Disciplinari</h3>
-                        <p>Fes clic aquí per entrar manualment (Fallback Mode)</p>
-                    </a>
-                `;
+                
+                if (!response.ok) throw new Error('Error connectant');
+                
+                const data = await response.json();
+                
+                // Si la API no devuelve nada, lanzamos error para usar el manual
+                if (!data || data.length === 0) throw new Error('Llista buida');
+
+                container.innerHTML = ''; // Limpiar loader
+                
+                data.forEach(curs => {
+                    crearTarjetaCurso(container, curs.titol, curs.slug, curs.descripcioBreu);
+                });
+
+            } catch (error) {
+                console.warn('Usando modo manual por error de conexión:', error);
+                
+                // --- FALLBACK (MODO SEGURO) ---
+                // Si falla la API, mostramos tu curso manualmente pero con diseño bonito.
+                // Sin cajas amarillas de error.
+                
+                container.innerHTML = ''; // Limpiar loader
+                
+                // Aquí definimos tus cursos manuales
+                crearTarjetaCurso(
+                    container, 
+                    "Curs d'Iniciació al Règim Disciplinari", 
+                    "iniciacio-regim-disciplinari", 
+                    "Un curs fonamental sobre faltes i sancions."
+                );
             }
+        }
+
+        // Función auxiliar para pintar las tarjetas bonitas
+        function crearTarjetaCurso(container, titulo, slug, descripcion) {
+            const card = document.createElement('a');
+            card.className = 'course-card-item';
+            card.href = `?slug=${slug}`; 
+            
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="margin:0; font-size:1.1rem; color:var(--primary-color);">${titulo}</h3>
+                    <i class="fas fa-chevron-right" style="color:#ccc;"></i>
+                </div>
+                <p style="margin:0; font-size:0.9rem; color:var(--text-secondary); line-height:1.4;">
+                    ${descripcion || 'Fes clic per accedir al contingut.'}
+                </p>
+            `;
+            container.appendChild(card);
         }
 
         // GESTIÓN DE USUARIO (NETLIFY IDENTITY) EN CATALÁN

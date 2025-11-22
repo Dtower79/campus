@@ -149,3 +149,29 @@ aside, main {
 .score-number { font-size: 3rem; font-weight: bold; color: var(--primary-color); display: block; margin: 10px 0; }
 
 @media (max-width: 900px) { .course-layout { grid-template-columns: 1fr; display: block; } .sidebar-left, .sidebar-right { display: none; } }
+
+/* ==========================================================================
+   CORRECCIÓN VISUAL: MODO OSCURO (Prioridad Estados de Corrección)
+   ========================================================================== */
+
+/* 
+   Forzamos la especificidad añadiendo [data-theme="dark"] al selector.
+   Esto iguala el peso con la regla .selected y, al estar después, la sobrescribe.
+   Añadimos también la combinación .selected.correct para asegurar prioridad total.
+*/
+
+/* Caso: Respuesta Correcta (sea seleccionada por el usuario o mostrada como solución) */
+[data-theme="dark"] .option-item.correct,
+[data-theme="dark"] .option-item.selected.correct {
+    background-color: var(--correct-bg);
+    border-color: var(--correct-border);
+    color: var(--correct-text);
+}
+
+/* Caso: Respuesta Incorrecta (seleccionada por el usuario) */
+[data-theme="dark"] .option-item.wrong,
+[data-theme="dark"] .option-item.selected.wrong {
+    background-color: var(--wrong-bg);
+    border-color: var(--wrong-border);
+    color: var(--wrong-text);
+}

@@ -13,7 +13,7 @@
     
     <!-- Fuentes -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- FontAwesome (Tu JS lo usa para los iconos <i class="fas">) -->
+    <!-- FontAwesome (Necesario para los iconos del JS) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -24,8 +24,9 @@
             <div class="header-logo-container">
                 <img src="img/logo-sicap.png" alt="SICAP" class="header-logo">
             </div>
+            <!-- Si quieres mantener el Login/Sortir dímelo, de momento pongo el control de tema -->
             <div class="header-controls">
-                <button id="theme-toggle" class="btn-icon">🌓</button>
+                <button id="theme-toggle" class="btn-icon" aria-label="Canviar tema">🌓</button>
             </div>
         </div>
     </header>
@@ -38,7 +39,7 @@
             <div class="sidebar-header">
                 <h3>Índex</h3>
             </div>
-            <!-- ID original que busca tu JS: 'course-index' -->
+            <!-- IMPORTANTE: Este ID 'course-index' es el que busca tu JS -->
             <div id="course-index">
                 <p class="loading-text">Carregant índex...</p>
             </div>
@@ -47,14 +48,13 @@
         <!-- COLUMNA CENTRAL: EXAMEN -->
         <main class="main-content">
             <div id="exam-header">
-                <!-- IDs originales que busca tu JS: 'curs-titol' y 'curs-descripcio' -->
+                <!-- IMPORTANTE: Estos IDs 'curs-titol' y 'curs-descripcio' los busca tu JS -->
                 <h1 id="curs-titol">Carregant curs...</h1>
                 <div id="curs-descripcio" style="margin-bottom: 20px; color: var(--text-main);"></div>
             </div>
 
             <div class="exam-card">
-                <!-- ID original que busca tu JS: 'moduls-container' -->
-                <!-- Tu JS inyectará aquí las preguntas Y el botón de entregar -->
+                <!-- IMPORTANTE: Este ID 'moduls-container' es CRÍTICO. Aquí falla ahora mismo -->
                 <div id="moduls-container">
                     <div class="loader"></div>
                 </div>
@@ -66,7 +66,7 @@
             <div class="sidebar-header">
                 <h3>Navegació</h3>
             </div>
-            <!-- ID original que busca tu JS: 'quiz-grid' -->
+            <!-- IMPORTANTE: Este ID 'quiz-grid' es el que busca tu JS -->
             <div id="quiz-grid" class="grid-container"></div>
         </aside>
 
@@ -75,20 +75,22 @@
     <!-- SCRIPTS -->
     <script src="js/renderitzadorCurs.js"></script>
 
-    <!-- Script Modo Oscuro (Independiente) -->
+    <!-- Script Modo Oscuro -->
     <script>
         const toggleBtn = document.getElementById('theme-toggle');
         const htmlElement = document.documentElement;
         if (localStorage.getItem('theme') === 'dark') htmlElement.setAttribute('data-theme', 'dark');
-        toggleBtn.addEventListener('click', () => {
-            if (htmlElement.getAttribute('data-theme') === 'dark') {
-                htmlElement.removeAttribute('data-theme');
-                localStorage.setItem('theme', 'light');
-            } else {
-                htmlElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-            }
-        });
+        if(toggleBtn){
+            toggleBtn.addEventListener('click', () => {
+                if (htmlElement.getAttribute('data-theme') === 'dark') {
+                    htmlElement.removeAttribute('data-theme');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    htmlElement.setAttribute('data-theme', 'dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+            });
+        }
     </script>
 </body>
 </html>

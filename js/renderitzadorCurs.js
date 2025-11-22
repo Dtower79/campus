@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // --- GRID DERECHO (CUADRADOS) ---
             if(contenedorGrid) {
                 const gridItem = document.createElement('div');
-                gridItem.className = 'grid-item'; // Clase CSS que da forma de cuadrado
+                gridItem.className = 'grid-item'; // Clase CSS cuadrada
                 gridItem.id = `grid-q-${pid}`;
                 gridItem.textContent = totalPreguntasGlobal;
                 
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </label>
                     `;
                     
-                    // Evento Change (Fiable)
+                    // Evento Change (Corregido BUG 0)
                     const radio = optRow.querySelector('input');
                     radio.addEventListener('change', () => {
                         respuestasUsuario[pid] = i;
@@ -209,11 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 let correctIdx = -1;
                 if(preg.opcions) preg.opcions.forEach((o, i) => { if(o.esCorrecta) correctIdx = i; });
 
+                // --- LÓGICA ANTI-TRAMPAS ---
                 if (userVal !== undefined) {
                     // RESPONDIDA
                     contestadas++;
                     
-                    // Marcar correcta
+                    // Marcar correcta (Verde)
                     if (correctIdx !== -1 && optionsDivs[correctIdx]) {
                         optionsDivs[correctIdx].classList.add('correct');
                     }
@@ -225,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             gridItem.classList.add('correct');
                         }
                     } else {
-                        // Marcar la suya incorrecta
+                        // Marcar incorrecta (Rojo)
                         if (optionsDivs[userVal]) optionsDivs[userVal].classList.add('wrong');
                         if(gridItem) {
                             gridItem.classList.remove('answered');
@@ -239,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // NO RESPONDIDA
                     if(gridItem) gridItem.classList.add('unanswered');
-                    // No mostramos nada más
+                    // Ni correcta, ni explicación, ni nada.
                 }
 
                 // Bloquear
@@ -247,10 +248,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // Nota
+        // CALCULAR NOTA
         const nota = total > 0 ? (aciertos / total) * 10 : 0;
         
-        // Mostrar Panel Superior
+        // MOSTRAR RESULTADO
         const scoreCard = document.getElementById('final-score-card');
         scoreCard.innerHTML = `
             <h3>Resultats de l'intent</h3>
@@ -260,8 +261,16 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         scoreCard.style.display = 'block';
 
-        // SCROLL ARRIBA
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // --- SCROLL HACIA ARRIBA (CORREGIDO) ---
+        // Intentamos subir la columna central (que es la que tiene scroll)
+        const mainContent = document.querySelector('.main-content');
+        if(mainContent) {
+            mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            // Fallback por si acaso
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            scoreCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
 
         // Desactivar botón
         const btn = document.getElementById('btn-entregar-final');

@@ -2,17 +2,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const slug = params.get('slug');
     
-    // ELEMENTOS DEL HTML
     const contenedorCentral = document.getElementById('moduls-container'); 
-    const contenedorIndice = document.getElementById('course-index'); // Izquierda
-    const contenedorGrid = document.getElementById('quiz-grid');      // Derecha (Números)
+    const contenedorIndice = document.getElementById('course-index'); 
+    const contenedorGrid = document.getElementById('quiz-grid');      
     const tituloCursEl = document.getElementById('curs-titol');     
     const descripcioCursEl = document.getElementById('curs-descripcio'); 
-    const btnLateral = document.getElementById('finish-review'); 
+    
+    // Ya no usamos el botón lateral (finish-review) como pediste
 
     if (!slug) return;
 
-    // ESTADO
     let respuestasUsuario = {}; 
     let datosCursoGlobal = null;
     let totalPreguntasGlobal = 0;
@@ -33,7 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderizarTodo(data) {
-        // 1. Cabecera y Descripción
         if(tituloCursEl) tituloCursEl.textContent = data.titol;
         if(descripcioCursEl) {
             if (Array.isArray(data.descripcio)) {
@@ -43,53 +41,49 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 2. Limpiar
         contenedorCentral.innerHTML = '';
         if(contenedorIndice) contenedorIndice.innerHTML = '';
         if(contenedorGrid) contenedorGrid.innerHTML = '';
 
         totalPreguntasGlobal = 0;
 
-        // 3. Renderizar
+        // CAJA DE NOTA (La creamos oculta al principio)
+        const scoreDiv = document.createElement('div');
+        scoreDiv.id = 'final-score-card';
+        scoreDiv.className = 'score-card';
+        contenedorCentral.appendChild(scoreDiv);
+
         if (data.moduls && data.moduls.length > 0) {
             data.moduls.forEach((modul, idx) => {
-                // A. Índice Izquierdo
                 if(contenedorIndice) {
-                    const item = document.createElement('div');
-                    item.className = 'module-item';
-                    item.style.padding = "10px";
-                    item.style.borderBottom = "1px solid #eee";
-                    item.innerHTML = `<a href="#modul-${idx}" style="text-decoration:none; color:#333;">📂 ${modul.titol}</a>`;
+                    const item = document.createElement('a');
+                    item.className = 'module-link';
+                    item.href = `#modul-${idx}`;
+                    item.innerHTML = `<i class="fas fa-folder"></i> ${modul.titol}`;
                     contenedorIndice.appendChild(item);
                 }
-
                 renderizarModuloCentral(modul, idx);
             });
 
-            // 4. Botón Final Abajo
+            // BOTÓN FINAL (Solo abajo)
             const divBoton = document.createElement('div');
             divBoton.className = 'text-center mt-5 mb-5';
             divBoton.innerHTML = `
-                <button id="btn-entregar-final" class="btn btn-primary btn-lg px-5" style="background-color: #0d6efd; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 1.1em; cursor: pointer;">
-                    Entregar i Corregir
+                <button id="btn-entregar-final" class="btn-finish">
+                    <i class="fas fa-check-circle"></i> Entregar i Corregir
                 </button>
             `;
             contenedorCentral.appendChild(divBoton);
             document.getElementById('btn-entregar-final').addEventListener('click', corregirExamen);
         }
-
-        if(btnLateral) btnLateral.addEventListener('click', (e) => {
-            e.preventDefault();
-            corregirExamen();
-        });
     }
 
     function renderizarModuloCentral(modul, indexModul) {
         const tituloMod = document.createElement('h3');
         tituloMod.id = `modul-${indexModul}`;
-        tituloMod.className = 'mt-4 mb-3';
-        tituloMod.style.borderBottom = "2px solid #0d6efd";
+        tituloMod.style.borderBottom = "2px solid var(--primary-color)";
         tituloMod.style.paddingBottom = "10px";
+        tituloMod.style.marginTop = "30px";
         tituloMod.textContent = modul.titol;
         contenedorCentral.appendChild(tituloMod);
 
@@ -99,48 +93,25 @@ document.addEventListener('DOMContentLoaded', () => {
             totalPreguntasGlobal++; 
             const pid = `m${indexModul}-p${indexPreg}`;
             
-            // --- B. GRID DERECHO (NÚMEROS) ---
+            // --- GRID DERECHO ---
             if(contenedorGrid) {
-                const numBox = document.createElement('div');
-                numBox.id = `grid-num-${pid}`;
-                numBox.textContent = totalPreguntasGlobal; // SIEMPRE EL NÚMERO
-                numBox.style.display = "inline-block";
-                numBox.style.width = "35px";
-                numBox.style.height = "35px";
-                numBox.style.lineHeight = "35px";
-                numBox.style.textAlign = "center";
-                numBox.style.margin = "4px";
-                numBox.style.border = "1px solid #ccc";
-                numBox.style.borderRadius = "4px";
-                numBox.style.cursor = "pointer";
-                numBox.style.fontSize = "0.9em";
-                numBox.style.backgroundColor = "#f8f9fa";
-                
-                // Navegación al hacer clic
-                numBox.onclick = () => {
-                    const target = document.querySelector(`[data-id="${pid}"]`);
-                    if(target) {
-                        target.scrollIntoView({behavior: "smooth", block: "center"});
-                        // Pequeño efecto de parpadeo para localizarla
-                        target.style.transition = "background 0.5s";
-                        const originalBg = target.style.backgroundColor;
-                        target.style.backgroundColor = "#ffffd0";
-                        setTimeout(() => target.style.backgroundColor = originalBg || "white", 1000);
-                    }
+                const gridItem = document.createElement('div');
+                gridItem.className = 'grid-item';
+                gridItem.id = `grid-q-${totalPreguntasGlobal}`; // Usamos el contador global
+                gridItem.textContent = totalPreguntasGlobal;
+                gridItem.onclick = () => {
+                    const card = document.querySelector(`[data-id="${pid}"]`);
+                    if(card) card.scrollIntoView({behavior: "smooth", block: "center"});
                 };
-                contenedorGrid.appendChild(numBox);
+                contenedorGrid.appendChild(gridItem);
             }
 
-            // --- C. TARJETA CENTRAL ---
+            // --- TARJETA CENTRAL ---
             const card = document.createElement('div');
-            card.className = 'card mb-4';
-            // Estilos inline para asegurar diseño clásico
-            card.style.border = "1px solid #ddd";
-            card.style.borderRadius = "5px";
-            card.style.marginBottom = "20px";
-            card.style.padding = "20px";
-            card.style.backgroundColor = "white";
+            card.className = 'question-card';
+            card.id = `question-${totalPreguntasGlobal}`;
             card.dataset.id = pid;
+            card.dataset.globalId = totalPreguntasGlobal;
 
             const textoEnunciado = preg.text || preg.titol || "Sense enunciat";
             
@@ -154,55 +125,80 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const letras = ['a', 'b', 'c', 'd'];
-            let htmlOpciones = '';
             
+            // Construir HTML Opciones
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'options-list';
+            optionsContainer.id = `options-list-${pid}`;
+
             if(preg.opcions) {
                 preg.opcions.forEach((op, i) => {
-                    const letra = letras[i] || '-';
-                    htmlOpciones += `
-                        <div style="margin-bottom: 8px;" class="option-row">
-                            <input type="radio" name="resp-${pid}" id="opt-${pid}-${i}" value="${i}" style="margin-right: 8px;">
-                            <label for="opt-${pid}-${i}" style="cursor:pointer;">
-                                <strong>${letra}.</strong> ${op.text}
-                            </label>
-                        </div>
+                    const optRow = document.createElement('div');
+                    optRow.className = 'option-item';
+                    
+                    const inputId = `opt-${pid}-${i}`;
+                    
+                    optRow.innerHTML = `
+                        <input type="radio" name="resp-${pid}" id="${inputId}" value="${i}" class="option-radio">
+                        <label for="${inputId}" style="cursor:pointer; width:100%;">
+                            <strong>${letras[i]}.</strong> ${op.text}
+                        </label>
                     `;
+                    
+                    // Lógica de selección
+                    optRow.addEventListener('click', (e) => {
+                        if (isExamFinished) return;
+                        // Si clicamos en el div, marcamos el radio
+                        const radio = optRow.querySelector('input');
+                        radio.checked = true;
+                        
+                        respuestasUsuario[pid] = i;
+                        
+                        // Estilos visuales (limpiar hermanos)
+                        optionsContainer.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
+                        optRow.classList.add('selected');
+
+                        // Marcar grid como contestado
+                        const gridEl = document.getElementById(`grid-q-${card.dataset.globalId}`);
+                        if(gridEl) gridEl.classList.add('answered');
+                        
+                        // Actualizar texto estado
+                        const stateEl = card.querySelector('.q-state span');
+                        if(stateEl) stateEl.innerText = "Respost";
+                    });
+
+                    optionsContainer.appendChild(optRow);
                 });
             }
 
+            // Estructura completa de la tarjeta
             card.innerHTML = `
-                <div style="color: #666; font-size: 0.9em; margin-bottom: 10px; text-transform: uppercase;">Pregunta ${indexPreg + 1}</div>
-                <div style="font-weight: bold; font-size: 1.1em; margin-bottom: 15px;">${textoEnunciado}</div>
-                <div style="margin-left: 10px;">${htmlOpciones}</div>
-                
-                <div id="feedback-${pid}" style="display:none; margin-top: 15px; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 5px;">
-                    <strong style="color: #856404;">Explicació:</strong><br>
-                    <span style="color: #856404;">${textoExpli}</span>
+                <div class="q-number-box">
+                    <span class="q-state">Pregunta ${totalPreguntasGlobal}</span>
+                    <span class="q-state" style="font-weight:normal; font-size:0.8rem; color:#666;"><span>Sense respondre</span></span>
+                    <div class="q-points">Puntua 1,00</div>
+                </div>
+                <div class="q-content-box">
+                    <div class="q-text-area">${textoEnunciado}</div>
+                    <div class="options-area"></div> <!-- Aquí meteremos las opciones -->
+                    <div id="feedback-${pid}" class="explanation-box">
+                        <strong>Explicació:</strong><br>
+                        <span>${textoExpli}</span>
+                    </div>
                 </div>
             `;
-
+            
+            // Inyectar opciones donde toca
+            card.querySelector('.options-area').appendChild(optionsContainer);
             contenedorCentral.appendChild(card);
-
-            // Evento cambio respuesta
-            const inputs = card.querySelectorAll('input');
-            inputs.forEach(inp => {
-                inp.addEventListener('change', () => {
-                    respuestasUsuario[pid] = inp.value;
-                    const numBox = document.getElementById(`grid-num-${pid}`);
-                    if(numBox) {
-                        numBox.style.backgroundColor = "#333"; // Marcada (negro/gris)
-                        numBox.style.color = "white";
-                        numBox.style.borderColor = "#333";
-                    }
-                });
-            });
         });
     }
 
     function corregirExamen() {
         if (!datosCursoGlobal) return;
-        if (!confirm("Segur que vols finalitzar? Les preguntes no contestades no es corregiran.")) return;
+        if (!confirm("Segur que vols entregar l'examen?")) return;
 
+        isExamFinished = true; // Bloqueo
         let aciertos = 0;
         let total = 0;
         let contestadas = 0;
@@ -211,88 +207,76 @@ document.addEventListener('DOMContentLoaded', () => {
             (modul.preguntes || []).forEach((preg, ip) => {
                 total++;
                 const pid = `m${im}-p${ip}`;
-                const userVal = respuestasUsuario[pid]; // undefined si no contestó
-                const numBox = document.getElementById(`grid-num-${pid}`);
+                const userVal = respuestasUsuario[pid];
                 
-                // Buscar correcta (dato interno)
+                const card = document.querySelector(`div[data-id="${pid}"]`);
+                if(!card) return;
+                
+                const globalId = card.dataset.globalId;
+                const gridItem = document.getElementById(`grid-q-${globalId}`);
+                const feedback = document.getElementById(`feedback-${pid}`);
+                const optionsList = document.getElementById(`options-list-${pid}`);
+                const optionItems = optionsList.querySelectorAll('.option-item');
+
                 let correctIdx = -1;
                 preg.opcions.forEach((o, i) => { if(o.esCorrecta) correctIdx = i; });
 
-                const card = document.querySelector(`div[data-id="${pid}"]`);
-                if(!card) return;
-
-                const feedback = document.getElementById(`feedback-${pid}`);
-                const labels = card.querySelectorAll('label');
-                const inputs = card.querySelectorAll('input');
-
                 // --- LÓGICA ANTI-TRAMPAS ---
                 
-                if(userVal !== undefined) {
-                    // CASO A: EL ALUMNO RESPONDIÓ
+                if (userVal !== undefined) {
+                    // CASO: RESPONDIDA
                     contestadas++;
                     
-                    // 1. Mostrar si la suya es correcta o no
-                    if(parseInt(userVal) === correctIdx) {
-                        // Acierto
+                    // Marcar la correcta en verde
+                    if (correctIdx !== -1 && optionItems[correctIdx]) {
+                        optionItems[correctIdx].classList.add('correct');
+                    }
+
+                    if (parseInt(userVal) === correctIdx) {
                         aciertos++;
-                        card.style.backgroundColor = "#d4edda"; // Fondo Verde
-                        card.style.borderColor = "#c3e6cb";
-                        if(numBox) {
-                            numBox.style.backgroundColor = "#28a745"; // Grid Verde
-                            numBox.style.color = "white";
-                            numBox.style.borderColor = "#28a745";
-                        }
+                        if(gridItem) gridItem.className = 'grid-item correct';
                     } else {
-                        // Fallo
-                        card.style.backgroundColor = "#f8d7da"; // Fondo Rojo
-                        card.style.borderColor = "#f5c6cb";
-                        if(labels[userVal]) labels[userVal].style.textDecoration = "line-through";
-                        if(numBox) {
-                            numBox.style.backgroundColor = "#dc3545"; // Grid Rojo
-                            numBox.style.color = "white";
-                            numBox.style.borderColor = "#dc3545";
-                        }
+                        // Marcar la del usuario en rojo
+                        if(optionItems[userVal]) optionItems[userVal].classList.add('wrong');
+                        if(gridItem) gridItem.className = 'grid-item wrong';
                     }
 
-                    // 2. Chivar cuál era la correcta (SIEMPRE, si ha respondido)
-                    if(correctIdx !== -1 && labels[correctIdx]) {
-                        labels[correctIdx].style.color = "green";
-                        labels[correctIdx].style.fontWeight = "bold";
-                        labels[correctIdx].innerHTML += " ✅";
-                    }
-
-                    // 3. Mostrar Explicación (SOLO si ha respondido)
+                    // Mostrar Explicación
                     if(feedback) feedback.style.display = 'block';
 
                 } else {
-                    // CASO B: EL ALUMNO LA DEJÓ EN BLANCO
-                    // No sumamos aciertos.
-                    
-                    // Estilo neutro/aviso
-                    card.style.border = "2px dashed orange";
-                    card.style.opacity = "0.7"; // Un poco más apagada
-                    
-                    if(numBox) {
-                        numBox.style.backgroundColor = "#ffc107"; // Grid Naranja
-                        numBox.style.color = "black";
-                        numBox.style.borderColor = "#ffc107";
-                        // Mantenemos el número visible
-                    }
-
-                    // IMPORTANTE: NO enseñamos la correcta NI la explicación
-                    // (Se queda todo oculto para que no pueda copiar)
+                    // CASO: NO RESPONDIDA (NO CHIVAR NADA)
+                    // No marcamos la correcta.
+                    // No mostramos explicación.
+                    // No cambiamos el grid a rojo (se queda gris o neutro).
+                    if(gridItem) gridItem.style.opacity = "0.5"; // Efecto visual de "saltada"
                 }
 
-                // Bloquear inputs siempre al final
-                inputs.forEach(i => i.disabled = true);
+                // Bloquear inputs
+                card.querySelectorAll('input').forEach(i => i.disabled = true);
             });
         });
 
-        // Calcular nota (sobre el total de preguntas del examen, no solo las contestadas)
-        // Si hay 20 preguntas y contestas 10 bien y 10 en blanco -> Nota 5.00
+        // CALCULAR NOTA
         const nota = total > 0 ? (aciertos / total) * 10 : 0;
         
-        alert(`Has contestat ${contestadas} de ${total}.\nNota Final: ${nota.toFixed(2)}`);
-        window.scrollTo(0,0);
+        // PINTAR RESULTADO ARRIBA
+        const scoreCard = document.getElementById('final-score-card');
+        let missatge = nota >= 5 ? "Enhorabona! Has superat el test." : "Has de repassar.";
+        
+        scoreCard.innerHTML = `
+            <h3 style="margin-top:0;">Resultats</h3>
+            <span class="score-number">${nota.toFixed(2)}</span>
+            <p class="score-message">${missatge}</p>
+            <p>Encerts: <strong>${aciertos}</strong> / ${total} (Contestades: ${contestadas})</p>
+        `;
+        scoreCard.style.display = 'block';
+        scoreCard.scrollIntoView({ behavior: 'smooth' });
+
+        // Desactivar botón
+        const btn = document.getElementById('btn-entregar-final');
+        btn.innerText = "Revisió Finalitzada";
+        btn.disabled = true;
+        btn.style.backgroundColor = "#6c757d";
     }
 });

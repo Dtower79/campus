@@ -1,80 +1,112 @@
+// netlify/functions/dadesCurs.js
+// Middleware compatible con Strapi v5
+
 exports.handler = async function(event, context) {
-  console.log(">>> VERSIÓ 6.0: DEEP POPULATE (OPCIONS)");
+    const { slug } = event.queryStringParameters;
 
-  const STRAPI_URL = process.env.STRAPI_URL;
-  const { id, slug } = event.queryStringParameters;
-  const valorBusqueda = id || slug; 
-
-  if (!STRAPI_URL) return { statusCode: 500, body: JSON.stringify({ error: "Falta STRAPI_URL" }) };
-  if (!valorBusqueda) return { statusCode: 400, body: JSON.stringify({ error: "Falta ID o SLUG" }) };
-
-  try {
-    const isNumber = /^\d+$/.test(valorBusqueda);
-    
-    // --- EL CANVI CLAU ESTÀ AQUÍ ---
-    // Abans: populate[moduls][populate]=*
-    // Ara: Li diem explícitament: "Dins dels mòduls, entra a 'preguntes', i dins de 'preguntes', porta-ho TOT (opcions)"
-    const populateQuery = "populate[moduls][populate][preguntes][populate]=*"; 
-    
-    let url = isNumber 
-      ? `${STRAPI_URL}/api/cursos/${valorBusqueda}?${populateQuery}`
-      : `${STRAPI_URL}/api/cursos?filters[slug][$eq]=${valorBusqueda}&${populateQuery}`;
-
-    const response = await fetch(url);
-    if (!response.ok) return { statusCode: response.status, body: JSON.stringify({ error: response.statusText }) };
-
-    const dades = await response.json();
-
-    let cursRaw;
-    if (dades.data) {
-      if (Array.isArray(dades.data)) {
-        cursRaw = dades.data.length > 0 ? dades.data[0] : null;
-      } else {
-        cursRaw = dades.data;
-      }
-    }
-
-    if (!cursRaw) {
-      return { statusCode: 404, body: JSON.stringify({ error: "Curs no trobat" }) };
-    }
-
-    // --- APLANAMENT DE DADES ---
-    const props = cursRaw.attributes ? cursRaw.attributes : cursRaw;
-    
-    let modulsNets = [];
-    const modulsRaw = props.moduls?.data || props.moduls;
-
-    if (Array.isArray(modulsRaw)) {
-      modulsNets = modulsRaw.map(m => {
-        const mProps = m.attributes ? m.attributes : m;
-        
-        // Ara 'preguntes' ja inclourà les 'opcions' gràcies a la nova query
-        const intregratedQuestions = mProps.preguntes || []; 
-        
-        return { 
-          id: m.id, 
-          ...mProps, 
-          preguntes: intregratedQuestions 
+    if (!slug) {
+        return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Falta el paràmetre slug' })
         };
-      });
-      // Ordenació manual per seguretat
-      modulsNets.sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
     }
 
-    const cursNet = {
-      id: cursRaw.id,
-      ...props,
-      moduls: modulsNets
-    };
+    // Leemos las variables de entorno de Netlify
+    const strapiUrl = process.env.STRAPI_URL;
+    const strapiToken = process.env.STRAPI_API_TOKEN;
 
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify(cursNet),
-    };
+    if (!strapiUrl || !strapiToken) {
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: 'Configuració del servidor incorrecta (Falten credencials)' })
+        };
+    }
 
-  } catch (error) {
-    console.error("Error CRÍTIC:", error);
-    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
-  }
+    try {
+        console.log(`🔍 Buscant curs amb slug: ${slug}`);
+
+        // Query para Strapi v5 - Deep Populate
+        // Pedimos el curso, sus módulos, y dentro de los módulos, las preguntas y opciones
+        const query = `filters[slug][$eq]=${slug}&populate[moduls][populate][preguntes][populate]=opcions`;
+        
+        const response = await fetch(`${strapiUrl}/api/curses?${query}`, {
+            headers: {
+                'Authorization': `Bearer ${strapiToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error Strapi: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        // Verificamos si se encontró el curso
+        if (!data.data || data.data.length === 0) {
+            return {
+                statusCode: 404,
+                body: JSON.stringify({ error: 'Curs no trobat' })
+            };
+        }
+
+        // --- LIMPIEZA DE DATOS (FLATTENING) PARA STRAPI v5 ---
+        // Strapi v5 a veces devuelve arrays directos y a veces objetos.
+        // Vamos a simplificarlo para que el frontend lo entienda fácil.
+        
+        const cursoRaw = data.data[0]; // El primer curso encontrado
+        
+        const cursoLimpio = {
+            id: cursoRaw.id,
+            titol: cursoRaw.titol || cursoRaw.Titulo || "Curs sense títol", // Fallbacks por si acaso
+            descripcio: cursoRaw.descripcio || "",
+            moduls: []
+        };
+
+        // Procesar Módulos
+        if (cursoRaw.moduls && Array.isArray(cursoRaw.moduls)) {
+            cursoLimpio.moduls = cursoRaw.moduls.map(m => {
+                // Procesar Preguntas de cada módulo
+                const preguntasLimpias = (m.preguntes || []).map(p => {
+                    return {
+                        id: p.id,
+                        // Aceptamos 'text' (nuevo) o 'titol' (viejo)
+                        text: p.text || p.titol || "Pregunta sense text", 
+                        explicacio: p.explicacio, // Pasamos el objeto/texto tal cual para que lo procese el front
+                        opcions: (p.opcions || []).map(o => ({
+                            text: o.text,
+                            esCorrecta: o.esCorrecta
+                        }))
+                    };
+                });
+
+                return {
+                    id: m.id,
+                    titol: m.titol,
+                    resum: m.resum,
+                    ordre: m.ordre,
+                    preguntes: preguntasLimpias
+                };
+            });
+
+            // Ordenar módulos por orden
+            cursoLimpio.moduls.sort((a, b) => a.ordre - b.ordre);
+        }
+
+        return {
+            statusCode: 200,
+            headers: {
+                'Access-Control-Allow-Origin': '*', // CORS para evitar bloqueos
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(cursoLimpio)
+        };
+
+    } catch (error) {
+        console.error('Error en dadesCurs:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: error.message })
+        };
+    }
 };

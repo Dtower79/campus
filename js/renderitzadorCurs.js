@@ -39,11 +39,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderizarCurso(data) {
-        // 1. Rellenar cabecera del HTML existente
+        // 1. Rellenar cabecera
         if(tituloCursEl) tituloCursEl.textContent = data.titol;
-        if(descripcioCursEl) descripcioCursEl.textContent = data.descripcio || "";
+        
+        // CORRECCIÓN [object Object]: Parsear descripción
+        if(descripcioCursEl) {
+            let descText = "";
+            if (data.descripcio) {
+                if (Array.isArray(data.descripcio)) {
+                    // Es formato Bloques (Strapi v5)
+                    try {
+                        descText = data.descripcio
+                            .map(b => (b.children ? b.children.map(c => c.text).join('') : ''))
+                            .join('\n');
+                    } catch (e) { console.warn("Error parsing desc", e); }
+                } else {
+                    descText = data.descripcio;
+                }
+            }
+            descripcioCursEl.textContent = descText; // Ahora saldrá el texto limpio
+        }
 
-        // 2. Limpiar contenedor de módulos
+        // 2. Limpiar contenedor
         contenedor.innerHTML = '';
 
         // 3. Renderizar Módulos
@@ -54,6 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             contenedor.innerHTML = '<p>Aquest curs no té mòduls disponibles.</p>';
         }
+        
+        // Mostrar botón
+        if (btnCorregir) btnCorregir.style.display = 'inline-block';
     }
 
     function renderizarModul(modul, indexModul) {

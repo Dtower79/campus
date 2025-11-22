@@ -193,3 +193,104 @@ aside, main {
 .score-message { font-size: 1.2rem; color: #666; }
 
 @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+/* --- ESTILOS PARA EL EXAMEN (Añadido para Renderitzador) --- */
+
+/* Tarjeta de la pregunta */
+.pregunta-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s, border-color 0.3s;
+}
+
+.pregunta-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Título de la pregunta */
+.pregunta-card h5 {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+/* Enunciado */
+.pregunta-card .card-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+
+/* Contenedor de opciones */
+.opcion-wrapper {
+    border: 1px solid #eee;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+    padding: 10px 15px; /* Más espacio para el dedo/ratón */
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.opcion-wrapper:hover {
+    background-color: #f8f9fa;
+    border-color: #ced4da;
+}
+
+/* Cuando se selecciona (azulito) */
+.bg-light-blue {
+    background-color: #e3f2fd !important;
+    border-color: #90caf9 !important;
+}
+
+/* Radio button */
+.form-check-input {
+    margin-right: 10px;
+    transform: scale(1.2); /* Un poco más grande */
+    cursor: pointer;
+}
+
+.form-check-label {
+    cursor: pointer;
+    width: 100%; /* Para que puedas hacer clic en toda la franja */
+}
+
+/* Cajas de Feedback (Explicación) */
+.feedback-box {
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    color: #856404;
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 15px;
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Botón finalizar */
+#finish-review {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background-color: #0d6efd;
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: bold;
+    margin-top: 20px;
+}
+#finish-review:hover {
+    background-color: #0b5ed7;
+}

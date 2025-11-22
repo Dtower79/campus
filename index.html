@@ -4,15 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SICAP Campus</title>
+    
     <link rel="icon" type="image/png" href="img/logo-sicap.png">
     <link rel="stylesheet" href="css/estil.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Netlify Identity -->
     <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body>
 
-    <!-- CABECERA BLANCA CON BARRA ROJA -->
+    <!-- CABECERA -->
     <header class="main-header">
         <div class="header-content">
             <div class="header-logo-container">
@@ -21,15 +24,14 @@
                 </a>
             </div>
             
-            <div class="header-controls" style="display:flex; align-items:center;">
-                <!-- Icono Luna Clásico (FontAwesome) -->
+            <div class="header-controls">
+                <!-- Botón Tema -->
                 <button id="theme-toggle" class="btn-icon" title="Canviar tema">
                     <i class="fas fa-moon"></i>
                 </button>
 
-                <!-- Botones de Sesión Manuales (Catalán) -->
-                <div id="auth-buttons">
-                    <!-- Se mostrará uno u otro según estado -->
+                <!-- Botones Usuario -->
+                <div id="auth-buttons" style="display:inline-block;">
                     <button id="btn-login" class="user-btn" onclick="netlifyIdentity.open()">Accedir</button>
                     <button id="btn-logout" class="user-btn" style="display:none;" onclick="logoutUser()">Sortir</button>
                     <span id="user-name" style="font-size:0.8rem; margin-right:10px; display:none;"></span>
@@ -41,7 +43,9 @@
     <!-- VISTA 1: DASHBOARD (LISTA DE CURSOS) -->
     <div id="dashboard-view" class="container-dashboard" style="display:none;">
         <div class="dashboard-card">
-            <h1 style="color: var(--primary-color); margin-bottom: 20px;">Els Meus Cursos</h1>
+            <h1 style="color: var(--primary-color);">Els Meus Cursos</h1>
+            
+            <!-- Aquí se inyectarán los cursos -->
             <div id="courses-list" class="courses-grid">
                 <div class="loader"></div>
                 <p class="loading-text">Connectant amb el servidor...</p>
@@ -49,30 +53,28 @@
         </div>
     </div>
 
-    <!-- VISTA 2: EXAMEN (LAYOUT 3 COLUMNAS) -->
+    <!-- VISTA 2: EXAMEN (3 COLUMNAS) -->
     <div id="exam-view" class="app-container" style="display:none;">
         
         <!-- IZQUIERDA -->
         <aside class="sidebar-left" id="sidebar-index">
             <div class="sidebar-header"><h3>Índex del Curs</h3></div>
-            <div id="course-index"><p class="loading-text">Carregant...</p></div>
-            <div style="margin-top: 20px; text-align: center;">
-                <a href="/" class="btn-small"><i class="fas fa-arrow-left"></i> Tornar als Cursos</a>
+            <div id="course-index"><p class="loading-text">Carregant índex...</p></div>
+            <div style="padding: 15px; text-align: center; margin-top:auto;">
+                <a href="/" class="btn-small">
+                    <i class="fas fa-arrow-left"></i> Tornar als Cursos
+                </a>
             </div>
         </aside>
 
         <!-- CENTRO -->
         <main class="main-content">
-            <div id="exam-header" style="margin-bottom: 20px;">
-                <h1 id="curs-titol">Carregant títol...</h1>
-                <div id="curs-descripcio"></div>
+            <div id="exam-header">
+                <h1 id="curs-titol">Carregant curs...</h1>
+                <div id="curs-descripcio" style="color: var(--text-main); margin-bottom: 1rem;"></div>
             </div>
-            
-            <!-- Aquí se inyectan las preguntas -->
             <div class="exam-card">
-                <div id="moduls-container">
-                    <div class="loader"></div>
-                </div>
+                <div id="moduls-container"><div class="loader"></div></div>
             </div>
         </main>
 
@@ -88,50 +90,75 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // 1. Router Simple
+            // 1. GESTIÓN DE VISTAS (ROUTER)
             const params = new URLSearchParams(window.location.search);
             const slug = params.get('slug');
             
-            const dashboard = document.getElementById('dashboard-view');
-            const exam = document.getElementById('exam-view');
+            const dashboardView = document.getElementById('dashboard-view');
+            const examView = document.getElementById('exam-view');
 
             if (slug) {
-                // Estamos en un examen
-                console.log("Modo Examen activado. Slug:", slug);
-                dashboard.style.display = 'none';
-                exam.style.display = 'flex'; // IMPORTANTE: flex para las 3 columnas
+                // MODO EXAMEN
+                console.log("Modo Examen activado.");
+                dashboardView.style.display = 'none';
+                examView.style.display = 'flex';
             } else {
-                // Estamos en el inicio
+                // MODO DASHBOARD
                 console.log("Modo Dashboard activado.");
-                dashboard.style.display = 'block';
-                exam.style.display = 'none';
-                cargarCursos();
+                dashboardView.style.display = 'block';
+                examView.style.display = 'none';
+                
+                // AQUÍ ESTABA EL ERROR: Llamada a la función unificada
+                cargarCursos(); 
             }
 
-            // 2. Modo Oscuro
+            // 2. MODO OSCURO
             const toggleBtn = document.getElementById('theme-toggle');
             const htmlElement = document.documentElement;
             if (localStorage.getItem('theme') === 'dark') htmlElement.setAttribute('data-theme', 'dark');
-            if(toggleBtn) toggleBtn.addEventListener('click', () => {
-                const isDark = htmlElement.getAttribute('data-theme') === 'dark';
-                htmlElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
-                localStorage.setItem('theme', isDark ? 'light' : 'dark');
-                if(isDark) htmlElement.removeAttribute('data-theme');
-            });
+            
+            if(toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    const isDark = htmlElement.getAttribute('data-theme') === 'dark';
+                    if(isDark) {
+                        htmlElement.removeAttribute('data-theme');
+                        localStorage.setItem('theme', 'light');
+                    } else {
+                        htmlElement.setAttribute('data-theme', 'dark');
+                        localStorage.setItem('theme', 'dark');
+                    }
+                });
+            }
+
+            // 3. NETLIFY IDENTITY (Auth)
+            if (window.netlifyIdentity) {
+                netlifyIdentity.on('init', user => updateAuthUI(user));
+                netlifyIdentity.on('login', user => {
+                    updateAuthUI(user);
+                    netlifyIdentity.close();
+                    if(!slug) window.location.reload();
+                });
+                netlifyIdentity.on('logout', () => {
+                    updateAuthUI(null);
+                    window.location.href = "/";
+                });
+            }
         });
 
-        async function cargarCursosDesdeBackend() {
+        // --- FUNCIÓN UNIFICADA PARA CARGAR CURSOS ---
+        async function cargarCursos() {
             const container = document.getElementById('courses-list');
             
             try {
-                // Intentamos conectar con la API automática
+                // Intentamos conectar con la API
                 const response = await fetch('/.netlify/functions/llistaCursos');
                 
+                // Si la respuesta no es OK, lanzamos error para ir al catch
                 if (!response.ok) throw new Error('Error connectant');
                 
                 const data = await response.json();
                 
-                // Si la API no devuelve nada, lanzamos error para usar el manual
+                // Si la lista está vacía, lanzamos error para activar el manual
                 if (!data || data.length === 0) throw new Error('Llista buida');
 
                 container.innerHTML = ''; // Limpiar loader
@@ -141,15 +168,12 @@
                 });
 
             } catch (error) {
-                console.warn('Usando modo manual por error de conexión:', error);
+                console.warn('Backend falló, activando modo manual:', error);
                 
-                // --- FALLBACK (MODO SEGURO) ---
-                // Si falla la API, mostramos tu curso manualmente pero con diseño bonito.
-                // Sin cajas amarillas de error.
+                // --- FALLBACK MANUAL (SEGURO) ---
+                container.innerHTML = ''; 
                 
-                container.innerHTML = ''; // Limpiar loader
-                
-                // Aquí definimos tus cursos manuales
+                // Creamos tu curso manualmente
                 crearTarjetaCurso(
                     container, 
                     "Curs d'Iniciació al Règim Disciplinari", 
@@ -159,7 +183,7 @@
             }
         }
 
-        // Función auxiliar para pintar las tarjetas bonitas
+        // Función auxiliar para pintar el HTML de la tarjeta
         function crearTarjetaCurso(container, titulo, slug, descripcion) {
             const card = document.createElement('a');
             card.className = 'course-card-item';
@@ -177,22 +201,7 @@
             container.appendChild(card);
         }
 
-        // GESTIÓN DE USUARIO (NETLIFY IDENTITY) EN CATALÁN
-        // Esto detecta si el usuario entra o sale y cambia los botones
-        if (window.netlifyIdentity) {
-            netlifyIdentity.on('init', user => updateAuthUI(user));
-            netlifyIdentity.on('login', user => {
-                updateAuthUI(user);
-                netlifyIdentity.close(); // Cierra el popup al entrar
-                // Recargar si estamos en dashboard para ver cursos protegidos
-                if(!window.location.search) window.location.reload();
-            });
-            netlifyIdentity.on('logout', () => {
-                updateAuthUI(null);
-                window.location.href = "/"; // Volver al inicio al salir
-            });
-        }
-
+        // Funciones de Auth
         function updateAuthUI(user) {
             const btnLogin = document.getElementById('btn-login');
             const btnLogout = document.getElementById('btn-logout');

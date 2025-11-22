@@ -37,7 +37,7 @@
 
 [data-theme="dark"] {
     /* --- VARIABLES FUNCIONALES (MODO OSCURO) --- */
-    --primary-color: #4a90e2; /* Azul más claro para leer sobre negro */
+    --primary-color: #64b5f6; /* Azul más claro */
     --accent-color: #ff5252;
     
     --bg-body: #121212;
@@ -82,15 +82,23 @@ h1, h2, h3 { color: var(--primary-color); margin-top: 0; }
 a { text-decoration: none; color: inherit; }
 
 /* ==========================================================================
-   3. CABECERA
+   3. CABECERA (DISEÑO BLANCO + BARRA ROJA)
    ========================================================================== */
 .main-header {
-    background-color: #0f4c81; /* Fondo siempre azul corporativo */
+    background-color: #ffffff; /* Fondo Blanco para leer el logo */
     padding: 10px 20px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border-top: 5px solid var(--brand-red); /* Barra ROJA Corporativa */
+    border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
     z-index: 100;
+}
+
+/* Ajuste para Modo Oscuro en cabecera */
+[data-theme="dark"] .main-header {
+    background-color: #1e1e1e;
+    border-bottom: 1px solid #333;
 }
 
 .header-content {
@@ -102,25 +110,55 @@ a { text-decoration: none; color: inherit; }
 }
 
 .header-logo {
-    max-height: 50px;
+    max-height: 55px;
     width: auto;
     display: block;
 }
 
-/* Fondo blanco suave para el logo en modo oscuro para que se lea "SICAP" */
+/* Fondo protector para el logo en Modo Oscuro (si es PNG transparente negro) */
 [data-theme="dark"] .header-logo-container {
     background-color: rgba(255, 255, 255, 0.9);
     padding: 5px 10px;
     border-radius: 6px;
 }
 
+/* Botones de Cabecera (Luna y Login) */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
 .btn-icon {
     background: none;
     border: none;
-    color: white;
-    font-size: 1.5rem;
+    color: #555; /* Oscuro en fondo blanco */
+    font-size: 1.2rem;
     cursor: pointer;
     padding: 5px;
+    transition: color 0.2s;
+}
+.btn-icon:hover { color: var(--brand-blue); }
+
+[data-theme="dark"] .btn-icon { color: #e0e0e0; }
+
+/* Botones Personalizados de Usuario (Accedir/Sortir) */
+.user-btn {
+    background: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 6px 15px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.user-btn:hover {
+    background-color: var(--brand-blue);
+    color: white;
+    border-color: var(--brand-blue);
 }
 
 /* ==========================================================================
@@ -170,32 +208,32 @@ a { text-decoration: none; color: inherit; }
     flex-direction: row;
     width: 100%;
     max-width: 100%;
-    min-height: calc(100vh - 70px);
+    min-height: calc(100vh - 80px);
     padding: 20px;
     gap: 20px;
-    justify-content: center; /* Centrar el bloque si la pantalla es gigante */
+    justify-content: center;
 }
 
-/* Columna Izquierda y Derecha (Barras Laterales) */
+/* Columna Izquierda y Derecha */
 .sidebar-left, .sidebar-right {
     width: 280px;
     flex-shrink: 0;
     background: var(--bg-card);
     border-radius: 8px;
     padding: 20px;
-    height: fit-content; /* Se ajusta al contenido */
-    max-height: calc(100vh - 100px); /* Scroll interno si es muy alto */
+    height: fit-content;
+    max-height: calc(100vh - 100px);
     overflow-y: auto;
     border: 1px solid var(--border-color);
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     position: sticky;
-    top: 90px; /* Se queda fija al hacer scroll */
+    top: 90px;
 }
 
-/* Columna Central (Examen) */
+/* Columna Central */
 .main-content {
     flex-grow: 1;
-    max-width: 900px; /* Ancho máximo para no cansar la vista */
+    max-width: 900px;
     min-width: 0;
 }
 
@@ -205,10 +243,10 @@ a { text-decoration: none; color: inherit; }
     padding: 40px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     border: 1px solid var(--border-color);
-    border-top: 4px solid var(--brand-red); /* Borde rojo SICAP */
+    border-top: 4px solid var(--brand-red); /* Borde Rojo SICAP */
 }
 
-/* Títulos de las barras laterales */
+/* Títulos Laterales */
 .sidebar-header h3 {
     font-size: 1.1rem;
     border-bottom: 1px solid var(--border-color);
@@ -217,7 +255,6 @@ a { text-decoration: none; color: inherit; }
     color: var(--primary-color);
 }
 
-/* Enlaces Índice */
 .module-link {
     display: block;
     padding: 10px;
@@ -232,7 +269,33 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* ==========================================================================
-   6. COMPONENTES DEL EXAMEN (PREGUNTAS Y OPCIONES)
+   6. TARJETA DE RESULTADOS (DISEÑO LIMPIO CENTRADO)
+   ========================================================================== */
+#final-score-card {
+    text-align: center;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 40px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.score-big-number {
+    font-size: 4rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    line-height: 1;
+    margin: 20px 0;
+}
+
+.score-text {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+/* ==========================================================================
+   7. PREGUNTAS Y OPCIONES
    ========================================================================== */
 .question-card {
     margin-bottom: 40px;
@@ -256,10 +319,9 @@ a { text-decoration: none; color: inherit; }
     line-height: 1.5;
 }
 
-/* Opciones de Respuesta */
 .option-item {
     display: flex;
-    align-items: center; /* Centrar verticalmente radio y texto */
+    align-items: center;
     padding: 12px 15px;
     margin-bottom: 10px;
     border: 1px solid var(--border-color);
@@ -268,7 +330,6 @@ a { text-decoration: none; color: inherit; }
     transition: all 0.2s;
     background-color: var(--bg-card);
 }
-
 .option-item:hover {
     border-color: var(--primary-color);
     background-color: var(--bg-body);
@@ -280,7 +341,7 @@ a { text-decoration: none; color: inherit; }
     transform: scale(1.2);
 }
 
-/* Estados de las opciones */
+/* Estados */
 .option-item.selected {
     background-color: var(--selected-bg);
     border-color: var(--selected-border);
@@ -302,7 +363,7 @@ a { text-decoration: none; color: inherit; }
     opacity: 0.8;
 }
 
-/* Caja de Explicación */
+/* Explicación */
 .explanation-box {
     margin-top: 20px;
     padding: 15px;
@@ -310,15 +371,15 @@ a { text-decoration: none; color: inherit; }
     border: 1px solid #ffeeba;
     border-radius: 6px;
     color: var(--quiz-feedback-text);
-    display: none; /* Oculto por defecto */
+    display: none;
 }
 
 /* ==========================================================================
-   7. GRID DE NAVEGACIÓN (COLUMNA DERECHA)
+   8. GRID NAVEGACIÓN
    ========================================================================== */
 .grid-container {
     display: grid;
-    grid-template-columns: repeat(5, 1fr); /* 5 columnas */
+    grid-template-columns: repeat(5, 1fr);
     gap: 8px;
 }
 
@@ -335,7 +396,6 @@ a { text-decoration: none; color: inherit; }
     border: 1px solid transparent;
     transition: background-color 0.2s;
 }
-
 .grid-item:hover { background-color: #e0e0e0; }
 .grid-item.answered { background-color: var(--primary-color); color: white; }
 .grid-item.correct { background-color: var(--correct-bg); color: var(--correct-text); border: 1px solid var(--correct-border); }
@@ -343,7 +403,7 @@ a { text-decoration: none; color: inherit; }
 .grid-item.unanswered { border: 1px solid var(--accent-color); }
 
 /* ==========================================================================
-   8. BOTONES Y UTILIDADES
+   9. BOTONES Y UTILIDADES
    ========================================================================== */
 .btn-primary {
     background-color: var(--accent-color); /* Rojo SICAP */
@@ -358,10 +418,7 @@ a { text-decoration: none; color: inherit; }
     margin-top: 20px;
     transition: background-color 0.3s;
 }
-
-.btn-primary:hover {
-    background-color: #c40511; /* Rojo más oscuro */
-}
+.btn-primary:hover { background-color: #c40511; }
 
 .btn-small {
     padding: 6px 12px;
@@ -371,6 +428,9 @@ a { text-decoration: none; color: inherit; }
     border: 1px solid var(--border-color);
     color: var(--text-main);
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
 }
 .btn-small:hover { border-color: var(--primary-color); color: var(--primary-color); }
 
@@ -387,13 +447,12 @@ a { text-decoration: none; color: inherit; }
 .loading-text { text-align: center; color: var(--text-secondary); }
 
 .alert { padding: 15px; border-radius: 6px; margin-bottom: 20px; }
-.alert-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-.alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.alert-warning { background-color: #fff3cd; color: #856404; }
+.alert-danger { background-color: #f8d7da; color: #721c24; }
 
 /* ==========================================================================
-   9. CORRECCIÓN VISUAL FINAL: MODO OSCURO (PRIORIDAD COLORES)
+   10. CORRECCIÓN VISUAL MODO OSCURO (Overrides)
    ========================================================================== */
-/* Esto asegura que Verde/Rojo gane al Azul en modo oscuro */
 [data-theme="dark"] .option-item.correct,
 [data-theme="dark"] .option-item.selected.correct {
     background-color: var(--correct-bg) !important;
@@ -409,11 +468,11 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* ==========================================================================
-   10. RESPONSIVE MOBILE
+   11. RESPONSIVE MOBILE
    ========================================================================== */
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
     .app-container {
-        flex-direction: column; /* Columnas una debajo de otra */
+        flex-direction: column;
         padding: 10px;
     }
     .sidebar-left, .sidebar-right, .main-content {
@@ -421,10 +480,10 @@ a { text-decoration: none; color: inherit; }
         max-width: 100%;
     }
     .sidebar-left, .sidebar-right {
-        position: static; /* Ya no son fijas en móvil */
+        position: static;
         max-height: none;
     }
-    .sidebar-left { order: 2; } /* Índice abajo */
-    .main-content { order: 1; } /* Examen primero */
-    .sidebar-right { order: 3; } /* Navegación al final */
+    .sidebar-left { order: 2; }
+    .main-content { order: 1; }
+    .sidebar-right { order: 3; }
 }

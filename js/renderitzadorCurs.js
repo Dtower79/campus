@@ -281,22 +281,31 @@ document.addEventListener('DOMContentLoaded', () => {
         // CALCULAR NOTA
         const nota = total > 0 ? (aciertos / total) * 10 : 0;
         
-        // MOSTRAR RESULTADO (Arriba)
+        // MOSTRAR RESULTADO (Estilo Centrado "Antiguo")
         const scoreCard = document.getElementById('final-score-card');
         if(scoreCard) {
+            // Determinamos color del mensaje (no del fondo)
+            const colorMensaje = nota >= 5 ? '#155724' : '#721c24'; 
+            
             scoreCard.innerHTML = `
-                <h2 style="margin-top:0;">Resultats</h2>
-                <div style="font-size: 2rem; font-weight:bold; color: ${nota >= 5 ? 'var(--correct-text)' : 'var(--wrong-text)'}">
-                    ${nota.toFixed(2)} / 10
-                </div>
-                <p>${nota >= 5 ? "Enhorabona, has aprovat!" : "Has de repassar el temari."}</p>
-                <p>Encerts: <strong>${aciertos}</strong> de <strong>${total}</strong></p>
+                <h3 style="color:var(--text-secondary); text-transform:uppercase; font-size:0.9rem; letter-spacing:1px;">Resultats</h3>
+                
+                <div class="score-big-number">${nota.toFixed(2)}</div>
+                
+                <p class="score-text" style="color:${colorMensaje}; font-weight:bold;">
+                    ${nota >= 5 ? "Aprovat" : "Has de repassar."}
+                </p>
+                
+                <p style="color:#666; margin-top:5px;">
+                    Encerts: <strong>${aciertos}</strong> / ${total} (Contestades: ${contestadas})
+                </p>
             `;
+            
             scoreCard.style.display = 'block';
-            scoreCard.className = nota >= 5 ? 'alert alert-warning' : 'alert alert-danger'; 
-            // Nota: uso clases alert existentes, pero podrías personalizar colores
-            scoreCard.style.backgroundColor = nota >= 5 ? 'var(--correct-bg)' : 'var(--wrong-bg)';
-            scoreCard.style.borderColor = nota >= 5 ? 'var(--correct-border)' : 'var(--wrong-border)';
+            // Quitamos estilos inline que forzaban colores de alerta
+            scoreCard.className = ''; 
+            scoreCard.style.backgroundColor = '#ffffff';
+            scoreCard.style.borderColor = '#dfe1e5';
         }
 
         // Scroll arriba

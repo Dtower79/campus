@@ -12,17 +12,28 @@
 </head>
 <body>
 
-    <!-- CABECERA -->
+    <!-- CABECERA BLANCA CON BARRA ROJA -->
     <header class="main-header">
         <div class="header-content">
             <div class="header-logo-container">
-                <a href="/"> <!-- Clic en el logo lleva al inicio -->
+                <a href="/">
                     <img src="img/logo-sicap.png" alt="SICAP" class="header-logo">
                 </a>
             </div>
-            <div class="header-controls">
-                <button id="theme-toggle" class="btn-icon" title="Canviar tema">🌓</button>
-                <div data-netlify-identity-button></div>
+            
+            <div class="header-controls" style="display:flex; align-items:center;">
+                <!-- Icono Luna Clásico (FontAwesome) -->
+                <button id="theme-toggle" class="btn-icon" title="Canviar tema">
+                    <i class="fas fa-moon"></i>
+                </button>
+
+                <!-- Botones de Sesión Manuales (Catalán) -->
+                <div id="auth-buttons">
+                    <!-- Se mostrará uno u otro según estado -->
+                    <button id="btn-login" class="user-btn" onclick="netlifyIdentity.open()">Accedir</button>
+                    <button id="btn-logout" class="user-btn" style="display:none;" onclick="logoutUser()">Sortir</button>
+                    <span id="user-name" style="font-size:0.8rem; margin-right:10px; display:none;"></span>
+                </div>
             </div>
         </div>
     </header>
@@ -150,6 +161,45 @@
                     </a>
                 `;
             }
+        }
+
+        // GESTIÓN DE USUARIO (NETLIFY IDENTITY) EN CATALÁN
+        // Esto detecta si el usuario entra o sale y cambia los botones
+        if (window.netlifyIdentity) {
+            netlifyIdentity.on('init', user => updateAuthUI(user));
+            netlifyIdentity.on('login', user => {
+                updateAuthUI(user);
+                netlifyIdentity.close(); // Cierra el popup al entrar
+                // Recargar si estamos en dashboard para ver cursos protegidos
+                if(!window.location.search) window.location.reload();
+            });
+            netlifyIdentity.on('logout', () => {
+                updateAuthUI(null);
+                window.location.href = "/"; // Volver al inicio al salir
+            });
+        }
+
+        function updateAuthUI(user) {
+            const btnLogin = document.getElementById('btn-login');
+            const btnLogout = document.getElementById('btn-logout');
+            const userName = document.getElementById('user-name');
+
+            if (user) {
+                if(btnLogin) btnLogin.style.display = 'none';
+                if(btnLogout) btnLogout.style.display = 'inline-block';
+                if(userName) {
+                    userName.style.display = 'inline-block';
+                    userName.innerText = user.user_metadata.full_name || user.email;
+                }
+            } else {
+                if(btnLogin) btnLogin.style.display = 'inline-block';
+                if(btnLogout) btnLogout.style.display = 'none';
+                if(userName) userName.style.display = 'none';
+            }
+        }
+
+        function logoutUser() {
+            netlifyIdentity.logout();
         }
     </script>
 </body>

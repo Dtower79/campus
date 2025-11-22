@@ -3,93 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SICAP Campus - Formació</title>
+    <title>SICAP Campus</title>
     
-    <!-- Favicon -->
+    <!-- CORRECCIÓN LOGO: Asegúrate de que el archivo en la carpeta img se llame solo .png -->
     <link rel="icon" type="image/png" href="img/logo-sicap.png">
 
-    <!-- Estilos -->
     <link rel="stylesheet" href="css/estil.css">
-    
-    <!-- Fuentes -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- FontAwesome (Necesario para los iconos del JS) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Widget de Netlify Identity (Para gestionar Login/Logout) -->
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body>
 
-    <!-- 1. CABECERA SICAP -->
+    <!-- CABECERA COMÚN -->
     <header class="main-header">
         <div class="header-content">
             <div class="header-logo-container">
+                <!-- Asegúrate de renombrar tu archivo a logo-sicap.png en la carpeta img -->
                 <img src="img/logo-sicap.png" alt="SICAP" class="header-logo">
             </div>
-            <!-- Si quieres mantener el Login/Sortir dímelo, de momento pongo el control de tema -->
             <div class="header-controls">
-                <button id="theme-toggle" class="btn-icon" aria-label="Canviar tema">🌓</button>
+                <button id="theme-toggle" class="btn-icon" title="Canviar tema">🌓</button>
+                <!-- Botón Login/Logout gestionado por Netlify Identity -->
+                <div data-netlify-identity-button></div>
             </div>
         </div>
     </header>
 
-    <!-- 2. LAYOUT (3 Columnas) -->
-    <div class="app-container">
-        
-        <!-- COLUMNA IZQ: ÍNDICE -->
-        <aside class="sidebar-left" id="sidebar-index">
-            <div class="sidebar-header">
-                <h3>Índex</h3>
+    <!-- VISTA 1: DASHBOARD (LISTA DE CURSOS) -->
+    <div id="dashboard-view" class="container-dashboard" style="display:none;">
+        <div class="dashboard-card">
+            <h1 style="color: var(--primary-color);">Els Meus Cursos</h1>
+            <p>Benvingut al Campus SICAP. Selecciona un curs per començar:</p>
+            
+            <!-- Aquí se inyectarán los cursos desde llistaCursos.js -->
+            <div id="courses-list" class="courses-grid">
+                <div class="loader"></div>
+                <p class="loading-text">Carregant els teus cursos...</p>
             </div>
-            <!-- IMPORTANTE: Este ID 'course-index' es el que busca tu JS -->
-            <div id="course-index">
-                <p class="loading-text">Carregant índex...</p>
+        </div>
+    </div>
+
+    <!-- VISTA 2: EXAMEN (DISEÑO 3 COLUMNAS) -->
+    <div id="exam-view" class="app-container" style="display:none;">
+        
+        <!-- Columna Izq -->
+        <aside class="sidebar-left" id="sidebar-index">
+            <div class="sidebar-header"><h3>Índex</h3></div>
+            <div id="course-index"><p class="loading-text">Carregant índex...</p></div>
+            <div style="padding: 15px; text-align: center;">
+                <a href="/" class="btn-small" style="display: inline-block; margin-top:10px;">
+                    <i class="fas fa-arrow-left"></i> Tornar al Menú
+                </a>
             </div>
         </aside>
 
-        <!-- COLUMNA CENTRAL: EXAMEN -->
+        <!-- Centro -->
         <main class="main-content">
             <div id="exam-header">
-                <!-- IMPORTANTE: Estos IDs 'curs-titol' y 'curs-descripcio' los busca tu JS -->
                 <h1 id="curs-titol">Carregant curs...</h1>
-                <div id="curs-descripcio" style="margin-bottom: 20px; color: var(--text-main);"></div>
+                <div id="curs-descripcio" style="color: var(--text-main);"></div>
             </div>
-
             <div class="exam-card">
-                <!-- IMPORTANTE: Este ID 'moduls-container' es CRÍTICO. Aquí falla ahora mismo -->
-                <div id="moduls-container">
-                    <div class="loader"></div>
-                </div>
+                <div id="moduls-container"><div class="loader"></div></div>
             </div>
         </main>
 
-        <!-- COLUMNA DERECHA: GRID NÚMEROS -->
+        <!-- Derecha -->
         <aside class="sidebar-right" id="sidebar-nav">
-            <div class="sidebar-header">
-                <h3>Navegació</h3>
-            </div>
-            <!-- IMPORTANTE: Este ID 'quiz-grid' es el que busca tu JS -->
+            <div class="sidebar-header"><h3>Navegació</h3></div>
             <div id="quiz-grid" class="grid-container"></div>
         </aside>
-
     </div>
 
     <!-- SCRIPTS -->
+    
+    <!-- 1. Script del Examen (Tu archivo actual) -->
     <script src="js/renderitzadorCurs.js"></script>
 
-    <!-- Script Modo Oscuro -->
+    <!-- 2. Script de Control (Router y Carga de Cursos) -->
     <script>
-        const toggleBtn = document.getElementById('theme-toggle');
-        const htmlElement = document.documentElement;
-        if (localStorage.getItem('theme') === 'dark') htmlElement.setAttribute('data-theme', 'dark');
-        if(toggleBtn){
-            toggleBtn.addEventListener('click', () => {
-                if (htmlElement.getAttribute('data-theme') === 'dark') {
-                    htmlElement.removeAttribute('data-theme');
-                    localStorage.setItem('theme', 'light');
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const slug = params.get('slug');
+            
+            // Elementos de las vistas
+            const dashboardView = document.getElementById('dashboard-view');
+            const examView = document.getElementById('exam-view');
+
+            // --- LOGICA DEL ROUTER ---
+            if (slug) {
+                // CASO A: Estamos dentro de un curso -> Mostrar Examen
+                dashboardView.style.display = 'none';
+                examView.style.display = 'flex'; 
+                // renderitzadorCurs.js se ejecutará automáticamente al detectar el slug
+            } else {
+                // CASO B: Estamos en la raíz -> Mostrar Lista de Cursos
+                dashboardView.style.display = 'block';
+                examView.style.display = 'none';
+                cargarCursosDesdeBackend();
+            }
+
+            // --- MODO OSCURO ---
+            const toggleBtn = document.getElementById('theme-toggle');
+            const htmlElement = document.documentElement;
+            
+            // Recuperar preferencia
+            if (localStorage.getItem('theme') === 'dark') htmlElement.setAttribute('data-theme', 'dark');
+            
+            if(toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    const isDark = htmlElement.getAttribute('data-theme') === 'dark';
+                    if(isDark) {
+                        htmlElement.removeAttribute('data-theme');
+                        localStorage.setItem('theme', 'light');
+                    } else {
+                        htmlElement.setAttribute('data-theme', 'dark');
+                        localStorage.setItem('theme', 'dark');
+                    }
+                });
+            }
+        });
+
+        // --- FUNCIÓN PARA CARGAR LA LISTA (Usando tu llistaCursos.js) ---
+        async function cargarCursosDesdeBackend() {
+            const container = document.getElementById('courses-list');
+            
+            try {
+                // Llamamos a tu función de Netlify existente
+                const response = await fetch('/.netlify/functions/llistaCursos');
+                
+                if (!response.ok) throw new Error('Error connectant amb el servidor');
+                
+                const data = await response.json();
+                
+                // Limpiamos el loader
+                container.innerHTML = '';
+
+                if (data && data.length > 0) {
+                    data.forEach(curs => {
+                        // Creamos la tarjeta del curso
+                        const card = document.createElement('a');
+                        card.className = 'course-card-item';
+                        // IMPORTANTE: Esto añade ?slug=... a la URL para activar la vista de examen
+                        card.href = `?slug=${curs.slug}`; 
+                        
+                        card.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <h3 style="margin:0; color:var(--primary-color);">${curs.titol}</h3>
+                                <i class="fas fa-chevron-right" style="color:var(--border-color);"></i>
+                            </div>
+                            <p style="margin-top:10px; font-size:0.9rem; color:var(--text-main);">
+                                ${curs.descripcioBreu || 'Fes clic per accedir al contingut.'}
+                            </p>
+                        `;
+                        container.appendChild(card);
+                    });
                 } else {
-                    htmlElement.setAttribute('data-theme', 'dark');
-                    localStorage.setItem('theme', 'dark');
+                    container.innerHTML = '<p>No hi ha cursos disponibles actualment.</p>';
                 }
-            });
+
+            } catch (error) {
+                console.error('Error cargando cursos:', error);
+                // Fallback visual por si falla la conexión
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        No s'han pogut carregar els cursos. <br>
+                        <small>${error.message}</small>
+                    </div>
+                `;
+            }
         }
     </script>
 </body>

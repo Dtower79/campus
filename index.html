@@ -4,16 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SICAP Campus</title>
-    
-    <!-- Logo y Estilos -->
     <link rel="icon" type="image/png" href="img/logo-sicap.png">
     <link rel="stylesheet" href="css/estil.css">
-    
-    <!-- Fuentes -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Netlify Identity -->
     <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body>
@@ -22,7 +16,9 @@
     <header class="main-header">
         <div class="header-content">
             <div class="header-logo-container">
-                <img src="img/logo-sicap.png" alt="SICAP" class="header-logo">
+                <a href="/"> <!-- Clic en el logo lleva al inicio -->
+                    <img src="img/logo-sicap.png" alt="SICAP" class="header-logo">
+                </a>
             </div>
             <div class="header-controls">
                 <button id="theme-toggle" class="btn-icon" title="Canviar tema">🌓</button>
@@ -31,59 +27,47 @@
         </div>
     </header>
 
-    <!-- VISTA 1: DASHBOARD (Lista de Cursos) -->
-    <div id="dashboard-view" class="container-dashboard">
+    <!-- VISTA 1: DASHBOARD (LISTA DE CURSOS) -->
+    <div id="dashboard-view" class="container-dashboard" style="display:none;">
         <div class="dashboard-card">
-            <h1 style="color: var(--primary-color);">Els Meus Cursos</h1>
-            <p>Benvingut al Campus SICAP. Selecciona un curs:</p>
+            <h1 style="color: var(--primary-color); margin-bottom: 20px;">Els Meus Cursos</h1>
             <div id="courses-list" class="courses-grid">
                 <div class="loader"></div>
-                <p class="loading-text">Carregant els teus cursos...</p>
+                <p class="loading-text">Connectant amb el servidor...</p>
             </div>
         </div>
     </div>
 
-    <!-- VISTA 2: EXAMEN (3 Columnas) -->
+    <!-- VISTA 2: EXAMEN (LAYOUT 3 COLUMNAS) -->
     <div id="exam-view" class="app-container" style="display:none;">
         
-        <!-- 1. IZQUIERDA: ÍNDICE -->
+        <!-- IZQUIERDA -->
         <aside class="sidebar-left" id="sidebar-index">
-            <div class="sidebar-header"><h3>Índex</h3></div>
-            
-            <!-- ID CRÍTICO PARA EL JS: 'course-index' -->
-            <div id="course-index">
-                <p class="loading-text">Carregant índex...</p>
-            </div>
-            
-            <div style="padding: 15px; text-align: center; margin-top:auto;">
-                <a href="/" class="btn-small" style="display: inline-block;">
-                    <i class="fas fa-arrow-left"></i> Menú
-                </a>
+            <div class="sidebar-header"><h3>Índex del Curs</h3></div>
+            <div id="course-index"><p class="loading-text">Carregant...</p></div>
+            <div style="margin-top: 20px; text-align: center;">
+                <a href="/" class="btn-small"><i class="fas fa-arrow-left"></i> Tornar als Cursos</a>
             </div>
         </aside>
 
-        <!-- 2. CENTRO: EXAMEN -->
+        <!-- CENTRO -->
         <main class="main-content">
-            <div id="exam-header">
-                <!-- ID CRÍTICO PARA EL JS: 'curs-titol' -->
-                <h1 id="curs-titol">Carregant curs...</h1>
-                <!-- ID CRÍTICO PARA EL JS: 'curs-descripcio' -->
-                <div id="curs-descripcio" style="color: var(--text-main); margin-bottom: 1rem;"></div>
+            <div id="exam-header" style="margin-bottom: 20px;">
+                <h1 id="curs-titol">Carregant títol...</h1>
+                <div id="curs-descripcio"></div>
             </div>
-
+            
+            <!-- Aquí se inyectan las preguntas -->
             <div class="exam-card">
-                <!-- ID CRÍTICO PARA EL JS: 'moduls-container' (AQUÍ FALLABA) -->
                 <div id="moduls-container">
                     <div class="loader"></div>
                 </div>
             </div>
         </main>
 
-        <!-- 3. DERECHA: GRID -->
+        <!-- DERECHA -->
         <aside class="sidebar-right" id="sidebar-nav">
             <div class="sidebar-header"><h3>Navegació</h3></div>
-            
-            <!-- ID CRÍTICO PARA EL JS: 'quiz-grid' -->
             <div id="quiz-grid" class="grid-container"></div>
         </aside>
     </div>
@@ -91,74 +75,80 @@
     <!-- SCRIPTS -->
     <script src="js/renderitzadorCurs.js"></script>
 
-    <!-- Script Controlador de Vistas -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // 1. Router Simple
             const params = new URLSearchParams(window.location.search);
             const slug = params.get('slug');
-            const dashboardView = document.getElementById('dashboard-view');
-            const examView = document.getElementById('exam-view');
+            
+            const dashboard = document.getElementById('dashboard-view');
+            const exam = document.getElementById('exam-view');
 
             if (slug) {
-                // MODO EXAMEN
-                dashboardView.style.display = 'none';
-                examView.style.display = 'flex'; 
+                // Estamos en un examen
+                console.log("Modo Examen activado. Slug:", slug);
+                dashboard.style.display = 'none';
+                exam.style.display = 'flex'; // IMPORTANTE: flex para las 3 columnas
             } else {
-                // MODO DASHBOARD
-                dashboardView.style.display = 'block';
-                examView.style.display = 'none';
-                cargarCursosDesdeBackend();
+                // Estamos en el inicio
+                console.log("Modo Dashboard activado.");
+                dashboard.style.display = 'block';
+                exam.style.display = 'none';
+                cargarCursos();
             }
 
-            // Tema Oscuro
+            // 2. Modo Oscuro
             const toggleBtn = document.getElementById('theme-toggle');
             const htmlElement = document.documentElement;
             if (localStorage.getItem('theme') === 'dark') htmlElement.setAttribute('data-theme', 'dark');
-            
-            if(toggleBtn) {
-                toggleBtn.addEventListener('click', () => {
-                    const isDark = htmlElement.getAttribute('data-theme') === 'dark';
-                    if(isDark) {
-                        htmlElement.removeAttribute('data-theme');
-                        localStorage.setItem('theme', 'light');
-                    } else {
-                        htmlElement.setAttribute('data-theme', 'dark');
-                        localStorage.setItem('theme', 'dark');
-                    }
-                });
-            }
+            if(toggleBtn) toggleBtn.addEventListener('click', () => {
+                const isDark = htmlElement.getAttribute('data-theme') === 'dark';
+                htmlElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+                localStorage.setItem('theme', isDark ? 'light' : 'dark');
+                if(isDark) htmlElement.removeAttribute('data-theme');
+            });
         });
 
-        async function cargarCursosDesdeBackend() {
-            const container = document.getElementById('courses-list');
+        async function cargarCursos() {
+            const list = document.getElementById('courses-list');
             try {
+                // Intenta cargar desde Netlify Functions
                 const response = await fetch('/.netlify/functions/llistaCursos');
-                if (!response.ok) throw new Error('Error connectant amb el servidor');
-                const data = await response.json();
-                
-                container.innerHTML = '';
-                if (data && data.length > 0) {
-                    data.forEach(curs => {
-                        const card = document.createElement('a');
-                        card.className = 'course-card-item';
-                        card.href = `?slug=${curs.slug}`; 
-                        card.innerHTML = `
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <h3 style="margin:0; color:var(--primary-color);">${curs.titol}</h3>
-                                <i class="fas fa-chevron-right" style="color:var(--border-color);"></i>
-                            </div>
-                            <p style="margin-top:10px; font-size:0.9rem; color:var(--text-main);">
-                                ${curs.descripcioBreu || 'Entrar al curs'}
-                            </p>
+                if(response.ok) {
+                    const data = await response.json();
+                    list.innerHTML = '';
+                    if(data.length === 0) {
+                        list.innerHTML = '<p>No hi ha cursos disponibles.</p>';
+                        return;
+                    }
+                    data.forEach(c => {
+                        const item = document.createElement('a');
+                        item.className = 'course-card-item';
+                        // AQUÍ SE GENERA EL ENLACE CON EL SLUG CORRECTO
+                        item.href = `?slug=${c.slug}`; 
+                        item.innerHTML = `
+                            <h3>${c.titol}</h3>
+                            <p>${c.descripcioBreu || 'Accedir al curs'}</p>
                         `;
-                        container.appendChild(card);
+                        list.appendChild(item);
                     });
                 } else {
-                    container.innerHTML = '<p>No hi ha cursos disponibles.</p>';
+                    throw new Error("Error api");
                 }
-            } catch (error) {
-                console.error('Error carregant cursos:', error);
-                container.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            } catch (e) {
+                console.error(e);
+                // FALLBACK MANUAL POR SI FALLA LA API (Para que puedas probar YA)
+                // Esto generará un botón manual para tu curso de Strapi
+                list.innerHTML = `
+                    <div class="alert alert-warning">
+                        No s'ha pogut connectar amb el llistat automàtic.
+                        <br><strong>Accés manual detectat:</strong>
+                    </div>
+                    <a href="?slug=iniciacio-regim-disciplinari" class="course-card-item" style="border-color: var(--brand-blue);">
+                        <h3>Curs d'Iniciació al Règim Disciplinari</h3>
+                        <p>Fes clic aquí per entrar manualment (Fallback Mode)</p>
+                    </a>
+                `;
             }
         }
     </script>

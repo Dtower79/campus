@@ -489,24 +489,33 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* ==========================================================================
-   CORRECCIÓN FINAL: RESULTADOS EN MODO OSCURO
+   CORRECCIÓN FINAL: TARJETA RESULTADOS (MODO OSCURO - GRIS MEDIO)
    ========================================================================== */
 
-/* Forzamos que la tarjeta de resultados use el fondo oscuro en modo noche */
 [data-theme="dark"] #final-score-card {
-    background-color: var(--bg-card) !important; /* Gris oscuro (#1e1e1e) */
-    border-color: var(--border-color) !important;
-    color: var(--text-main) !important;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    /* Usamos un GRIS MEDIO (#333). 
+       Es claramente más claro que el fondo negro (#1e1e1e), 
+       creando contraste y jerarquía, pero sin deslumbrar. */
+    background-color: #333333 !important;
+    
+    /* Borde gris claro para delimitar bien la caja */
+    border: 1px solid #555555 !important;
+    
+    /* Texto blanco puro para máxima legibilidad */
+    color: #ffffff !important;
+    
+    /* Sombra más pronunciada para efecto 3D */
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
 }
 
-/* Ajuste del texto "Resultats" para que no se vea gris claro sobre gris oscuro */
+/* Ajustamos el título pequeño "RESULTATS" para que sea gris perla */
 [data-theme="dark"] #final-score-card h3 {
-    color: var(--text-secondary) !important;
+    color: #dddddd !important;
+    opacity: 0.9;
 }
 
-/* Aseguramos que la nota grande brille en azul claro */
+/* La nota numérica en un azul luminoso (Celeste) para que destaque sobre el gris */
 [data-theme="dark"] .score-big-number {
-    color: var(--primary-color) !important;
+    color: #64b5f6 !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
-

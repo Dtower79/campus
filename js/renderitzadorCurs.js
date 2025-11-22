@@ -2,233 +2,211 @@ document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const slug = params.get('slug');
     
-    // --- ADAPTACIÓN A TU HTML ---
-    const contenedor = document.getElementById('moduls-container'); // Nombre real en tu HTML
-    const tituloCursEl = document.getElementById('curs-titol');     // Nombre real en tu HTML
-    const descripcioCursEl = document.getElementById('curs-descripcio'); // Nombre real en tu HTML
-    const btnCorregir = document.getElementById('finish-review');   // El botón de la barra lateral
+    // Elementos del HTML original
+    const contenedorCentral = document.getElementById('moduls-container'); 
+    const contenedorIndice = document.getElementById('course-index'); // La barra izquierda
+    const tituloCursEl = document.getElementById('curs-titol');     
+    const descripcioCursEl = document.getElementById('curs-descripcio'); 
+    const btnLateral = document.getElementById('finish-review'); 
 
-    if (!slug) {
-        console.error('No se ha especificado ningún curso.');
-        if(tituloCursEl) tituloCursEl.textContent = "Error: Curs no especificat";
-        return;
-    }
+    if (!slug) return;
 
-    // Variables globales
+    // Estado
     let respuestasUsuario = {}; 
     let datosCursoGlobal = null;
 
-    cargarDatosCurso(slug);
+    cargarDatos();
 
-    async function cargarDatosCurso(slug) {
+    async function cargarDatos() {
         try {
-            // Llamada al backend
             const response = await fetch(`/.netlify/functions/dadesCurs?slug=${slug}`);
-            
-            if (!response.ok) throw new Error('Error al cargar el curso');
-
+            if (!response.ok) throw new Error('Error servidor');
             const data = await response.json();
             datosCursoGlobal = data;
-            
-            renderizarCurso(data);
-
+            renderizarTodo(data);
         } catch (error) {
-            console.error('Error:', error);
-            if(contenedor) contenedor.innerHTML = `<div class="alert alert-danger">Error de connexió: ${error.message}</div>`;
+            console.error(error);
+            contenedorCentral.innerHTML = '<div class="alert alert-danger">Error carregant dades.</div>';
         }
     }
 
-    function renderizarCurso(data) {
-        // 1. Rellenar cabecera
+    function renderizarTodo(data) {
+        // 1. Cabecera y Descripción (Arreglado el [object Object])
         if(tituloCursEl) tituloCursEl.textContent = data.titol;
-        
-        // CORRECCIÓN [object Object]: Parsear descripción
         if(descripcioCursEl) {
-            let descText = "";
-            if (data.descripcio) {
-                if (Array.isArray(data.descripcio)) {
-                    // Es formato Bloques (Strapi v5)
-                    try {
-                        descText = data.descripcio
-                            .map(b => (b.children ? b.children.map(c => c.text).join('') : ''))
-                            .join('\n');
-                    } catch (e) { console.warn("Error parsing desc", e); }
-                } else {
-                    descText = data.descripcio;
-                }
+            // Si es texto enriquecido (bloques), extraemos el texto. Si es string, lo ponemos tal cual.
+            if (Array.isArray(data.descripcio)) {
+                descripcioCursEl.innerText = data.descripcio.map(b => b.children.map(c => c.text).join('')).join('\n');
+            } else {
+                descripcioCursEl.innerText = data.descripcio || "";
             }
-            descripcioCursEl.textContent = descText; // Ahora saldrá el texto limpio
         }
 
-        // 2. Limpiar contenedor
-        contenedor.innerHTML = '';
+        // 2. Limpiar contenedores
+        contenedorCentral.innerHTML = '';
+        if(contenedorIndice) contenedorIndice.innerHTML = '';
 
-        // 3. Renderizar Módulos
+        // 3. Bucle de Módulos
         if (data.moduls && data.moduls.length > 0) {
-            data.moduls.forEach((modul, indexModul) => {
-                renderizarModul(modul, indexModul);
+            data.moduls.forEach((modul, idx) => {
+                // A. Rellenar Índice Lateral (Lo que faltaba antes)
+                if(contenedorIndice) {
+                    const item = document.createElement('div');
+                    item.className = 'module-item';
+                    item.innerHTML = `<a href="#modul-${idx}" class="text-decoration-none text-dark">📂 ${modul.titol}</a>`;
+                    contenedorIndice.appendChild(item);
+                }
+
+                // B. Renderizar Contenido Central
+                renderizarModuloCentral(modul, idx);
             });
-        } else {
-            contenedor.innerHTML = '<p>Aquest curs no té mòduls disponibles.</p>';
+
+            // 4. AÑADIR BOTÓN FINAL (El que tú querías abajo)
+            const divBoton = document.createElement('div');
+            divBoton.className = 'text-center mt-5 mb-5';
+            divBoton.innerHTML = `
+                <button id="btn-entregar-final" class="btn btn-primary btn-lg px-5">
+                    <i class="fas fa-check-circle"></i> Entregar i Corregir
+                </button>
+            `;
+            contenedorCentral.appendChild(divBoton);
+
+            // Activar el botón de abajo
+            document.getElementById('btn-entregar-final').addEventListener('click', corregirExamen);
         }
-        
-        // Mostrar botón
-        if (btnCorregir) btnCorregir.style.display = 'inline-block';
+
+        // Activar también el botón lateral si existe
+        if(btnLateral) btnLateral.addEventListener('click', (e) => {
+            e.preventDefault();
+            corregirExamen();
+        });
     }
 
-    function renderizarModul(modul, indexModul) {
-        // Crear contenedor del módulo
-        const divModul = document.createElement('div');
-        divModul.classList.add('modul-section', 'mb-5'); // Usamos clases genéricas
-        
+    function renderizarModuloCentral(modul, indexModul) {
         // Título del módulo
-        divModul.innerHTML = `<h3 class="mb-3 border-bottom pb-2">${modul.titol}</h3>`;
+        const tituloMod = document.createElement('h3');
+        tituloMod.id = `modul-${indexModul}`;
+        tituloMod.className = 'mt-4 mb-3 border-bottom pb-2';
+        tituloMod.textContent = modul.titol;
+        contenedorCentral.appendChild(tituloMod);
 
         const preguntas = modul.preguntes || [];
-        
-        if (preguntas.length === 0) {
-            divModul.innerHTML += '<p class="text-muted">No hi ha preguntes.</p>';
-        }
 
-        preguntas.forEach((pregunta, indexPregunta) => {
-            const preguntaId = `m${indexModul}-p${indexPregunta}`;
+        preguntas.forEach((preg, indexPreg) => {
+            const pid = `m${indexModul}-p${indexPreg}`;
             
-            const divPregunta = document.createElement('div');
-            divPregunta.classList.add('card', 'mb-4', 'pregunta-card');
-            divPregunta.dataset.id = preguntaId;
+            const card = document.createElement('div');
+            card.className = 'card mb-4 shadow-sm'; // Estilo clásico de Bootstrap/Moodle
+            card.dataset.id = pid;
 
-            // --- ENUNCIADO ---
-            const enunciadoTexto = pregunta.text || pregunta.titol || "Pregunta sense enunciat";
+            // Texto enunciado
+            const textoEnunciado = preg.text || preg.titol || "Sense enunciat";
 
-            // --- EXPLICACIÓN (Lógica Rich Text v5) ---
-            let explicacionTexto = "Sense explicació addicional.";
-            if (pregunta.explicacio) {
-                if (Array.isArray(pregunta.explicacio)) {
-                    try {
-                        // Extraer texto de bloques
-                        const textoBloques = pregunta.explicacio
-                            .map(b => (b.children ? b.children.map(c => c.text).join('') : ''))
-                            .join('<br>');
-                        if(textoBloques.trim()) explicacionTexto = textoBloques;
-                    } catch (e) { console.warn("Error Rich Text", e); }
-                } else if (typeof pregunta.explicacio === 'string' && pregunta.explicacio.trim()) {
-                    explicacionTexto = pregunta.explicacio;
+            // Explicación (Lógica arreglada Rich Text)
+            let textoExpli = "Sense explicació.";
+            if(preg.explicacio) {
+                if(Array.isArray(preg.explicacio)) {
+                    textoExpli = preg.explicacio.map(b => b.children.map(c => c.text).join('')).join('<br>');
+                } else {
+                    textoExpli = preg.explicacio;
                 }
             }
 
-            // HTML de la tarjeta
-            divPregunta.innerHTML = `
-                <div class="card-body">
-                    <h5 class="card-title text-muted fs-6">Pregunta ${indexPregunta + 1}</h5>
-                    <p class="card-text fs-5 fw-bold mb-3">${enunciadoTexto}</p>
-                    
-                    <div class="opciones-list" id="opciones-${preguntaId}">
-                        <!-- Opciones -->
-                    </div>
+            // HTML CLÁSICO (Con letras a., b., c.)
+            let htmlOpciones = '';
+            const letras = ['a', 'b', 'c', 'd'];
+            
+            if(preg.opcions) {
+                preg.opcions.forEach((op, i) => {
+                    const letra = letras[i] || '-';
+                    htmlOpciones += `
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="resp-${pid}" id="opt-${pid}-${i}" value="${i}">
+                            <label class="form-check-label" for="opt-${pid}-${i}">
+                                <strong>${letra}.</strong> ${op.text}
+                            </label>
+                        </div>
+                    `;
+                });
+            }
 
-                    <!-- Explicación (Oculta) -->
-                    <div class="feedback-box mt-3 p-3 bg-light border rounded" style="display:none;" id="feedback-${preguntaId}">
-                        <strong class="text-primary">Explicació:</strong><br>
-                        <span class="text-dark">${explicacionTexto}</span>
+            card.innerHTML = `
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Pregunta ${indexPreg + 1}</h5>
+                    <div class="card-text fs-5 mb-3">${textoEnunciado}</div>
+                    <div class="opciones-area ml-3">
+                        ${htmlOpciones}
+                    </div>
+                    <!-- Caja amarilla clásica -->
+                    <div id="feedback-${pid}" class="mt-3 p-3" style="display:none; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 5px;">
+                        <strong>Explicació:</strong><br>
+                        <span>${textoExpli}</span>
                     </div>
                 </div>
             `;
 
-            // --- OPCIONES ---
-            const divOpciones = divPregunta.querySelector(`#opciones-${preguntaId}`);
-            const opcionesList = pregunta.opcions || [];
+            contenedorCentral.appendChild(card);
 
-            if (opcionesList.length > 0) {
-                opcionesList.forEach((opcio, indexOpcion) => {
-                    const divOpcion = document.createElement('div');
-                    divOpcion.classList.add('form-check', 'mb-2', 'p-2', 'opcion-wrapper');
-                    
-                    const inputId = `opt-${preguntaId}-${indexOpcion}`;
-                    
-                    divOpcion.innerHTML = `
-                        <input class="form-check-input" type="radio" name="respuesta-${preguntaId}" id="${inputId}" value="${indexOpcion}">
-                        <label class="form-check-label w-100" for="${inputId}" style="cursor:pointer;">
-                            ${opcio.text || "..."}
-                        </label>
-                    `;
-                    
-                    // Listener respuesta
-                    divOpcion.querySelector('input').addEventListener('change', () => {
-                        respuestasUsuario[preguntaId] = indexOpcion;
-                        // Limpiar estilos previos
-                        divOpciones.querySelectorAll('.opcion-wrapper').forEach(el => el.style.backgroundColor = 'transparent');
-                        // Marcar actual
-                        divOpcion.style.backgroundColor = '#e9ecef'; 
-                    });
-
-                    divOpciones.appendChild(divOpcion);
-                });
-            }
-
-            divModul.appendChild(divPregunta);
-        });
-
-        contenedor.appendChild(divModul);
-    }
-
-    // --- CORRECCIÓN ---
-    if (btnCorregir) {
-        btnCorregir.addEventListener('click', (e) => {
-            e.preventDefault(); // Evitar que el enlace recargue la página
-            if (!datosCursoGlobal) return;
-
-            let aciertos = 0;
-            let total = 0;
-
-            datosCursoGlobal.moduls.forEach((modul, idxM) => {
-                const pregs = modul.preguntes || [];
-                pregs.forEach((preg, idxP) => {
-                    total++;
-                    const pId = `m${idxM}-p${idxP}`;
-                    const userIdx = respuestasUsuario[pId];
-                    
-                    const card = document.querySelector(`div[data-id="${pId}"]`);
-                    const feedback = document.getElementById(`feedback-${pId}`);
-                    if(feedback) feedback.style.display = 'block';
-
-                    // Buscar correcta
-                    let correctIdx = -1;
-                    if(preg.opcions) preg.opcions.forEach((o, i) => { if(o.esCorrecta) correctIdx = i; });
-
-                    const labels = card.querySelectorAll('label');
-                    const wrappers = card.querySelectorAll('.opcion-wrapper');
-                    const inputs = card.querySelectorAll('input');
-
-                    // Marcar correcta (Verde)
-                    if(correctIdx !== -1 && wrappers[correctIdx]) {
-                        wrappers[correctIdx].style.backgroundColor = '#d1e7dd'; // Verde claro
-                        labels[correctIdx].classList.add('text-success', 'fw-bold');
-                    }
-
-                    // Evaluar usuario
-                    if(userIdx !== undefined) {
-                        if(parseInt(userIdx) === correctIdx) {
-                            aciertos++;
-                            card.style.borderLeft = "5px solid green";
-                        } else {
-                            card.style.borderLeft = "5px solid red";
-                            if(wrappers[userIdx]) {
-                                wrappers[userIdx].style.backgroundColor = '#f8d7da'; // Rojo claro
-                                labels[userIdx].style.textDecoration = "line-through";
-                            }
-                        }
-                    } else {
-                        card.style.borderLeft = "5px solid orange";
-                    }
-
-                    // Bloquear
-                    inputs.forEach(i => i.disabled = true);
+            // Escuchar cambios
+            const inputs = card.querySelectorAll('input');
+            inputs.forEach(inp => {
+                inp.addEventListener('change', () => {
+                    respuestasUsuario[pid] = inp.value;
                 });
             });
-
-            const nota = total > 0 ? (aciertos / total) * 10 : 0;
-            alert(`Resultat: ${aciertos}/${total}\nNota: ${nota.toFixed(2)}`);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
+    }
+
+    function corregirExamen() {
+        if (!datosCursoGlobal) return;
+        let aciertos = 0;
+        let total = 0;
+
+        datosCursoGlobal.moduls.forEach((modul, im) => {
+            (modul.preguntes || []).forEach((preg, ip) => {
+                total++;
+                const pid = `m${im}-p${ip}`;
+                const userVal = respuestasUsuario[pid];
+                
+                // Buscar correcta
+                let correctIdx = -1;
+                preg.opcions.forEach((o, i) => { if(o.esCorrecta) correctIdx = i; });
+
+                const card = document.querySelector(`div[data-id="${pid}"]`);
+                if(!card) return;
+
+                const feedback = document.getElementById(`feedback-${pid}`);
+                if(feedback) feedback.style.display = 'block'; // Mostrar caja amarilla
+
+                const labels = card.querySelectorAll('label');
+                const inputs = card.querySelectorAll('input');
+
+                // Marcar visualmente
+                if(correctIdx !== -1 && labels[correctIdx]) {
+                    labels[correctIdx].classList.add('text-success');
+                    labels[correctIdx].style.fontWeight = 'bold';
+                }
+
+                if(userVal !== undefined) {
+                    if(parseInt(userVal) === correctIdx) {
+                        aciertos++;
+                        // Estilo Moodle: fondo verde suave a la tarjeta
+                        card.style.backgroundColor = '#d1e7dd';
+                        card.style.borderColor = '#badbcc';
+                    } else {
+                        // Fallo
+                        card.style.backgroundColor = '#f8d7da';
+                        card.style.borderColor = '#f5c6cb';
+                        if(labels[userVal]) labels[userVal].style.textDecoration = 'line-through';
+                    }
+                }
+
+                // Bloquear
+                inputs.forEach(i => i.disabled = true);
+            });
+        });
+
+        alert(`Nota Final: ${((aciertos/total)*10).toFixed(2)}`);
+        window.scrollTo(0,0);
     }
 });

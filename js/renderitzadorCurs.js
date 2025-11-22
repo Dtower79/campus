@@ -2,18 +2,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const slug = params.get('slug');
     
-    // Elementos del HTML original
+    // ELEMENTOS DEL HTML
     const contenedorCentral = document.getElementById('moduls-container'); 
-    const contenedorIndice = document.getElementById('course-index'); // La barra izquierda
+    const contenedorIndice = document.getElementById('course-index'); // Izquierda
+    const contenedorGrid = document.getElementById('quiz-grid');      // Derecha (Números)
     const tituloCursEl = document.getElementById('curs-titol');     
     const descripcioCursEl = document.getElementById('curs-descripcio'); 
     const btnLateral = document.getElementById('finish-review'); 
 
     if (!slug) return;
 
-    // Estado
+    // ESTADO
     let respuestasUsuario = {}; 
     let datosCursoGlobal = null;
+    let totalPreguntasGlobal = 0;
 
     cargarDatos();
 
@@ -31,10 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderizarTodo(data) {
-        // 1. Cabecera y Descripción (Arreglado el [object Object])
+        // 1. Cabecera y Descripción
         if(tituloCursEl) tituloCursEl.textContent = data.titol;
         if(descripcioCursEl) {
-            // Si es texto enriquecido (bloques), extraemos el texto. Si es string, lo ponemos tal cual.
             if (Array.isArray(data.descripcio)) {
                 descripcioCursEl.innerText = data.descripcio.map(b => b.children.map(c => c.text).join('')).join('\n');
             } else {
@@ -42,40 +43,41 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 2. Limpiar contenedores
+        // 2. Limpiar
         contenedorCentral.innerHTML = '';
         if(contenedorIndice) contenedorIndice.innerHTML = '';
+        if(contenedorGrid) contenedorGrid.innerHTML = '';
 
-        // 3. Bucle de Módulos
+        totalPreguntasGlobal = 0;
+
+        // 3. Renderizar
         if (data.moduls && data.moduls.length > 0) {
             data.moduls.forEach((modul, idx) => {
-                // A. Rellenar Índice Lateral (Lo que faltaba antes)
+                // A. Índice Izquierdo
                 if(contenedorIndice) {
                     const item = document.createElement('div');
-                    item.className = 'module-item';
-                    item.innerHTML = `<a href="#modul-${idx}" class="text-decoration-none text-dark">📂 ${modul.titol}</a>`;
+                    item.className = 'module-item'; // Asegúrate de tener CSS para esto o usa style
+                    item.style.padding = "10px";
+                    item.style.borderBottom = "1px solid #eee";
+                    item.innerHTML = `<a href="#modul-${idx}" style="text-decoration:none; color:#333;">📂 ${modul.titol}</a>`;
                     contenedorIndice.appendChild(item);
                 }
 
-                // B. Renderizar Contenido Central
                 renderizarModuloCentral(modul, idx);
             });
 
-            // 4. AÑADIR BOTÓN FINAL (El que tú querías abajo)
+            // 4. Botón Final Abajo
             const divBoton = document.createElement('div');
             divBoton.className = 'text-center mt-5 mb-5';
             divBoton.innerHTML = `
-                <button id="btn-entregar-final" class="btn btn-primary btn-lg px-5">
-                    <i class="fas fa-check-circle"></i> Entregar i Corregir
+                <button id="btn-entregar-final" class="btn btn-primary btn-lg px-5" style="background-color: #0d6efd; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 1.1em; cursor: pointer;">
+                    Entregar i Corregir
                 </button>
             `;
             contenedorCentral.appendChild(divBoton);
-
-            // Activar el botón de abajo
             document.getElementById('btn-entregar-final').addEventListener('click', corregirExamen);
         }
 
-        // Activar también el botón lateral si existe
         if(btnLateral) btnLateral.addEventListener('click', (e) => {
             e.preventDefault();
             corregirExamen();
@@ -83,26 +85,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderizarModuloCentral(modul, indexModul) {
-        // Título del módulo
         const tituloMod = document.createElement('h3');
         tituloMod.id = `modul-${indexModul}`;
-        tituloMod.className = 'mt-4 mb-3 border-bottom pb-2';
+        tituloMod.className = 'mt-4 mb-3';
+        tituloMod.style.borderBottom = "2px solid #0d6efd";
+        tituloMod.style.paddingBottom = "10px";
         tituloMod.textContent = modul.titol;
         contenedorCentral.appendChild(tituloMod);
 
         const preguntas = modul.preguntes || [];
 
         preguntas.forEach((preg, indexPreg) => {
+            totalPreguntasGlobal++; // Contador global para los números de la derecha
             const pid = `m${indexModul}-p${indexPreg}`;
             
+            // --- B. GRID DERECHO (NÚMEROS) ---
+            if(contenedorGrid) {
+                const numBox = document.createElement('div');
+                numBox.id = `grid-num-${pid}`;
+                numBox.textContent = totalPreguntasGlobal;
+                // Estilos básicos por si faltan en CSS
+                numBox.style.display = "inline-block";
+                numBox.style.width = "30px";
+                numBox.style.height = "30px";
+                numBox.style.lineHeight = "30px";
+                numBox.style.textAlign = "center";
+                numBox.style.margin = "5px";
+                numBox.style.border = "1px solid #ccc";
+                numBox.style.borderRadius = "3px";
+                numBox.style.cursor = "pointer";
+                numBox.style.fontSize = "0.9em";
+                
+                numBox.onclick = () => {
+                    document.querySelector(`[data-id="${pid}"]`).scrollIntoView({behavior: "smooth"});
+                };
+                contenedorGrid.appendChild(numBox);
+            }
+
+            // --- C. TARJETA CENTRAL ---
             const card = document.createElement('div');
-            card.className = 'card mb-4 shadow-sm'; // Estilo clásico de Bootstrap/Moodle
+            card.className = 'card mb-4';
+            card.style.border = "1px solid #ddd";
+            card.style.borderRadius = "5px";
+            card.style.marginBottom = "20px";
+            card.style.padding = "20px";
+            card.style.backgroundColor = "white";
             card.dataset.id = pid;
 
-            // Texto enunciado
             const textoEnunciado = preg.text || preg.titol || "Sense enunciat";
-
-            // Explicación (Lógica arreglada Rich Text)
+            
             let textoExpli = "Sense explicació.";
             if(preg.explicacio) {
                 if(Array.isArray(preg.explicacio)) {
@@ -112,17 +143,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // HTML CLÁSICO (Con letras a., b., c.)
-            let htmlOpciones = '';
             const letras = ['a', 'b', 'c', 'd'];
+            let htmlOpciones = '';
             
             if(preg.opcions) {
                 preg.opcions.forEach((op, i) => {
                     const letra = letras[i] || '-';
                     htmlOpciones += `
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="radio" name="resp-${pid}" id="opt-${pid}-${i}" value="${i}">
-                            <label class="form-check-label" for="opt-${pid}-${i}">
+                        <div style="margin-bottom: 8px;">
+                            <input type="radio" name="resp-${pid}" id="opt-${pid}-${i}" value="${i}" style="margin-right: 8px;">
+                            <label for="opt-${pid}-${i}" style="cursor:pointer;">
                                 <strong>${letra}.</strong> ${op.text}
                             </label>
                         </div>
@@ -131,27 +161,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             card.innerHTML = `
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Pregunta ${indexPreg + 1}</h5>
-                    <div class="card-text fs-5 mb-3">${textoEnunciado}</div>
-                    <div class="opciones-area ml-3">
-                        ${htmlOpciones}
-                    </div>
-                    <!-- Caja amarilla clásica -->
-                    <div id="feedback-${pid}" class="mt-3 p-3" style="display:none; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 5px;">
-                        <strong>Explicació:</strong><br>
-                        <span>${textoExpli}</span>
-                    </div>
+                <div style="color: #666; font-size: 0.9em; margin-bottom: 10px; text-transform: uppercase;">Pregunta ${indexPreg + 1}</div>
+                <div style="font-weight: bold; font-size: 1.1em; margin-bottom: 15px;">${textoEnunciado}</div>
+                <div style="margin-left: 10px;">${htmlOpciones}</div>
+                
+                <div id="feedback-${pid}" style="display:none; margin-top: 15px; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 5px;">
+                    <strong style="color: #856404;">Explicació:</strong><br>
+                    <span style="color: #856404;">${textoExpli}</span>
                 </div>
             `;
 
             contenedorCentral.appendChild(card);
 
-            // Escuchar cambios
+            // Evento: Al responder, pintar el numerito de la derecha
             const inputs = card.querySelectorAll('input');
             inputs.forEach(inp => {
                 inp.addEventListener('change', () => {
                     respuestasUsuario[pid] = inp.value;
+                    const numBox = document.getElementById(`grid-num-${pid}`);
+                    if(numBox) {
+                        numBox.style.backgroundColor = "#333";
+                        numBox.style.color = "white";
+                    }
                 });
             });
         });
@@ -167,41 +198,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 total++;
                 const pid = `m${im}-p${ip}`;
                 const userVal = respuestasUsuario[pid];
+                const numBox = document.getElementById(`grid-num-${pid}`);
                 
-                // Buscar correcta
+                // Lógica correcta
                 let correctIdx = -1;
                 preg.opcions.forEach((o, i) => { if(o.esCorrecta) correctIdx = i; });
 
                 const card = document.querySelector(`div[data-id="${pid}"]`);
                 if(!card) return;
 
+                // Mostrar Feedback
                 const feedback = document.getElementById(`feedback-${pid}`);
-                if(feedback) feedback.style.display = 'block'; // Mostrar caja amarilla
+                if(feedback) feedback.style.display = 'block';
 
                 const labels = card.querySelectorAll('label');
                 const inputs = card.querySelectorAll('input');
 
-                // Marcar visualmente
+                // Marcar texto verde
                 if(correctIdx !== -1 && labels[correctIdx]) {
-                    labels[correctIdx].classList.add('text-success');
-                    labels[correctIdx].style.fontWeight = 'bold';
+                    labels[correctIdx].style.color = "green";
+                    labels[correctIdx].style.fontWeight = "bold";
                 }
 
                 if(userVal !== undefined) {
                     if(parseInt(userVal) === correctIdx) {
                         aciertos++;
-                        // Estilo Moodle: fondo verde suave a la tarjeta
-                        card.style.backgroundColor = '#d1e7dd';
-                        card.style.borderColor = '#badbcc';
+                        card.style.backgroundColor = "#d4edda"; // Verde suave
+                        card.style.borderColor = "#c3e6cb";
+                        if(numBox) numBox.style.backgroundColor = "green"; // Grid verde
                     } else {
-                        // Fallo
-                        card.style.backgroundColor = '#f8d7da';
-                        card.style.borderColor = '#f5c6cb';
-                        if(labels[userVal]) labels[userVal].style.textDecoration = 'line-through';
+                        card.style.backgroundColor = "#f8d7da"; // Rojo suave
+                        card.style.borderColor = "#f5c6cb";
+                        if(labels[userVal]) labels[userVal].style.textDecoration = "line-through";
+                        if(numBox) numBox.style.backgroundColor = "red"; // Grid rojo
                     }
+                } else {
+                    // No respondida
+                    card.style.border = "1px solid orange";
+                    if(numBox) numBox.style.backgroundColor = "orange";
                 }
 
-                // Bloquear
                 inputs.forEach(i => i.disabled = true);
             });
         });

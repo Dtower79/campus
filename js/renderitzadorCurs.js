@@ -284,8 +284,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // MOSTRAR RESULTADO (Estilo Centrado "Antiguo")
         const scoreCard = document.getElementById('final-score-card');
         if(scoreCard) {
-            // Determinamos color del mensaje (no del fondo)
-            const colorMensaje = nota >= 5 ? '#155724' : '#721c24'; 
+            // CÓDIGO NUEVO (PEGAR)
+// Usamos variables CSS para que cambie solo según el modo
+const colorMensaje = nota >= 5 ? 'var(--correct-text)' : 'var(--accent-color)';
             
             scoreCard.innerHTML = `
                 <h3 style="color:var(--text-secondary); text-transform:uppercase; font-size:0.9rem; letter-spacing:1px;">Resultats</h3>

@@ -519,3 +519,18 @@ a { text-decoration: none; color: inherit; }
     color: #64b5f6 !important;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
+
+/* Añade esto AL FINAL de css/estil.css */
+
+/* En modo oscuro, hacemos que el texto de "Suspenso" sea un rojo brillante/pastel 
+   para que se lea perfecto sobre gris */
+[data-theme="dark"] {
+    --accent-color: #ff8a80; /* Rojo Salmón Brillante (se lee genial en oscuro) */
+    /* O si prefieres un rojo más puro y fuerte usa: #ff5252 */
+}
+
+/* Aseguramos que el texto de la nota use este color */
+[data-theme="dark"] .score-text {
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}

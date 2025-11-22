@@ -1,37 +1,65 @@
 :root {
-    /* Colores Modo Claro */
-    --primary-color: #0f4c81; 
-    --bg-body: #f2f4f7;           
-    --bg-card: #ffffff;           
+    /* --- PALETA CORPORATIVA SICAP --- */
+    --brand-blue: #004B87; /* Azul del texto 'Fepol' */
+    --brand-red: #E30613;  /* Rojo del marco */
+    --brand-grey: #808080; /* Sombra del logo */
+
+    /* --- VARIABLES FUNCIONALES --- */
+    --primary-color: var(--brand-blue);
+    --accent-color: var(--brand-red); /* Nuevo: Para botones de acción o bordes */
+    
+    --bg-body: #f2f4f7;
+    --bg-card: #ffffff;
     --text-main: #333333;
     --border-color: #dfe1e5;
+
+    /* Colores Examen (Conservamos lógica semántica) */
+    --quiz-question-bg: #f8f9fa; /* Más limpio */
+    --quiz-feedback-bg: #fff3cd;
+    --quiz-feedback-text: #6e5314;
     
-    /* Colores Feedback */
-    --quiz-question-bg: #e7f3f5; 
-    --quiz-feedback-bg: #fff3cd; 
-    --quiz-feedback-text: #856404;
-    
-    /* Colores Estado */
     --correct-bg: #d4edda; --correct-border: #c3e6cb; --correct-text: #155724;
-    --wrong-bg: #f8d7da;   --wrong-border: #f5c6cb;   --wrong-text: #721c24;
-    --warn-bg: #fff3cd;    --warn-border: #ffeeba;    --warn-text: #856404;
+    --wrong-bg: #f8d7da; --wrong-border: #f5c6cb; --wrong-text: #721c24;
 }
 
 [data-theme="dark"] {
-    /* Colores Modo Oscuro */
-    --primary-color: #4a90e2;
+    --primary-color: #4a90e2; /* Azul más claro para contraste en oscuro */
+    --accent-color: #ff5252;  /* Rojo más suave para modo oscuro */
+    
     --bg-body: #121212;
     --bg-card: #1e1e1e;
     --text-main: #e0e0e0;
     --border-color: #333;
-    
+
     --quiz-question-bg: #2c3e50;
     --quiz-feedback-bg: #4a3b20;
     --quiz-feedback-text: #ffd700;
-    
+
     --correct-bg: #1b4d3e; --correct-border: #2e7d32; --correct-text: #d4edda;
-    --wrong-bg: #5c1e23;   --wrong-border: #7a282e;   --wrong-text: #f8d7da;
-    --warn-bg: #423613;    --warn-border: #856404;    --warn-text: #ffd54f;
+    --wrong-bg: #5c1e23; --wrong-border: #7a282e; --wrong-text: #f8d7da;
+}
+
+/* --- ESTILOS DEL LOGO --- */
+.header-logo {
+    max-height: 60px; /* Ajusta según prefieras */
+    width: auto;
+    display: block;
+}
+
+/* Ajuste para el logo en Modo Oscuro:
+   Como el logo tiene letras negras, no se verá bien en fondo negro.
+   Solución: Añadir un fondo blanco suave alrededor del logo en modo oscuro. */
+[data-theme="dark"] .header-logo-container {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 5px 10px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+/* --- DETALLE DE DISEÑO: BARRA SUPERIOR ROJA (Estilo SICAP) --- */
+/* Añadimos esto para que la tarjeta tenga el "toque" del marco rojo del logo */
+.exam-container {
+    border-top: 4px solid var(--brand-red); 
 }
 
 * { box-sizing: border-box; }
@@ -174,4 +202,16 @@ aside, main {
     background-color: var(--wrong-bg);
     border-color: var(--wrong-border);
     color: var(--wrong-text);
+}
+
+button#submit-exam {
+    background-color: var(--brand-red);
+    color: white;
+    border: none;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+button#submit-exam:hover {
+    background-color: #c40511; /* Un rojo un poco más oscuro para hover */
 }

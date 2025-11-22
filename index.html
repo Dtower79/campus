@@ -1,39 +1,94 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="ca">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bienvenido al Campus Virtual</title>
-    <!-- Enlazamos nuestra hoja de estilos para que la página se vea bien -->
-    <link rel="stylesheet" href="/css/style.css">
-    <!-- ¡Importante! Este script es la magia de Netlify Identity.
-         Carga el widget que gestiona el registro, login y recuperación de contraseña. -->
-    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <title>SICAP Campus - Formació</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="img/logo-sicap.png">
+
+    <!-- Estilos -->
+    <link rel="stylesheet" href="css/estil.css">
+    
+    <!-- Fuentes -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome (Tu JS lo usa para los iconos <i class="fas">) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <main class="container">
-        <h1>Campus Virtual de Formación Penitenciaria</h1>
-        <p>Accede para continuar con tu formación o regístrate si eres nuevo.</p>
-        <!-- Este div es un marcador especial. El widget de Netlify buscará esto y lo convertirá en un botón funcional. -->
-        <div data-netlify-identity-button>Acceder / Registrarse</div>
-    </main>
-    
-    <script>
-      // Este bloque de JavaScript se ejecuta cuando la página carga.
-      // Comprueba si el usuario ya tiene una sesión iniciada en este navegador.
-      if (netlifyIdentity.currentUser()) {
-        // Si es así, no tiene sentido que vea la página de login. Lo enviamos directamente a su panel.
-        console.log('Usuario ya logueado. Redirigiendo al dashboard...');
-        window.location.replace('/dashboard.html');
-      }
 
-      // Netlify Identity emite "eventos". Nos "suscribimos" al evento 'login'.
-      // Cuando un usuario inicie sesión con éxito...
-      netlifyIdentity.on('login', user => {
-        console.log('Login exitoso para:', user.email);
-        // ...lo enviamos a su panel de cursos.
-        window.location.replace('/dashboard.html');
-      });
+    <!-- 1. CABECERA SICAP -->
+    <header class="main-header">
+        <div class="header-content">
+            <div class="header-logo-container">
+                <img src="img/logo-sicap.png" alt="SICAP" class="header-logo">
+            </div>
+            <div class="header-controls">
+                <button id="theme-toggle" class="btn-icon">🌓</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2. LAYOUT (3 Columnas) -->
+    <div class="app-container">
+        
+        <!-- COLUMNA IZQ: ÍNDICE -->
+        <aside class="sidebar-left" id="sidebar-index">
+            <div class="sidebar-header">
+                <h3>Índex</h3>
+            </div>
+            <!-- ID original que busca tu JS: 'course-index' -->
+            <div id="course-index">
+                <p class="loading-text">Carregant índex...</p>
+            </div>
+        </aside>
+
+        <!-- COLUMNA CENTRAL: EXAMEN -->
+        <main class="main-content">
+            <div id="exam-header">
+                <!-- IDs originales que busca tu JS: 'curs-titol' y 'curs-descripcio' -->
+                <h1 id="curs-titol">Carregant curs...</h1>
+                <div id="curs-descripcio" style="margin-bottom: 20px; color: var(--text-main);"></div>
+            </div>
+
+            <div class="exam-card">
+                <!-- ID original que busca tu JS: 'moduls-container' -->
+                <!-- Tu JS inyectará aquí las preguntas Y el botón de entregar -->
+                <div id="moduls-container">
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- COLUMNA DERECHA: GRID NÚMEROS -->
+        <aside class="sidebar-right" id="sidebar-nav">
+            <div class="sidebar-header">
+                <h3>Navegació</h3>
+            </div>
+            <!-- ID original que busca tu JS: 'quiz-grid' -->
+            <div id="quiz-grid" class="grid-container"></div>
+        </aside>
+
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="js/renderitzadorCurs.js"></script>
+
+    <!-- Script Modo Oscuro (Independiente) -->
+    <script>
+        const toggleBtn = document.getElementById('theme-toggle');
+        const htmlElement = document.documentElement;
+        if (localStorage.getItem('theme') === 'dark') htmlElement.setAttribute('data-theme', 'dark');
+        toggleBtn.addEventListener('click', () => {
+            if (htmlElement.getAttribute('data-theme') === 'dark') {
+                htmlElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                htmlElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
     </script>
 </body>
 </html>

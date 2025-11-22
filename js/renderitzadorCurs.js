@@ -199,7 +199,7 @@ function createExamQuestionCard(pregunta, qNum) {
     expBox.style.display = 'none';
     // Preparem el text de l'explicació per després
     let explicacioText = typeof pregunta.explicacio === 'string' ? pregunta.explicacio : (pregunta.explicacio?.[0]?.children?.[0]?.text || 'Veure normativa.');
-    expBox.innerHTML = `<strong>Retroalimentació:</strong><br>${explicacioText}`;
+    expBox.innerHTML = `<strong>Explicació:</strong><br>${explicacioText}`;
     
     contentBox.appendChild(optionsList);
     contentBox.appendChild(expBox);

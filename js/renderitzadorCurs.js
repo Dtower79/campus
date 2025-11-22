@@ -8,7 +8,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const tituloCursEl = document.getElementById('curs-titol');     
     const descripcioCursEl = document.getElementById('curs-descripcio'); 
     
-    // Ya no usamos el botón lateral (finish-review) como pediste
+    // 1. OCULTAR EL BOTÓN LATERAL MOLESTO
+    const btnLateral = document.getElementById('finish-review'); 
+    if (btnLateral) {
+        btnLateral.style.display = 'none'; // Lo borramos visualmente
+    }
 
     if (!slug) return;
 
@@ -32,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderizarTodo(data) {
+        // Cabecera
         if(tituloCursEl) tituloCursEl.textContent = data.titol;
         if(descripcioCursEl) {
             if (Array.isArray(data.descripcio)) {
@@ -41,31 +46,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Limpiar
         contenedorCentral.innerHTML = '';
         if(contenedorIndice) contenedorIndice.innerHTML = '';
         if(contenedorGrid) contenedorGrid.innerHTML = '';
 
         totalPreguntasGlobal = 0;
 
-        // CAJA DE NOTA (La creamos oculta al principio)
-        const scoreDiv = document.createElement('div');
-        scoreDiv.id = 'final-score-card';
-        scoreDiv.className = 'score-card';
-        contenedorCentral.appendChild(scoreDiv);
-
+        // Renderizar Módulos
         if (data.moduls && data.moduls.length > 0) {
             data.moduls.forEach((modul, idx) => {
+                // Índice
                 if(contenedorIndice) {
-                    const item = document.createElement('a');
-                    item.className = 'module-link';
-                    item.href = `#modul-${idx}`;
-                    item.innerHTML = `<i class="fas fa-folder"></i> ${modul.titol}`;
+                    const item = document.createElement('div');
+                    item.style.padding = "10px";
+                    item.style.borderBottom = "1px solid #eee";
+                    item.innerHTML = `<a href="#modul-${idx}" style="text-decoration:none; color:var(--text-main);">📂 ${modul.titol}</a>`;
                     contenedorIndice.appendChild(item);
                 }
                 renderizarModuloCentral(modul, idx);
             });
 
-            // BOTÓN FINAL (Solo abajo)
+            // BOTÓN FINAL ABAJO
             const divBoton = document.createElement('div');
             divBoton.className = 'text-center mt-5 mb-5';
             divBoton.innerHTML = `
@@ -81,9 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderizarModuloCentral(modul, indexModul) {
         const tituloMod = document.createElement('h3');
         tituloMod.id = `modul-${indexModul}`;
+        tituloMod.style.marginTop = "30px";
         tituloMod.style.borderBottom = "2px solid var(--primary-color)";
         tituloMod.style.paddingBottom = "10px";
-        tituloMod.style.marginTop = "30px";
+        tituloMod.style.color = "var(--primary-color)";
         tituloMod.textContent = modul.titol;
         contenedorCentral.appendChild(tituloMod);
 
@@ -93,28 +96,29 @@ document.addEventListener('DOMContentLoaded', () => {
             totalPreguntasGlobal++; 
             const pid = `m${indexModul}-p${indexPreg}`;
             
-            // --- GRID DERECHO ---
+            // --- GRID DERECHA (Solo Números) ---
             if(contenedorGrid) {
-                const gridItem = document.createElement('div');
-                gridItem.className = 'grid-item';
-                gridItem.id = `grid-q-${totalPreguntasGlobal}`; // Usamos el contador global
-                gridItem.textContent = totalPreguntasGlobal;
-                gridItem.onclick = () => {
-                    const card = document.querySelector(`[data-id="${pid}"]`);
-                    if(card) card.scrollIntoView({behavior: "smooth", block: "center"});
+                const numBox = document.createElement('div');
+                numBox.id = `grid-num-${pid}`;
+                numBox.textContent = totalPreguntasGlobal;
+                numBox.className = 'grid-num-box'; // Usa el estilo CSS
+                
+                // Navegación al hacer clic
+                numBox.onclick = () => {
+                    const target = document.querySelector(`[data-id="${pid}"]`);
+                    if(target) target.scrollIntoView({behavior: "smooth", block: "center"});
                 };
-                contenedorGrid.appendChild(gridItem);
+                contenedorGrid.appendChild(numBox);
             }
 
-            // --- TARJETA CENTRAL ---
+            // --- TARJETA PREGUNTA ---
             const card = document.createElement('div');
             card.className = 'question-card';
-            card.id = `question-${totalPreguntasGlobal}`;
             card.dataset.id = pid;
-            card.dataset.globalId = totalPreguntasGlobal;
 
             const textoEnunciado = preg.text || preg.titol || "Sense enunciat";
             
+            // Preparar texto explicación
             let textoExpli = "Sense explicació.";
             if(preg.explicacio) {
                 if(Array.isArray(preg.explicacio)) {
@@ -126,61 +130,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const letras = ['a', 'b', 'c', 'd'];
             
-            // Construir HTML Opciones
-            const optionsContainer = document.createElement('div');
-            optionsContainer.className = 'options-list';
-            optionsContainer.id = `options-list-${pid}`;
+            // Crear Opciones
+            const divOpciones = document.createElement('div');
+            divOpciones.className = 'options-list';
 
             if(preg.opcions) {
                 preg.opcions.forEach((op, i) => {
-                    const optRow = document.createElement('div');
-                    optRow.className = 'option-item';
-                    
+                    const divOp = document.createElement('div');
+                    divOp.className = 'option-item';
                     const inputId = `opt-${pid}-${i}`;
-                    
-                    optRow.innerHTML = `
+
+                    divOp.innerHTML = `
                         <input type="radio" name="resp-${pid}" id="${inputId}" value="${i}" class="option-radio">
-                        <label for="${inputId}" style="cursor:pointer; width:100%;">
+                        <label for="${inputId}" style="cursor:pointer; width:100%; margin-left:8px;">
                             <strong>${letras[i]}.</strong> ${op.text}
                         </label>
                     `;
                     
-                    // Lógica de selección
-                    optRow.addEventListener('click', (e) => {
-                        if (isExamFinished) return;
-                        // Si clicamos en el div, marcamos el radio
-                        const radio = optRow.querySelector('input');
-                        radio.checked = true;
-                        
+                    // --- EVENTO CHANGE (CORRECCIÓN BUG 0 RESPUESTAS) ---
+                    const input = divOp.querySelector('input');
+                    input.addEventListener('change', () => {
+                        // 1. Guardar respuesta
                         respuestasUsuario[pid] = i;
                         
-                        // Estilos visuales (limpiar hermanos)
-                        optionsContainer.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
-                        optRow.classList.add('selected');
+                        // 2. Estilo Visual "Seleccionado" (Azul)
+                        // Quitamos el azul a los hermanos
+                        divOpciones.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
+                        // Ponemos azul al actual
+                        divOp.classList.add('selected');
 
-                        // Marcar grid como contestado
-                        const gridEl = document.getElementById(`grid-q-${card.dataset.globalId}`);
-                        if(gridEl) gridEl.classList.add('answered');
+                        // 3. Marcar Grid Derecha (Gris oscuro = contestada)
+                        const numBox = document.getElementById(`grid-num-${pid}`);
+                        if(numBox) numBox.classList.add('answered');
                         
-                        // Actualizar texto estado
-                        const stateEl = card.querySelector('.q-state span');
-                        if(stateEl) stateEl.innerText = "Respost";
+                        // 4. Actualizar texto estado
+                        const status = card.querySelector('.q-status-text');
+                        if(status) status.innerText = "Resposta guardada";
                     });
 
-                    optionsContainer.appendChild(optRow);
+                    divOpciones.appendChild(divOp);
                 });
             }
 
-            // Estructura completa de la tarjeta
             card.innerHTML = `
                 <div class="q-number-box">
-                    <span class="q-state">Pregunta ${totalPreguntasGlobal}</span>
-                    <span class="q-state" style="font-weight:normal; font-size:0.8rem; color:#666;"><span>Sense respondre</span></span>
+                    <span class="q-state">PREGUNTA ${totalPreguntasGlobal}</span>
+                    <span class="q-status-text" style="font-size:0.8rem; color:gray;">Sense respondre</span>
                     <div class="q-points">Puntua 1,00</div>
                 </div>
                 <div class="q-content-box">
                     <div class="q-text-area">${textoEnunciado}</div>
-                    <div class="options-area"></div> <!-- Aquí meteremos las opciones -->
+                    <div class="options-area"></div>
                     <div id="feedback-${pid}" class="explanation-box">
                         <strong>Explicació:</strong><br>
                         <span>${textoExpli}</span>
@@ -188,17 +188,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             
-            // Inyectar opciones donde toca
-            card.querySelector('.options-area').appendChild(optionsContainer);
+            card.querySelector('.options-area').appendChild(divOpciones);
             contenedorCentral.appendChild(card);
         });
     }
 
     function corregirExamen() {
         if (!datosCursoGlobal) return;
-        if (!confirm("Segur que vols entregar l'examen?")) return;
+        if (!confirm("Segur que vols entregar l'examen? Les preguntes no contestades no mostraran la solució.")) return;
 
-        isExamFinished = true; // Bloqueo
         let aciertos = 0;
         let total = 0;
         let contestadas = 0;
@@ -211,67 +209,72 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const card = document.querySelector(`div[data-id="${pid}"]`);
                 if(!card) return;
-                
-                const globalId = card.dataset.globalId;
-                const gridItem = document.getElementById(`grid-q-${globalId}`);
+
+                const numBox = document.getElementById(`grid-num-${pid}`);
                 const feedback = document.getElementById(`feedback-${pid}`);
-                const optionsList = document.getElementById(`options-list-${pid}`);
-                const optionItems = optionsList.querySelectorAll('.option-item');
+                const inputs = card.querySelectorAll('input');
+                const optionDivs = card.querySelectorAll('.option-item');
 
+                // Buscar correcta
                 let correctIdx = -1;
-                preg.opcions.forEach((o, i) => { if(o.esCorrecta) correctIdx = i; });
+                if(preg.opcions) preg.opcions.forEach((o, i) => { if(o.esCorrecta) correctIdx = i; });
 
-                // --- LÓGICA ANTI-TRAMPAS ---
-                
+                // --- LÓGICA DE CORRECCIÓN ---
+
                 if (userVal !== undefined) {
-                    // CASO: RESPONDIDA
+                    // === HA CONTESTADO ===
                     contestadas++;
-                    
-                    // Marcar la correcta en verde
-                    if (correctIdx !== -1 && optionItems[correctIdx]) {
-                        optionItems[correctIdx].classList.add('correct');
+                    const valInt = parseInt(userVal);
+
+                    // 1. Mostrar cuál es la correcta (SIEMPRE)
+                    if (correctIdx !== -1 && optionDivs[correctIdx]) {
+                        optionDivs[correctIdx].classList.add('correct'); // Verde
+                        const label = optionDivs[correctIdx].querySelector('label');
+                        if(label) label.innerHTML += ' ✅';
                     }
 
-                    if (parseInt(userVal) === correctIdx) {
+                    // 2. Evaluar al usuario
+                    if (valInt === correctIdx) {
                         aciertos++;
-                        if(gridItem) gridItem.className = 'grid-item correct';
+                        if(numBox) numBox.classList.add('grid-correct'); // Grid Verde
                     } else {
-                        // Marcar la del usuario en rojo
-                        if(optionItems[userVal]) optionItems[userVal].classList.add('wrong');
-                        if(gridItem) gridItem.className = 'grid-item wrong';
+                        // Fallo: Marcar la suya en rojo
+                        if (optionDivs[valInt]) {
+                            optionDivs[valInt].classList.add('wrong');
+                        }
+                        if(numBox) numBox.classList.add('grid-wrong'); // Grid Rojo
                     }
 
-                    // Mostrar Explicación
+                    // 3. Mostrar Explicación
                     if(feedback) feedback.style.display = 'block';
 
                 } else {
-                    // CASO: NO RESPONDIDA (NO CHIVAR NADA)
-                    // No marcamos la correcta.
-                    // No mostramos explicación.
-                    // No cambiamos el grid a rojo (se queda gris o neutro).
-                    if(gridItem) gridItem.style.opacity = "0.5"; // Efecto visual de "saltada"
+                    // === NO HA CONTESTADO ===
+                    // Grid naranja (aviso)
+                    if(numBox) numBox.classList.add('grid-unanswered');
+                    
+                    // NO marcamos la correcta en verde.
+                    // NO mostramos la explicación.
+                    // NO sumamos acierto.
                 }
 
                 // Bloquear inputs
-                card.querySelectorAll('input').forEach(i => i.disabled = true);
+                inputs.forEach(i => i.disabled = true);
             });
         });
 
         // CALCULAR NOTA
         const nota = total > 0 ? (aciertos / total) * 10 : 0;
         
-        // PINTAR RESULTADO ARRIBA
-        const scoreCard = document.getElementById('final-score-card');
-        let missatge = nota >= 5 ? "Enhorabona! Has superat el test." : "Has de repassar.";
-        
-        scoreCard.innerHTML = `
-            <h3 style="margin-top:0;">Resultats</h3>
+        // MOSTRAR RESULTADO
+        const scoreDiv = document.getElementById('final-score-card');
+        scoreDiv.innerHTML = `
+            <h3>Resultats</h3>
             <span class="score-number">${nota.toFixed(2)}</span>
-            <p class="score-message">${missatge}</p>
-            <p>Encerts: <strong>${aciertos}</strong> / ${total} (Contestades: ${contestadas})</p>
+            <p>Has encertat <strong>${aciertos}</strong> de <strong>${total}</strong> (Contestades: ${contestadas})</p>
         `;
-        scoreCard.style.display = 'block';
-        scoreCard.scrollIntoView({ behavior: 'smooth' });
+        scoreDiv.style.display = 'block';
+        scoreDiv.scrollIntoView({ behavior: 'smooth' });
 
         // Desactivar botón
         const btn = document.getElementById('btn-entregar-final');

@@ -1,22 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. OBTENER PARÁMETROS URL
+    // 1. OBTENER SLUG DE LA URL
     const params = new URLSearchParams(window.location.search);
     const slug = params.get('slug');
     
-    // 2. SELECCIÓN DE ELEMENTOS DOM (Coinciden con index.html)
-    const contenedorCentral = document.getElementById('quiz-container'); // Antes: moduls-container
-    const contenedorIndice = document.getElementById('course-index-content'); // Antes: course-index
-    const contenedorGrid = document.getElementById('questions-grid'); // Antes: quiz-grid
-    const tituloCursEl = document.getElementById('course-title'); // Antes: curs-titol
+    // 2. SELECCIONAR ELEMENTOS DEL DOM (Estos coinciden con tu nuevo index.html)
+    // IMPORTANTE: Si cambias los IDs en el HTML, debes cambiarlos aquí.
+    const contenedorCentral = document.getElementById('moduls-container'); 
+    const contenedorIndice = document.getElementById('course-index'); 
+    const contenedorGrid = document.getElementById('quiz-grid');      
+    const tituloCursEl = document.getElementById('curs-titol');     
+    const descripcioCursEl = document.getElementById('curs-descripcio'); 
     
-    // Opcional: Si decides añadir descripción en el HTML en el futuro
-    const descripcioCursEl = document.getElementById('course-description'); 
-    
-    // OCULTAR enlace lateral si existe (Legacy)
+    // Elementos extra (por si existen botones antiguos)
     const linkLateral = document.getElementById('finish-review');
     if(linkLateral) linkLateral.style.display = 'none';
 
-    // Si no hay slug, paramos
+    // Si no hay slug, no hacemos nada (el index.html mostrará el Dashboard)
     if (!slug) return;
 
     // VARIABLES DE ESTADO
@@ -24,95 +23,105 @@ document.addEventListener('DOMContentLoaded', () => {
     let datosCursoGlobal = null;
     let totalPreguntasGlobal = 0;
 
-    // INICIAR
+    // INICIAR CARGA
     cargarDatos();
 
     async function cargarDatos() {
         try {
-            // Llamada al Middleware de Netlify
+            // Llamada al Middleware
             const response = await fetch(`/.netlify/functions/dadesCurs?slug=${slug}`);
-            if (!response.ok) throw new Error('Error servidor');
+            
+            if (!response.ok) throw new Error('Error al servidor o curs no trobat');
+            
             const data = await response.json();
             datosCursoGlobal = data;
+            
             renderizarTodo(data);
+            
         } catch (error) {
             console.error(error);
             if(contenedorCentral) {
-                contenedorCentral.innerHTML = '<div class="alert alert-danger">Error carregant dades. Intenta recarregar la pàgina.</div>';
+                contenedorCentral.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h3>Error carregant el curs</h3>
+                        <p>${error.message}</p>
+                        <a href="/" class="btn-small">Tornar a l'inici</a>
+                    </div>`;
             }
+            if(tituloCursEl) tituloCursEl.innerText = "Error";
         }
     }
 
     function renderizarTodo(data) {
-        // Actualizar Cabecera
+        // 1. Poner Título y Descripción
         if(tituloCursEl) tituloCursEl.textContent = data.titol;
         
-        // Actualizar Descripción (si existe el elemento)
         if(descripcioCursEl) {
             if (Array.isArray(data.descripcio)) {
+                // Si viene de Strapi rich text
                 descripcioCursEl.innerText = data.descripcio.map(b => b.children.map(c => c.text).join('')).join('\n');
             } else {
                 descripcioCursEl.innerText = data.descripcio || "";
             }
         }
 
-        // Limpiar contenedores
+        // 2. Limpiar contenedores antes de pintar
         if(contenedorCentral) contenedorCentral.innerHTML = '';
         if(contenedorIndice) contenedorIndice.innerHTML = '';
         if(contenedorGrid) contenedorGrid.innerHTML = '';
 
         totalPreguntasGlobal = 0;
 
-        // Crear tarjeta de NOTA (oculta inicialmente)
+        // 3. Crear tarjeta de NOTA (oculta al principio)
         const scoreDiv = document.createElement('div');
         scoreDiv.id = 'final-score-card';
-        scoreDiv.className = 'score-card';
-        scoreDiv.style.display = 'none'; // Asegurar que nace oculta
-        contenedorCentral.appendChild(scoreDiv);
+        scoreDiv.className = 'score-card alert'; // Clase alert para darle estilo base
+        scoreDiv.style.display = 'none';
+        scoreDiv.style.marginBottom = '20px';
+        
+        // AQUÍ ERA DONDE FALLABA: Si contenedorCentral era null, esto explotaba.
+        if(contenedorCentral) contenedorCentral.appendChild(scoreDiv);
 
         if (data.moduls && data.moduls.length > 0) {
             data.moduls.forEach((modul, idx) => {
-                // A. Renderizar Índice Lateral
+                // A. Índice Lateral
                 if(contenedorIndice) {
                     const item = document.createElement('a');
                     item.className = 'module-link';
                     item.href = `#modul-${idx}`;
-                    item.innerHTML = `<span class="icon">📁</span> ${modul.titol}`; // Icono simple si no hay FontAwesome
+                    // Usamos icono simple por si FontAwesome falla
+                    item.innerHTML = `<span>📂</span> ${modul.titol}`;
                     contenedorIndice.appendChild(item);
                 }
-                // B. Renderizar Módulo Central
+                // B. Contenido Central
                 renderizarModuloCentral(modul, idx);
             });
 
-            // CONFIGURAR EL BOTÓN DE ENTREGAR EXISTENTE EN EL HTML
-            // Nota: El botón ya existe en el HTML, no lo creamos de nuevo, solo le damos funcionalidad.
-            const btnExistente = document.getElementById('submit-exam');
-            if(btnExistente) {
-                btnExistente.addEventListener('click', corregirExamen);
-            } else {
-                // Fallback por si el HTML cambia: creamos uno dinámico
+            // 4. Botón de Entregar (Al final del todo)
+            if(contenedorCentral) {
                 const divBoton = document.createElement('div');
-                divBoton.className = 'exam-actions';
+                divBoton.className = 'text-center mt-5 mb-5';
                 divBoton.innerHTML = `
-                    <button id="btn-entregar-dinamico" class="btn-primary">
+                    <button id="btn-entregar-final" class="btn-primary">
                         Entregar i Corregir
                     </button>
                 `;
                 contenedorCentral.appendChild(divBoton);
-                document.getElementById('btn-entregar-dinamico').addEventListener('click', corregirExamen);
+                
+                // Event Listener
+                document.getElementById('btn-entregar-final').addEventListener('click', corregirExamen);
             }
-            
-            // Actualizar contador total de preguntas en la cabecera
-            const countEl = document.getElementById('question-count');
-            if(countEl) countEl.innerText = `${totalPreguntasGlobal} preguntes`;
+        } else {
+            if(contenedorCentral) contenedorCentral.innerHTML = '<p>Aquest curs no té contingut.</p>';
         }
     }
 
     function renderizarModuloCentral(modul, indexModul) {
-        // Título del Módulo dentro del examen
+        // Si el contenedor principal no existe, paramos para evitar errores
+        if(!contenedorCentral) return;
+
         const tituloMod = document.createElement('h3');
         tituloMod.id = `modul-${indexModul}`;
-        tituloMod.className = 'module-title'; // Usar clase CSS si existe, sino hereda estilo
         tituloMod.style.marginTop = "30px";
         tituloMod.style.borderBottom = "2px solid var(--primary-color)";
         tituloMod.style.color = "var(--primary-color)";
@@ -141,13 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- TARJETA DE PREGUNTA ---
             const card = document.createElement('div');
-            card.className = 'question-card';
+            card.className = 'question-card'; // Clase CSS definida en estil.css
             card.dataset.id = pid;
 
-            // Procesar texto Enunciado
+            // Procesar texto
             const textoEnunciado = preg.text || preg.titol || "Sense enunciat";
-            
-            // Procesar texto Explicación (Rich Text o String)
             let textoExpli = "Sense explicació.";
             if(preg.explicacio) {
                 if(Array.isArray(preg.explicacio)) {
@@ -157,60 +164,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            const letras = ['a', 'b', 'c', 'd'];
             const optionsContainer = document.createElement('div');
             optionsContainer.className = 'options-list';
 
             if(preg.opcions) {
                 preg.opcions.forEach((op, i) => {
                     const optRow = document.createElement('div');
-                    optRow.className = 'option-item';
+                    optRow.className = 'option-item'; // Clase CSS
                     const inputId = `opt-${pid}-${i}`;
+                    const letras = ['A', 'B', 'C', 'D'];
                     
                     optRow.innerHTML = `
                         <input type="radio" name="resp-${pid}" id="${inputId}" value="${i}" class="option-radio">
-                        <label for="${inputId}" style="cursor:pointer; width:100%; display:block;">
-                            <strong>${letras[i] || (i+1)}.</strong> ${op.text}
+                        <label for="${inputId}" style="cursor:pointer; width:100%; margin-left: 10px;">
+                            <strong>${letras[i] || i}.</strong> ${op.text}
                         </label>
                     `;
                     
-                    // Evento Change (Selección)
+                    // Evento de Selección
                     const radio = optRow.querySelector('input');
                     radio.addEventListener('change', () => {
                         respuestasUsuario[pid] = i;
                         
-                        // Visuals: Gestión de clase .selected
+                        // Visuals: .selected
                         optionsContainer.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
                         optRow.classList.add('selected');
 
-                        // Grid Derecha (Marcar como contestada)
+                        // Grid Derecha
                         const gridEl = document.getElementById(`grid-q-${pid}`);
                         if(gridEl) gridEl.classList.add('answered');
-                        
-                        // Texto Estado en la tarjeta
-                        const st = card.querySelector('.q-status');
-                        if(st) {
-                            st.innerText = "Resposta guardada";
-                            st.style.color = "var(--primary-color)";
-                        }
                     });
 
                     optionsContainer.appendChild(optRow);
                 });
             }
 
+            // Estructura HTML de la pregunta
             card.innerHTML = `
                 <div class="q-header">
-                    <span class="q-number">Pregunta ${totalPreguntasGlobal}</span>
-                    <span class="q-status" style="font-size:0.85rem; color:#666;">Sense respondre</span>
+                    <span>Pregunta ${totalPreguntasGlobal}</span>
                 </div>
-                <div class="q-body">
-                    <div class="q-text">${textoEnunciado}</div>
-                    <div class="options-area"></div>
-                    <div id="feedback-${pid}" class="explanation-box" style="display:none;">
-                        <strong>Explicació:</strong><br>
-                        <span class="explanation-text">${textoExpli}</span>
-                    </div>
+                <div class="q-text">${textoEnunciado}</div>
+                <div class="options-area"></div>
+                <div id="feedback-${pid}" class="explanation-box">
+                    <strong>Explicació:</strong><br>
+                    <span>${textoExpli}</span>
                 </div>
             `;
             
@@ -243,40 +241,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 let correctIdx = -1;
                 if(preg.opcions) preg.opcions.forEach((o, i) => { if(o.esCorrecta) correctIdx = i; });
 
-                // --- LÓGICA ANTI-TRAMPAS ---
+                // --- LÓGICA CORRECCIÓN ---
                 if (userVal !== undefined) {
-                    // EL USUARIO RESPONDIÓ
                     contestadas++;
                     
-                    // 1. Marcar la respuesta CORRECTA visualmente (siempre se muestra la correcta si se responde)
+                    // 1. Marcar la respuesta CORRECTA visualmente
                     if (correctIdx !== -1 && optionsDivs[correctIdx]) {
                         optionsDivs[correctIdx].classList.add('correct');
                     }
 
                     if (parseInt(userVal) === correctIdx) {
-                        // ACIERTO
+                        // Acierto
                         aciertos++;
                         if(gridItem) {
                             gridItem.classList.remove('answered');
                             gridItem.classList.add('correct');
                         }
                     } else {
-                        // FALLO
-                        // Marcar la que seleccionó el usuario como error
+                        // Fallo (Marcamos en rojo la elegida)
                         if (optionsDivs[userVal]) optionsDivs[userVal].classList.add('wrong');
                         if(gridItem) {
                             gridItem.classList.remove('answered');
                             gridItem.classList.add('wrong');
                         }
                     }
-
-                    // Mostrar explicación SOLO si se ha respondido
+                    // Mostrar explicación
                     if(feedback) feedback.style.display = 'block';
 
                 } else {
-                    // NO RESPONDIDA
+                    // No respondida
                     if(gridItem) gridItem.classList.add('unanswered');
-                    // No mostramos ni correcta ni explicación (Anti-trampas estricto)
                 }
 
                 // Bloquear inputs
@@ -287,52 +281,33 @@ document.addEventListener('DOMContentLoaded', () => {
         // CALCULAR NOTA
         const nota = total > 0 ? (aciertos / total) * 10 : 0;
         
-        // MOSTRAR RESULTADO (Reutilizamos el div scoreDiv creado al inicio o el container del HTML)
-        const resultContainer = document.getElementById('result-score'); // Contenedor en el footer de la card
-        const scoreCardTop = document.getElementById('final-score-card'); // Contenedor arriba del todo
-
-        // Texto del resultado
-        const htmlResultado = `
-            <h3>Resultats de l'intent</h3>
-            <div class="score-number" style="font-size: 2rem; font-weight: bold; color: ${nota >= 5 ? 'var(--correct-text)' : 'var(--wrong-text)'}">
-                ${nota.toFixed(2)}
-            </div>
-            <p class="score-message">${nota >= 5 ? "Enhorabona, has aprovat!" : "Has de repassar una mica més."}</p>
-            <p>Encerts: <strong>${aciertos}</strong> de <strong>${total}</strong> (Contestades: ${contestadas})</p>
-        `;
-
-        // Opción A: Mostrar arriba (más visible al hacer scroll)
-        if(scoreCardTop) {
-            scoreCardTop.innerHTML = htmlResultado;
-            scoreCardTop.style.display = 'block';
-            scoreCardTop.style.padding = '20px';
-            scoreCardTop.style.backgroundColor = nota >= 5 ? 'var(--correct-bg)' : 'var(--wrong-bg)';
-            scoreCardTop.style.border = `1px solid ${nota >= 5 ? 'var(--correct-border)' : 'var(--wrong-border)'}`;
-            scoreCardTop.style.borderRadius = '8px';
-            scoreCardTop.style.marginBottom = '20px';
+        // MOSTRAR RESULTADO (Arriba)
+        const scoreCard = document.getElementById('final-score-card');
+        if(scoreCard) {
+            scoreCard.innerHTML = `
+                <h2 style="margin-top:0;">Resultats</h2>
+                <div style="font-size: 2rem; font-weight:bold; color: ${nota >= 5 ? 'var(--correct-text)' : 'var(--wrong-text)'}">
+                    ${nota.toFixed(2)} / 10
+                </div>
+                <p>${nota >= 5 ? "Enhorabona, has aprovat!" : "Has de repassar el temari."}</p>
+                <p>Encerts: <strong>${aciertos}</strong> de <strong>${total}</strong></p>
+            `;
+            scoreCard.style.display = 'block';
+            scoreCard.className = nota >= 5 ? 'alert alert-warning' : 'alert alert-danger'; 
+            // Nota: uso clases alert existentes, pero podrías personalizar colores
+            scoreCard.style.backgroundColor = nota >= 5 ? 'var(--correct-bg)' : 'var(--wrong-bg)';
+            scoreCard.style.borderColor = nota >= 5 ? 'var(--correct-border)' : 'var(--wrong-border)';
         }
 
-        // Opción B: Mostrar abajo (cerca del botón)
-        if(resultContainer) {
-            resultContainer.innerHTML = htmlResultado;
-            resultContainer.style.display = 'block';
-        }
-
-        // --- SCROLL HACIA ARRIBA ---
-        const mainContent = document.querySelector('.main-content');
-        if(mainContent) {
-            mainContent.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        // Scroll arriba
+        window.scrollTo({ top: 0, behavior: 'smooth' });
 
         // Desactivar botón
-        const btn = document.getElementById('submit-exam') || document.getElementById('btn-entregar-dinamico');
+        const btn = document.getElementById('btn-entregar-final');
         if(btn) {
             btn.disabled = true;
             btn.innerText = "Revisió Finalitzada";
             btn.style.backgroundColor = "#999";
-            btn.style.cursor = "not-allowed";
         }
     }
 });

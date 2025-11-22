@@ -265,3 +265,113 @@ button#submit-exam:hover {
     text-decoration: none;
 }
 
+/* =========================================
+   LAYOUT PRINCIPAL (3 COLUMNAS)
+   ========================================= */
+.app-container {
+    display: flex; /* Usamos Flexbox para el layout general */
+    flex-direction: row;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    gap: 20px;
+    min-height: calc(100vh - 80px); /* Altura completa menos cabecera */
+    box-sizing: border-box;
+}
+
+/* COLUMNA IZQUIERDA (Índice) */
+.sidebar-left {
+    width: 250px;
+    flex-shrink: 0; /* No encoger */
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 15px;
+    height: fit-content;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+}
+
+/* COLUMNA CENTRAL (Examen - Se estira) */
+.main-content {
+    flex-grow: 1; /* Ocupar todo el espacio disponible */
+    min-width: 0; /* Evita desbordamientos en flex */
+}
+
+/* COLUMNA DERECHA (Navegación) */
+.sidebar-right {
+    width: 250px;
+    flex-shrink: 0; /* No encoger */
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 15px;
+    height: fit-content;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+}
+
+/* Estilos de las Tarjetas */
+.exam-card {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+    border-top: 4px solid var(--brand-red); /* El toque SICAP */
+}
+
+/* Títulos de las barras laterales */
+.sidebar-header h3 {
+    margin-top: 0;
+    color: var(--brand-blue);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    font-size: 1.1rem;
+}
+
+/* Enlaces del índice */
+.module-link {
+    display: block;
+    padding: 8px 0;
+    color: var(--text-main);
+    text-decoration: none;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+}
+.module-link:hover {
+    color: var(--brand-blue);
+    font-weight: 500;
+}
+
+/* Grid de Preguntas (Derecha) */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* 5 cuadraditos por fila */
+    gap: 8px;
+}
+.grid-item {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eee;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #555;
+    border: 1px solid transparent;
+}
+/* Estados del Grid */
+.grid-item.answered { background: var(--primary-color); color: white; }
+.grid-item.correct { background: var(--correct-bg); color: var(--correct-text); border-color: var(--correct-border); }
+.grid-item.wrong { background: var(--wrong-bg); color: var(--wrong-text); border-color: var(--wrong-border); }
+.grid-item.unanswered { border: 1px solid red; }
+
+/* RESPONSIVE (Móvil) */
+@media (max-width: 900px) {
+    .app-container {
+        flex-direction: column; /* En móvil, una columna debajo de otra */
+    }
+    .sidebar-left, .sidebar-right {
+        width: 100%;
+    }
+}

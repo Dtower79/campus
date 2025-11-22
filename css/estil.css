@@ -487,3 +487,26 @@ a { text-decoration: none; color: inherit; }
     .main-content { order: 1; }
     .sidebar-right { order: 3; }
 }
+
+/* ==========================================================================
+   CORRECCIÓN FINAL: RESULTADOS EN MODO OSCURO
+   ========================================================================== */
+
+/* Forzamos que la tarjeta de resultados use el fondo oscuro en modo noche */
+[data-theme="dark"] #final-score-card {
+    background-color: var(--bg-card) !important; /* Gris oscuro (#1e1e1e) */
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* Ajuste del texto "Resultats" para que no se vea gris claro sobre gris oscuro */
+[data-theme="dark"] #final-score-card h3 {
+    color: var(--text-secondary) !important;
+}
+
+/* Aseguramos que la nota grande brille en azul claro */
+[data-theme="dark"] .score-big-number {
+    color: var(--primary-color) !important;
+}
+

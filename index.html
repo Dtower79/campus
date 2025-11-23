@@ -7,15 +7,14 @@
     
     <link rel="stylesheet" href="css/estil.css">
     
-    <!-- FAVICON: Aquí se define el logo de la pestaña.
-         Asegúrate de guardar una imagen cuadrada llamada 'favicon.png' en la carpeta img -->
+    <!-- FAVICON: Icono de la pestaña -->
     <link rel="icon" href="img/favicon.png" type="image/png">
 </head>
 <body>
 
     <!-- ==========================================
-         FASE 3: PANTALLA DE LOGIN (OVERLAY)
-         Tot en Català - Disseny Net
+         1. PANTALLA DE LOGIN (OVERLAY)
+         Tapa tot el contingut fins que l'usuari s'autentica.
          ========================================== -->
     <div id="login-overlay" class="login-wrapper">
         <div class="login-card">
@@ -55,7 +54,7 @@
                 <button id="btn-show-register" class="btn-secondary">Registra't aquí</button>
             </div>
             
-            <!-- Aviso de Cookies -->
+            <!-- Aviso de Cookies (Texto estático discreto) -->
             <div class="cookie-notice">
                 <small>Avís de galetes: Utilitzem galetes pròpies per gestionar la sessió.</small>
             </div>
@@ -65,7 +64,8 @@
 
 
     <!-- ==========================================
-         APP PRINCIPAL (CAMPUS)
+         2. APP PRINCIPAL (CAMPUS)
+         Contingut ocult fins al login.
          ========================================== -->
     <div id="app-container" class="app-container">
         
@@ -74,14 +74,24 @@
             <div class="header-logo-container">
                 <img src="img/logo-sicap.png" alt="SICAP Campus" class="header-logo">
             </div>
+            
             <div class="header-user">
                 <span id="user-name-display">Usuari</span>
+                
                 <button id="btn-logout" class="btn-logout">Sortir</button>
-                <button id="theme-toggle" class="btn-theme" title="Canviar Tema">🌓</button>
+                
+                <!-- NUEVO: Interruptor Tema (Switch) -->
+                <div class="theme-switch-wrapper">
+                    <span class="theme-label">Tema</span>
+                    <label class="theme-switch" for="checkbox-theme">
+                        <input type="checkbox" id="checkbox-theme" />
+                        <div class="slider round"></div>
+                    </label>
+                </div>
             </div>
         </header>
 
-        <!-- LAYOUT PRINCIPAL -->
+        <!-- LAYOUT PRINCIPAL (Sidebar + Main) -->
         <div class="main-layout">
             
             <!-- Sidebar Izquierda -->
@@ -96,11 +106,11 @@
             <!-- Contenido Central -->
             <main class="main-content">
                 
-                <!-- VISTA 1: DASHBOARD -->
+                <!-- VISTA 1: DASHBOARD (Llista de Cursos) -->
                 <div id="dashboard-view">
                     <h1>Els meus Cursos</h1>
                     <div id="courses-list" class="courses-grid">
-                        <!-- Fallback Manual -->
+                        <!-- Fallback Manual (Per si falla l'API) -->
                         <div class="course-card fallback-card">
                             <h3>Iniciació al Règim Disciplinari</h3>
                             <p>Curs fonamental per a funcionaris de presons.</p>
@@ -109,7 +119,7 @@
                     </div>
                 </div>
 
-                <!-- VISTA 2: EXAMEN -->
+                <!-- VISTA 2: EXAMEN / CURS (Layout 3 Columnes) -->
                 <div id="exam-view" style="display: none;">
                     <div class="exam-header">
                         <h2 id="curs-titol">Carregant curs...</h2>
@@ -117,15 +127,15 @@
                     </div>
                     
                     <div class="exam-layout">
-                        <!-- Índice -->
+                        <!-- Columna 1: Índex -->
                         <div class="exam-sidebar" id="course-index"></div>
 
-                        <!-- Preguntas -->
+                        <!-- Columna 2: Preguntes (CRÍTIC: ID moduls-container) -->
                         <div class="exam-center" id="moduls-container">
                             <div class="loading-spinner">Carregant contingut...</div>
                         </div>
 
-                        <!-- Estado -->
+                        <!-- Columna 3: Estat (CRÍTIC: ID quiz-grid) -->
                         <div class="exam-rightbar">
                             <div id="quiz-grid" class="quiz-status-grid"></div>
                             <div id="final-score-card" class="score-card" style="display: none;"></div>
@@ -137,9 +147,14 @@
         </div>
     </div>
 
-    <!-- SCRIPTS -->
+    <!-- ==========================================
+         3. SCRIPTS
+         ========================================== -->
+    
+    <!-- Lógica del Router y Tema (Switch) -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // 1. Router Simple (Dashboard vs Examen)
             const urlParams = new URLSearchParams(window.location.search);
             const slug = urlParams.get('slug');
             const dashboardView = document.getElementById('dashboard-view');
@@ -153,27 +168,37 @@
                 examView.style.display = 'none';
             }
 
-            const themeBtn = document.getElementById('theme-toggle');
-            themeBtn.addEventListener('click', () => {
-                const current = document.documentElement.getAttribute('data-theme');
-                const next = current === 'dark' ? 'light' : 'dark';
-                document.documentElement.setAttribute('data-theme', next);
-                localStorage.setItem('theme', next);
+            // 2. Lógica del Switch Tema (Día/Noche)
+            const toggleSwitch = document.querySelector('#checkbox-theme');
+            const currentTheme = localStorage.getItem('theme');
+
+            if (currentTheme) {
+                document.documentElement.setAttribute('data-theme', currentTheme);
+                if (currentTheme === 'dark') {
+                    toggleSwitch.checked = true;
+                }
+            }
+
+            toggleSwitch.addEventListener('change', function(e) {
+                if (e.target.checked) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    localStorage.setItem('theme', 'light');
+                }
             });
-            const savedTheme = localStorage.getItem('theme');
-            if(savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
         });
     </script>
 
-    <!-- 1. Configuración (URL Strapi) -->
+    <!-- Configuración (URL Strapi) -->
     <script src="js/config.js"></script>
     
-    <!-- 2. Lógica de Auth (Login/Logout) -->
+    <!-- Lógica de Autenticación (Login/Logout) -->
     <script src="js/auth.js"></script>
 
-    <!-- 3. Lógica del Examen (Ya existente) -->
+    <!-- Lógica del Examen -->
     <script src="js/renderitzadorCurs.js"></script>
-
 
 </body>
 </html>

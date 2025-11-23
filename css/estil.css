@@ -6,7 +6,7 @@
     --brand-blue: #004B87;
     --brand-red: #E30613;
     
-    /* Variables de UI (Modo Claro por defecto) */
+    /* Variables de UI (Modo Claro) */
     --bg-body: #f4f6f8;
     --bg-card: #ffffff;
     --text-main: #333333;
@@ -18,12 +18,12 @@
     --correct-text: #155724;
     --wrong-bg: #f8d7da;
     --wrong-text: #721c24;
+    --selected-bg: #e7f1ff; /* Azul muy clarito para selección */
     
-    /* Aprobado/Suspenso dinámico */
     --accent-color: var(--brand-red); 
 }
 
-/* Modo Oscuro (SOLO APLICA AL CAMPUS INTERIOR, NO AL LOGIN) */
+/* Modo Oscuro */
 [data-theme="dark"] {
     --bg-body: #121212;
     --bg-card: #1e1e1e;
@@ -31,10 +31,17 @@
     --text-muted: #aaaaaa;
     --border-color: #333333;
     
-    --brand-blue: #4a90e2; /* Azul más brillante para fondo oscuro */
-    --brand-red: #ff5252;   /* Rojo suave para fondo oscuro */
+    --brand-blue: #4a90e2; 
+    --brand-red: #ff5252;
     --accent-color: #ff8a80;
     
+    /* Estados Examen Dark */
+    --correct-bg: #1e4620;
+    --correct-text: #d4edda;
+    --wrong-bg: #601d23;
+    --wrong-text: #f8d7da;
+    --selected-bg: #2a3b55;
+
     /* Override tarjeta resultados */
     #final-score-card { 
         background-color: #333 !important; 
@@ -60,255 +67,193 @@ a { text-decoration: none; color: inherit; }
 ul { list-style: none; }
 
 /* =========================================
-   3. PANTALLA LOGIN (FORZADO MODO DÍA)
-   ========================================= */
-/* =========================================
-   3. PANTALLA LOGIN (DISEÑO ATMOSPHERE)
+   3. PANTALLA LOGIN (ATMOSPHERE - INVARIABLE)
    ========================================= */
 .login-wrapper {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100vh;
-    
-    /* FONDO BASE: Un azul muy oscuro casi negro (Elegante) */
     background-color: #0f172a !important;
-    
-    /* EFECTO ATMÓSFERA:
-       1. Foco Azul arriba-izquierda
-       2. Foco Rojo abajo-derecha
-       3. Trama sutil para textura (opcional, aquí solo color)
-    */
     background-image: 
         radial-gradient(circle at 0% 0%, rgba(0, 75, 135, 0.55) 0%, transparent 50%),
         radial-gradient(circle at 100% 100%, rgba(227, 6, 19, 0.35) 0%, transparent 50%) !important;
-        
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
-    color: #333 !important;
+    display: flex; justify-content: center; align-items: center;
+    z-index: 10000; color: #333 !important;
 }
 
 .login-card {
-    /* Tarjeta Blanca Inmaculada */
     background-color: #ffffff !important;
     padding: 3rem 2.5rem;
-    width: 100%;
-    max-width: 450px;
-    
-    /* Borde redondeado moderno */
+    width: 100%; max-width: 450px;
     border-radius: 12px;
-    
-    /* Sombra profunda para que "flote" sobre el fondo oscuro */
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
-    
     text-align: center;
-    border: 1px solid rgba(255,255,255,0.1); /* Borde sutil */
-    position: relative; /* Para asegurar z-index */
+    border: 1px solid rgba(255,255,255,0.1);
 }
-
-.login-card {
-    /* TARJETA BLANCA SIEMPRE */
-    background-color: #ffffff !important;
-    padding: 3rem 2.5rem;
-    width: 100%;
-    max-width: 450px;
-    border-radius: 8px; /* Bordes ligeramente redondeados, más serio */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Sombra suave */
-    text-align: center;
-    border: none;
-}
-
-.login-logo {
-    max-width: 220px;
-    margin-bottom: 2rem;
-    height: auto;
-    /* Si el logo tiene transparencia, se verá perfecto sobre blanco */
-}
-
-/* Inputs Forzados a Blanco/Gris Claro */
+/* ... (Resto de estilos Login igual que antes) ... */
+.login-logo { max-width: 220px; margin-bottom: 2rem; height: auto; }
 .input-group { margin-bottom: 1.2rem; text-align: left; }
-.input-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 600;
-    color: #444; /* Etiqueta oscura */
-}
-
 .input-group input {
-    width: 100%;
-    padding: 14px 16px;
-    font-size: 1rem;
-    border: 1px solid #ccc !important;
-    border-radius: 6px;
-    outline: none;
-    background-color: #fff !important; /* Fondo input blanco */
-    color: #333 !important; /* Texto input negro */
-    transition: border 0.2s;
+    width: 100%; padding: 14px 16px; font-size: 1rem;
+    border: 1px solid #ccc !important; border-radius: 6px; outline: none;
+    background-color: #fff !important; color: #333 !important;
 }
-
-.input-group input:focus {
-    border-color: #004B87 !important; /* Azul SICAP al escribir */
-    box-shadow: 0 0 0 3px rgba(0, 75, 135, 0.1);
-}
-
-/* Botón Login SICAP */
+.input-group input:focus { border-color: #004B87 !important; box-shadow: 0 0 0 3px rgba(0, 75, 135, 0.1); }
 .btn-login {
-    width: 100%;
-    padding: 14px;
-    background-color: #004B87 !important; /* AZUL SICAP SIEMPRE */
-    color: white !important;
-    font-size: 1.1rem;
-    font-weight: bold;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    margin-top: 1rem;
-    transition: background 0.3s;
+    width: 100%; padding: 14px; background-color: #004B87 !important;
+    color: white !important; font-size: 1.1rem; font-weight: bold;
+    border: none; border-radius: 6px; cursor: pointer; margin-top: 1rem;
 }
-
-.btn-login:hover {
-    background-color: #003865 !important; /* Azul más oscuro al pasar ratón */
-}
-
-/* Footer y Enlaces */
-.login-footer {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid #eee;
-}
-.login-footer a { color: #004B87 !important; font-size: 0.9rem; text-decoration: none; }
-.login-footer a:hover { text-decoration: underline; }
-
+.btn-login:hover { background-color: #003865 !important; }
+.login-footer { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #eee; }
+.login-footer a { color: #004B87 !important; font-size: 0.9rem; }
 .register-section { margin-top: 2rem; }
 .register-section p { color: #666 !important; font-size: 0.9rem; margin-bottom: 0.5rem; }
-
 .btn-secondary {
-    background: transparent !important;
-    color: #004B87 !important;
-    border: 1px solid #004B87 !important;
-    padding: 8px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
+    background: transparent !important; color: #004B87 !important;
+    border: 1px solid #004B87 !important; padding: 8px 20px; border-radius: 4px; cursor: pointer;
 }
-.btn-secondary:hover { background-color: rgba(0, 75, 135, 0.05) !important; }
-
 .cookie-notice { margin-top: 3rem; color: #999 !important; font-size: 0.75rem; }
-
-/* Mensaje Error (Rojo SICAP) */
 .login-error {
-    background-color: #fce8e9 !important;
-    color: #E30613 !important;
-    padding: 12px;
-    border-radius: 4px;
-    margin-bottom: 1.5rem;
-    font-size: 0.95rem;
-    border-left: 4px solid #E30613 !important;
-    text-align: left;
+    background-color: #fce8e9 !important; color: #E30613 !important;
+    padding: 12px; border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.95rem;
+    border-left: 4px solid #E30613 !important; text-align: left;
 }
 
 /* =========================================
-   4. HEADER Y NAVEGACIÓN (APP INTERNA)
+   4. HEADER Y NAVEGACIÓN
    ========================================= */
 .app-header {
-    background-color: var(--bg-card);
-    height: 70px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 2rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    position: sticky; top: 0; z-index: 100;
+    background-color: var(--bg-card); height: 70px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border-color);
 }
-
 .header-logo { height: 40px; }
-[data-theme="dark"] .header-logo-container {
-    background: rgba(255,255,255,0.9);
-    padding: 5px 10px;
-    border-radius: 4px;
-}
+[data-theme="dark"] .header-logo-container { background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 4px; }
 
-.header-user { display: flex; align-items: center; gap: 1rem; }
+.header-user { display: flex; align-items: center; gap: 1.5rem; }
 .btn-logout {
     background: none; border: 1px solid var(--brand-red);
-    color: var(--brand-red); padding: 5px 15px;
-    border-radius: 20px; cursor: pointer;
+    color: var(--brand-red); padding: 5px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem;
 }
-.btn-theme { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-main); }
+
+/* NUEVO SWITCH TOGGLE */
+.theme-switch-wrapper { display: flex; align-items: center; gap: 10px; }
+.theme-label { font-size: 0.9rem; color: var(--text-muted); }
+.theme-switch { position: relative; display: inline-block; width: 48px; height: 24px; }
+.theme-switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: var(--brand-blue); }
+input:checked + .slider:before { transform: translateX(24px); }
 
 /* =========================================
    5. LAYOUT PRINCIPAL
    ========================================= */
 .main-layout { display: flex; min-height: calc(100vh - 70px); }
-
-.sidebar-left {
-    width: 250px;
-    background-color: var(--bg-card);
-    border-right: 1px solid var(--border-color);
-    padding: 2rem 1rem;
-    display: none;
-}
+.sidebar-left { width: 250px; background-color: var(--bg-card); border-right: 1px solid var(--border-color); padding: 2rem 1rem; display: none; }
 @media(min-width: 768px) { .sidebar-left { display: block; } }
 
-.nav-item {
-    display: block; padding: 12px 15px;
-    color: var(--text-main); border-radius: 8px; margin-bottom: 5px;
-    transition: background 0.2s;
-}
-.nav-item:hover, .nav-item.active {
-    background-color: rgba(0, 75, 135, 0.1);
-    color: var(--brand-blue); font-weight: 600;
-}
-
-.main-content {
-    flex: 1; padding: 2rem;
-    max-width: 1400px; margin: 0 auto;
-}
+.nav-item { display: block; padding: 12px 15px; color: var(--text-main); border-radius: 8px; margin-bottom: 5px; transition: background 0.2s; }
+.nav-item:hover, .nav-item.active { background-color: rgba(0, 75, 135, 0.1); color: var(--brand-blue); font-weight: 600; }
+.main-content { flex: 1; padding: 2rem; max-width: 1400px; margin: 0 auto; }
 
 /* =========================================
-   6. VISTAS Y EXAMEN
+   6. VISTA EXAMEN (RESTAURADO)
    ========================================= */
-.courses-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 2rem; margin-top: 2rem;
-}
-
-.course-card {
-    background: var(--bg-card); border-radius: 12px; padding: 2rem;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s;
-}
-.course-card:hover { transform: translateY(-5px); }
-.btn-course {
-    display: inline-block; margin-top: 1rem; padding: 10px 20px;
-    background-color: var(--brand-blue); color: white; border-radius: 6px;
-}
-
 .exam-header { display: flex; justify-content: space-between; margin-bottom: 2rem; }
-.btn-back { color: var(--text-muted); }
+.btn-back { color: var(--text-muted); font-weight: 500; }
 
 .exam-layout { display: flex; gap: 2rem; align-items: flex-start; }
-.exam-sidebar { width: 200px; position: sticky; top: 90px; display: none; }
-@media(min-width: 1024px) { .exam-sidebar { display: block; } }
-
-.exam-center {
-    flex: 1; background: var(--bg-card); padding: 2rem;
-    border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-}
+.exam-sidebar { width: 220px; position: sticky; top: 90px; max-height: 80vh; overflow-y: auto; }
+.exam-center { flex: 1; min-width: 0; } /* min-width evita desbordamientos flex */
 .exam-rightbar { width: 250px; position: sticky; top: 90px; }
 
-/* Estilos Examen */
-.question-block { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border-color); }
-.question-text { font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem; }
-.option-label {
-    display: block; padding: 10px; margin-bottom: 5px;
-    border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer;
+/* --- ESTILOS DE LAS PREGUNTAS (CARDS) --- */
+/* Nota: Estas clases las genera el JS. Deben existir aquí para que se vean bien. */
+
+.question-block {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    /* Efecto suave al aparecer */
+    animation: fadeIn 0.3s ease-in-out;
 }
-.option-label:hover { background-color: rgba(0,0,0,0.02); }
-.option-label.correct { background-color: var(--correct-bg); color: var(--correct-text); border-color: var(--correct-text); }
-.option-label.wrong { background-color: var(--wrong-bg); color: var(--wrong-text); border-color: var(--wrong-text); }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.question-text {
+    font-weight: 600;
+    font-size: 1.15rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-main);
+}
+
+.options-container { display: flex; flex-direction: column; gap: 10px; }
+
+.option-label {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background-color: var(--bg-card); /* Asegura fondo */
+}
+
+.option-label:hover { background-color: rgba(0,0,0,0.02); border-color: var(--brand-blue); }
+
+/* Input radio oculto o estilizado */
+.option-label input[type="radio"] { margin-right: 12px; accent-color: var(--brand-blue); transform: scale(1.2); }
+
+/* --- ESTADOS DE RESPUESTA (ANTI-TRAMPAS) --- */
+
+/* Seleccionado (antes de corregir) */
+.option-label.selected {
+    background-color: var(--selected-bg);
+    border-color: var(--brand-blue);
+    font-weight: 500;
+}
+
+/* Correcta */
+.option-label.correct {
+    background-color: var(--correct-bg);
+    color: var(--correct-text);
+    border-color: var(--correct-text);
+}
+
+/* Incorrecta */
+.option-label.wrong {
+    background-color: var(--wrong-bg);
+    color: var(--wrong-text);
+    border-color: var(--wrong-text);
+}
+
+/* EXPLICACIÓN (Oculta por defecto) */
 .explanation {
-    margin-top: 10px; padding: 10px;
+    display: none; /* CRÍTICO: Oculto hasta que el JS diga lo contrario */
+    margin-top: 1.5rem;
+    padding: 1rem;
     background-color: rgba(0, 75, 135, 0.05);
-    border-left: 3px solid var(--brand-blue); font-size: 0.9rem;
+    border-left: 4px solid var(--brand-blue);
+    border-radius: 4px;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+/* El JS añade style="display: block" cuando responde. */
+
+/* --- SIDEBAR STATUS --- */
+.quiz-status-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+    background: var(--bg-card);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
 }

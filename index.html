@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SICAP Campus Virtual</title>
     
-    <!-- NUEVA FUENTE ROBOTO (Más ancha y moderna) -->
+    <!-- FUENTE ROBOTO -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -17,34 +17,69 @@
 <body>
 
     <!-- =========================
-         LOGIN (DISEÑO ATMOSPHERE)
+         LOGIN & REGISTRO (ATMOSPHERE)
          ========================= -->
     <div id="login-overlay" class="login-wrapper">
         <div class="login-card">
             <div class="login-header">
                 <img src="img/logo-sicap.png" alt="SICAP Logo" class="login-logo">
             </div>
+            
+            <!-- Mensaje de Error Global -->
             <div id="login-error-msg" class="login-error" style="display: none;">DNI no trobat o no actiu.</div>
-            <form id="login-form">
-                <div class="input-group">
-                    <input type="text" id="login-dni" placeholder="Introdueix el teu DNI/NIF" required autocomplete="username">
+
+            <!-- FORMULARIO LOGIN (Visible por defecto) -->
+            <div id="login-view">
+                <form id="login-form">
+                    <div class="input-group">
+                        <input type="text" id="login-dni" placeholder="Introdueix el teu DNI/NIF" required autocomplete="username">
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="login-pass" placeholder="Contrasenya" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn-login">Inicia la sessió</button>
+                </form>
+                
+                <div class="login-footer"><a href="#" id="forgot-pass">Heu oblidat la contrasenya?</a></div>
+                
+                <div class="register-section">
+                    <p>Ets afiliat y és la teva primera vegada?</p>
+                    <button id="btn-show-register" class="btn-secondary">Registra't aquí</button>
                 </div>
-                <div class="input-group">
-                    <input type="password" id="login-pass" placeholder="Contrasenya" required autocomplete="current-password">
-                </div>
-                <button type="submit" class="btn-login">Inicia la sessió</button>
-            </form>
-            <div class="login-footer"><a href="#" id="forgot-pass">Heu oblidat la contrasenya?</a></div>
-            <div class="register-section">
-                <p>Ets afiliat i és la teva primera vegada?</p>
-                <button id="btn-show-register" class="btn-secondary">Registra't aquí</button>
             </div>
+
+            <!-- FORMULARIO REGISTRO (Oculto por defecto) -->
+            <div id="register-view" style="display: none;">
+                <h3 style="color:var(--brand-blue); margin-bottom:15px;">Activació de Compte</h3>
+                <p style="font-size:0.9rem; color:#666; margin-bottom:20px;">
+                    Introdueix el teu DNI per verificar la teva afiliació i crea una contrasenya.
+                </p>
+                <form id="register-form">
+                    <div class="input-group">
+                        <input type="text" id="reg-dni" placeholder="El teu DNI/NIF" required autocomplete="username">
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="reg-pass" placeholder="Crea una contrasenya" required autocomplete="new-password">
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="reg-pass-conf" placeholder="Repeteix la contrasenya" required autocomplete="new-password">
+                    </div>
+                    <button type="submit" class="btn-login" style="background-color: var(--brand-red) !important;">Validar i Entrar</button>
+                </form>
+                
+                <div style="margin-top: 20px;">
+                    <button id="btn-show-login" class="btn-secondary" style="border:none !important; text-decoration:underline;">
+                        <i class="fa-solid fa-arrow-left"></i> Tornar al Login
+                    </button>
+                </div>
+            </div>
+
             <div class="cookie-notice"><small>Avís de galetes: Utilitzem galetes pròpies per gestionar la sessió.</small></div>
         </div>
     </div>
 
     <!-- =========================
-         APP PRINCIPAL
+         APP PRINCIPAL (CAMPUS)
          ========================= -->
     <div id="app-container" style="display: none;">
         
@@ -81,17 +116,12 @@
 
         <!-- VISTA EXAMEN -->
         <div id="exam-view" class="app-container" style="display: none;">
-            
             <!-- Columna Izquierda: Índice -->
             <aside class="sidebar-left">
-                <div class="sidebar-header">
-                    <h3>Índex del Curs</h3>
-                </div>
+                <div class="sidebar-header"><h3>Índex del Curs</h3></div>
                 <div id="course-index"></div>
                 <div style="margin-top:20px;">
-                    <a href="index.html" class="btn-small">
-                        <i class="fa-solid fa-arrow-left"></i> Tornar als Cursos
-                    </a>
+                    <a href="index.html" class="btn-small"><i class="fa-solid fa-arrow-left"></i> Tornar als Cursos</a>
                 </div>
             </aside>
 
@@ -108,17 +138,11 @@
 
             <!-- Columna Derecha: Navegación -->
             <aside class="sidebar-right">
-                <div class="sidebar-header">
-                    <h3>Navegació</h3>
-                </div>
+                <div class="sidebar-header"><h3>Navegació</h3></div>
                 <div id="quiz-grid" class="grid-container"></div>
-                
-                <!-- Tarjeta de Resultados (Oculta) -->
                 <div id="final-score-card" style="display: none;"></div>
             </aside>
-
         </div>
-
     </div>
 
     <!-- SCRIPTS -->
@@ -127,13 +151,13 @@
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('slug')) {
                 document.getElementById('dashboard-view').style.display = 'none';
-                document.getElementById('exam-view').style.display = 'flex'; // Flex para layout columnas
+                document.getElementById('exam-view').style.display = 'flex';
             } else {
                 document.getElementById('dashboard-view').style.display = 'block';
                 document.getElementById('exam-view').style.display = 'none';
             }
             
-            // Lógica Tema (Luna)
+            // Lógica Tema
             const themeBtn = document.getElementById('theme-toggle');
             const icon = themeBtn.querySelector('i');
             themeBtn.addEventListener('click', () => {

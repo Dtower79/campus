@@ -23,7 +23,11 @@ async function loadUserCourses() {
         // Petición a Strapi v5:
         // 1. Filtramos por el ID del usuario logueado.
         // 2. Usamos 'populate' para traernos los datos del curso (título, horas...) y la imagen.
-        const query = `filters[user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
+        // ANTIGUA (MALA):
+// const query = `filters[user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
+
+// NUEVA (BUENA):
+const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
         const url = `${API_ROUTES.checkAffiliate.replace('/api/afiliados', '')}/api/matriculas?${query}`; 
         // Nota: Usamos la URL base sacada de config (truco para no reescribir la url base)
 

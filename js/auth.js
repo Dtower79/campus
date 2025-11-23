@@ -7,6 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerForm = document.getElementById('register-form');
     const errorMsg = document.getElementById('login-error-msg');
     
+    // Inputs DNI
+    const loginDniInput = document.getElementById('login-dni');
+    const regDniInput = document.getElementById('reg-dni');
+    
     // Vistas
     const loginView = document.getElementById('login-view');
     const registerView = document.getElementById('register-view');
@@ -17,7 +21,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLogout = document.getElementById('btn-logout');
     const userNameDisplay = document.getElementById('user-name-display');
 
-    // 1. CHEQUEO DE SESIÓN AL INICIAR
+    // --- 0. VALIDACIÓN DNI EN TIEMPO REAL ---
+    // Esta función fuerza mayúsculas y quita guiones/puntos mientras escribes
+    function setupDniInput(inputElement) {
+        if (!inputElement) return;
+        inputElement.addEventListener('input', (e) => {
+            let val = e.target.value;
+            // 1. Convertir a mayúsculas
+            val = val.toUpperCase();
+            // 2. Eliminar todo lo que NO sea número o letra (quita espacios, guiones, puntos)
+            val = val.replace(/[^0-9A-Z]/g, '');
+            // 3. Limitar a 9 caracteres visualmente
+            if (val.length > 9) val = val.slice(0, 9);
+            
+            e.target.value = val;
+        });
+    }
+
+    // Aplicamos la "mano dura" a los dos campos
+    setupDniInput(loginDniInput);
+    setupDniInput(regDniInput);
+
+    // --- 1. CHEQUEO DE SESIÓN AL INICIAR ---
     const token = localStorage.getItem('jwt');
     const userData = JSON.parse(localStorage.getItem('user'));
 
@@ -27,15 +52,15 @@ document.addEventListener('DOMContentLoaded', () => {
         showLogin();
     }
 
-    // 2. NAVEGACIÓN
+    // --- 2. NAVEGACIÓN ---
     if (btnShowRegister) {
         btnShowRegister.addEventListener('click', (e) => {
             e.preventDefault();
             hideError();
             loginView.style.display = 'none';
             registerView.style.display = 'block';
-            const dniVal = document.getElementById('login-dni').value;
-            if(dniVal) document.getElementById('reg-dni').value = dniVal;
+            // Copiar el DNI si ya lo había escrito en el login
+            if(loginDniInput.value) regDniInput.value = loginDniInput.value;
         });
     }
 
@@ -48,14 +73,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 3. LOGIN
+    // --- 3. LOGIN ---
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideError();
 
-        const identifier = document.getElementById('login-dni').value.trim();
+        const identifier = loginDniInput.value.trim();
         const password = document.getElementById('login-pass').value;
         const btnSubmit = loginForm.querySelector('button[type="submit"]');
+
+        // VALIDACIÓN FORMATO DNI (8 números + 1 Letra)
+        const dniRegex = /^\d{8}[A-Z]$/;
+        if (!dniRegex.test(identifier)) {
+            showError("El format del DNI no és correcte. Exemple: 12345678A");
+            return;
+        }
 
         toggleLoading(btnSubmit, true, "Iniciant...");
 
@@ -81,15 +113,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 4. REGISTRO
+    // --- 4. REGISTRO ---
     registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideError();
 
-        const dni = document.getElementById('reg-dni').value.trim().toUpperCase();
+        const dni = regDniInput.value.trim();
         const pass = document.getElementById('reg-pass').value;
         const passConf = document.getElementById('reg-pass-conf').value;
         const btnSubmit = registerForm.querySelector('button[type="submit"]');
+
+        // VALIDACIÓN FORMATO DNI
+        const dniRegex = /^\d{8}[A-Z]$/;
+        if (!dniRegex.test(dni)) {
+            showError("El format del DNI no és correcte. Exemple: 12345678A");
+            return;
+        }
 
         if (pass !== passConf) {
             showError("Les contrasenyes no coincideixen.");
@@ -179,13 +218,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('app-container').style.display = 'block'; 
         if (userNameDisplay) userNameDisplay.innerText = user.username || user.email;
 
-        // --- SOLUCIÓN F5: Esperamos 200ms a que todo cargue y llamamos a la función global ---
+        // Cargar cursos con pequeño delay
         setTimeout(() => {
             if (typeof window.loadUserCourses === 'function') {
-                console.log("Cargando cursos post-login...");
                 window.loadUserCourses();
-            } else {
-                console.error("Dashboard script no cargado aún.");
             }
         }, 200);
     }

@@ -25,13 +25,15 @@
                 <img src="img/logo-sicap.png" alt="SICAP Logo" class="login-logo">
             </div>
             
+            <!-- Mensaje de Error Global -->
             <div id="login-error-msg" class="login-error" style="display: none;">DNI no trobat o no actiu.</div>
 
-            <!-- FORMULARIO LOGIN -->
+            <!-- VISTA 1: FORMULARIO LOGIN (Visible por defecto) -->
             <div id="login-view">
                 <form id="login-form">
                     <div class="input-group">
-                        <input type="text" id="login-dni" placeholder="Introdueix el teu DNI/NIF" required autocomplete="username">
+                        <!-- Añadido maxlength="9" para limitar caracteres -->
+                        <input type="text" id="login-dni" placeholder="Introdueix el teu DNI/NIF" required autocomplete="username" maxlength="9">
                     </div>
                     <div class="input-group">
                         <input type="password" id="login-pass" placeholder="Contrasenya" required autocomplete="current-password">
@@ -47,7 +49,7 @@
                 </div>
             </div>
 
-            <!-- FORMULARIO REGISTRO -->
+            <!-- VISTA 2: FORMULARIO REGISTRO (Oculto por defecto) -->
             <div id="register-view" style="display: none;">
                 <h3 style="color:var(--brand-blue); margin-bottom:15px;">Activació de Compte</h3>
                 <p style="font-size:0.9rem; color:#666; margin-bottom:20px;">
@@ -55,7 +57,8 @@
                 </p>
                 <form id="register-form">
                     <div class="input-group">
-                        <input type="text" id="reg-dni" placeholder="El teu DNI/NIF" required autocomplete="username">
+                        <!-- Añadido maxlength="9" para limitar caracteres -->
+                        <input type="text" id="reg-dni" placeholder="El teu DNI/NIF" required autocomplete="username" maxlength="9">
                     </div>
                     <div class="input-group">
                         <input type="password" id="reg-pass" placeholder="Crea una contrasenya" required autocomplete="new-password">
@@ -112,6 +115,7 @@
 
         <!-- VISTA EXAMEN (Renderitzador) -->
         <div id="exam-view" class="app-container" style="display: none;">
+            <!-- Columna Izquierda: Índice -->
             <aside class="sidebar-left">
                 <div class="sidebar-header"><h3>Índex del Curs</h3></div>
                 <div id="course-index"></div>
@@ -119,6 +123,8 @@
                     <a href="index.html" class="btn-small"><i class="fa-solid fa-arrow-left"></i> Tornar als Cursos</a>
                 </div>
             </aside>
+            
+            <!-- Columna Central: Contenido -->
             <main class="main-content">
                 <div class="exam-card">
                     <h2 id="curs-titol">Carregant curs...</h2>
@@ -128,6 +134,8 @@
                     </div>
                 </div>
             </main>
+            
+            <!-- Columna Derecha: Navegación -->
             <aside class="sidebar-right">
                 <div class="sidebar-header"><h3>Navegació</h3></div>
                 <div id="quiz-grid" class="grid-container"></div>
@@ -150,7 +158,7 @@
                 document.getElementById('exam-view').style.display = 'none';
             }
             
-            // Lógica Tema
+            // Lógica Tema (Modo Oscuro/Claro)
             const themeBtn = document.getElementById('theme-toggle');
             const icon = themeBtn.querySelector('i');
             themeBtn.addEventListener('click', () => {
@@ -169,7 +177,7 @@
     </script>
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/dashboard.js"></script> <!-- NUEVO: Carga la lista de cursos -->
-    <script src="js/renderitzadorCurs.js"></script> <!-- Carga el examen interno -->
+    <script src="js/dashboard.js"></script>
+    <script src="js/renderitzadorCurs.js"></script>
 </body>
 </html>

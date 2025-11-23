@@ -263,3 +263,97 @@ a { text-decoration: none; color: inherit; }
     .sidebar-left, .sidebar-right { position: static; max-height: none; }
     .sidebar-left { order: 2; } .main-content { order: 1; } .sidebar-right { order: 3; }
 }
+
+/* ==========================================================================
+   10. ESTILOS TARJETAS DASHBOARD (FASE 5)
+   ========================================================================== */
+.course-card-item {
+    padding: 0 !important; /* Reseteamos padding para que la imagen toque los bordes */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 420px; /* Altura mínima para uniformidad */
+}
+
+/* Cabecera con Imagen */
+.card-image-header {
+    height: 180px;
+    background-size: cover;
+    background-position: center;
+    background-color: #eee;
+    position: relative;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Etiqueta (Badge) ej: SICAP */
+.course-badge {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background-color: var(--brand-blue);
+    color: white;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    border-radius: 4px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Cuerpo de la tarjeta */
+.card-body {
+    padding: 20px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.course-title {
+    font-size: 1.15rem;
+    margin-bottom: 8px;
+    line-height: 1.4;
+    min-height: 3.6em; /* Reserva espacio para 2-3 líneas de título */
+}
+
+.course-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+}
+
+.course-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    line-height: 1.5;
+    flex-grow: 1;
+}
+
+/* Barra de Progreso */
+.progress-container {
+    margin-bottom: 15px;
+    margin-top: auto; /* Empuja hacia abajo */
+}
+
+.progress-bar {
+    height: 8px;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+[data-theme="dark"] .progress-bar { background-color: #444; }
+
+.progress-fill {
+    height: 100%;
+    transition: width 0.8s ease-in-out;
+}
+
+.progress-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}

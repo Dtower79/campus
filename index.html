@@ -25,10 +25,9 @@
                 <img src="img/logo-sicap.png" alt="SICAP Logo" class="login-logo">
             </div>
             
-            <!-- Mensaje de Error Global -->
             <div id="login-error-msg" class="login-error" style="display: none;">DNI no trobat o no actiu.</div>
 
-            <!-- FORMULARIO LOGIN (Visible por defecto) -->
+            <!-- FORMULARIO LOGIN -->
             <div id="login-view">
                 <form id="login-form">
                     <div class="input-group">
@@ -48,7 +47,7 @@
                 </div>
             </div>
 
-            <!-- FORMULARIO REGISTRO (Oculto por defecto) -->
+            <!-- FORMULARIO REGISTRO -->
             <div id="register-view" style="display: none;">
                 <h3 style="color:var(--brand-blue); margin-bottom:15px;">Activació de Compte</h3>
                 <p style="font-size:0.9rem; color:#666; margin-bottom:20px;">
@@ -100,23 +99,19 @@
             </div>
         </header>
 
-        <!-- VISTA DASHBOARD -->
+        <!-- VISTA DASHBOARD (Mis Cursos) -->
         <div id="dashboard-view" class="container-dashboard">
             <div class="dashboard-card">
                 <h1>Els meus Cursos</h1>
+                <!-- Aquí se inyectan las tarjetas desde dashboard.js -->
                 <div id="courses-list" class="courses-grid">
-                    <div class="course-card-item">
-                        <h3>Iniciació al Règim Disciplinari</h3>
-                        <p style="margin-top:10px; color:var(--text-secondary);">Curs fonamental per a funcionaris de presons.</p>
-                        <a href="index.html?slug=iniciacio-regim-disciplinari" class="btn-primary" style="margin-top:15px; display:inline-block; width:auto;">Accedir al Curs</a>
-                    </div>
+                    <!-- CONTENIDO DINÁMICO: Se carga vía JS -->
                 </div>
             </div>
         </div>
 
-        <!-- VISTA EXAMEN -->
+        <!-- VISTA EXAMEN (Renderitzador) -->
         <div id="exam-view" class="app-container" style="display: none;">
-            <!-- Columna Izquierda: Índice -->
             <aside class="sidebar-left">
                 <div class="sidebar-header"><h3>Índex del Curs</h3></div>
                 <div id="course-index"></div>
@@ -124,8 +119,6 @@
                     <a href="index.html" class="btn-small"><i class="fa-solid fa-arrow-left"></i> Tornar als Cursos</a>
                 </div>
             </aside>
-
-            <!-- Columna Central: Contenido -->
             <main class="main-content">
                 <div class="exam-card">
                     <h2 id="curs-titol">Carregant curs...</h2>
@@ -135,8 +128,6 @@
                     </div>
                 </div>
             </main>
-
-            <!-- Columna Derecha: Navegación -->
             <aside class="sidebar-right">
                 <div class="sidebar-header"><h3>Navegació</h3></div>
                 <div id="quiz-grid" class="grid-container"></div>
@@ -149,10 +140,12 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
+            // Si hay 'slug', activamos el modo examen
             if (urlParams.get('slug')) {
                 document.getElementById('dashboard-view').style.display = 'none';
                 document.getElementById('exam-view').style.display = 'flex';
             } else {
+                // Si no, activamos el modo dashboard
                 document.getElementById('dashboard-view').style.display = 'block';
                 document.getElementById('exam-view').style.display = 'none';
             }
@@ -176,6 +169,7 @@
     </script>
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/renderitzadorCurs.js"></script>
+    <script src="js/dashboard.js"></script> <!-- NUEVO: Carga la lista de cursos -->
+    <script src="js/renderitzadorCurs.js"></script> <!-- Carga el examen interno -->
 </body>
 </html>

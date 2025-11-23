@@ -23,7 +23,7 @@
     --accent-color: var(--brand-red); 
 }
 
-/* Modo Oscuro */
+/* Modo Oscuro (SOLO APLICA AL CAMPUS INTERIOR, NO AL LOGIN) */
 [data-theme="dark"] {
     --bg-body: #121212;
     --bg-card: #1e1e1e;
@@ -33,10 +33,9 @@
     
     --brand-blue: #4a90e2; /* Azul más brillante para fondo oscuro */
     --brand-red: #ff5252;   /* Rojo suave para fondo oscuro */
+    --accent-color: #ff8a80;
     
-    --accent-color: #ff8a80; /* Rojo salmón para legibilidad */
-    
-    /* Override para tarjeta de resultados para evitar fondo blanco del JS */
+    /* Override tarjeta resultados */
     #final-score-card { 
         background-color: #333 !important; 
         color: #fff !important; 
@@ -61,101 +60,125 @@ a { text-decoration: none; color: inherit; }
 ul { list-style: none; }
 
 /* =========================================
-   3. PANTALLA LOGIN (FASE 3 - NUEVO)
+   3. PANTALLA LOGIN (FORZADO MODO DÍA)
    ========================================= */
 .login-wrapper {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100vh;
-    background-color: var(--bg-body);
-    background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
-    background-size: 20px 20px;
+    /* FONDO LISO GRIS PROFESIONAL (Sin puntos) */
+    background-color: #f0f2f5 !important; 
+    background-image: none !important;
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10000; /* Encima de todo */
+    z-index: 10000;
+    /* Forzamos color de texto oscuro siempre en esta pantalla */
+    color: #333 !important;
 }
 
 .login-card {
-    background: var(--bg-card);
+    /* TARJETA BLANCA SIEMPRE */
+    background-color: #ffffff !important;
     padding: 3rem 2.5rem;
     width: 100%;
     max-width: 450px;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    border-radius: 8px; /* Bordes ligeramente redondeados, más serio */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Sombra suave */
     text-align: center;
-    border: 1px solid var(--border-color);
+    border: none;
 }
 
 .login-logo {
-    max-width: 200px;
+    max-width: 220px;
     margin-bottom: 2rem;
     height: auto;
+    /* Si el logo tiene transparencia, se verá perfecto sobre blanco */
 }
 
+/* Inputs Forzados a Blanco/Gris Claro */
 .input-group { margin-bottom: 1.2rem; text-align: left; }
+.input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #444; /* Etiqueta oscura */
+}
+
 .input-group input {
     width: 100%;
     padding: 14px 16px;
     font-size: 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border: 1px solid #ccc !important;
+    border-radius: 6px;
     outline: none;
-    background-color: var(--bg-card);
-    color: var(--text-main);
-    transition: all 0.2s;
+    background-color: #fff !important; /* Fondo input blanco */
+    color: #333 !important; /* Texto input negro */
+    transition: border 0.2s;
 }
+
 .input-group input:focus {
-    border-color: var(--brand-blue);
+    border-color: #004B87 !important; /* Azul SICAP al escribir */
     box-shadow: 0 0 0 3px rgba(0, 75, 135, 0.1);
 }
 
+/* Botón Login SICAP */
 .btn-login {
     width: 100%;
     padding: 14px;
-    background-color: var(--brand-blue);
-    color: white;
-    font-size: 1.05rem;
-    font-weight: 600;
+    background-color: #004B87 !important; /* AZUL SICAP SIEMPRE */
+    color: white !important;
+    font-size: 1.1rem;
+    font-weight: bold;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
-    margin-top: 0.5rem;
-    transition: opacity 0.3s;
+    margin-top: 1rem;
+    transition: background 0.3s;
 }
-.btn-login:hover { opacity: 0.9; }
 
+.btn-login:hover {
+    background-color: #003865 !important; /* Azul más oscuro al pasar ratón */
+}
+
+/* Footer y Enlaces */
 .login-footer {
     margin-top: 1.5rem;
     padding-top: 1.5rem;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid #eee;
 }
-.login-footer a { color: var(--brand-blue); font-size: 0.9rem; }
+.login-footer a { color: #004B87 !important; font-size: 0.9rem; text-decoration: none; }
+.login-footer a:hover { text-decoration: underline; }
 
 .register-section { margin-top: 2rem; }
-.register-section p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem; }
+.register-section p { color: #666 !important; font-size: 0.9rem; margin-bottom: 0.5rem; }
 
 .btn-secondary {
-    background: transparent;
-    color: var(--brand-blue);
-    border: 1px solid var(--brand-blue);
+    background: transparent !important;
+    color: #004B87 !important;
+    border: 1px solid #004B87 !important;
     padding: 8px 20px;
     border-radius: 4px;
     cursor: pointer;
+    font-weight: 500;
 }
+.btn-secondary:hover { background-color: rgba(0, 75, 135, 0.05) !important; }
 
-.cookie-notice { margin-top: 3rem; color: var(--text-muted); font-size: 0.75rem; }
+.cookie-notice { margin-top: 3rem; color: #999 !important; font-size: 0.75rem; }
+
+/* Mensaje Error (Rojo SICAP) */
 .login-error {
-    background-color: rgba(227, 6, 19, 0.1);
-    color: var(--brand-red);
-    padding: 10px;
+    background-color: #fce8e9 !important;
+    color: #E30613 !important;
+    padding: 12px;
     border-radius: 4px;
-    margin-bottom: 1rem;
-    font-size: 0.9rem;
-    border: 1px solid var(--brand-red);
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+    border-left: 4px solid #E30613 !important;
+    text-align: left;
 }
 
 /* =========================================
-   4. HEADER Y NAVEGACIÓN (APP)
+   4. HEADER Y NAVEGACIÓN (APP INTERNA)
    ========================================= */
 .app-header {
     background-color: var(--bg-card);
@@ -169,8 +192,6 @@ ul { list-style: none; }
 }
 
 .header-logo { height: 40px; }
-
-/* Ajuste logo modo oscuro */
 [data-theme="dark"] .header-logo-container {
     background: rgba(255,255,255,0.9);
     padding: 5px 10px;
@@ -186,7 +207,7 @@ ul { list-style: none; }
 .btn-theme { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-main); }
 
 /* =========================================
-   5. LAYOUT PRINCIPAL (Sidebar + Content)
+   5. LAYOUT PRINCIPAL
    ========================================= */
 .main-layout { display: flex; min-height: calc(100vh - 70px); }
 
@@ -195,110 +216,69 @@ ul { list-style: none; }
     background-color: var(--bg-card);
     border-right: 1px solid var(--border-color);
     padding: 2rem 1rem;
-    display: none; /* Oculto en móvil, visible en desktop */
+    display: none;
 }
 @media(min-width: 768px) { .sidebar-left { display: block; } }
 
 .nav-item {
-    display: block;
-    padding: 12px 15px;
-    color: var(--text-main);
-    border-radius: 8px;
-    margin-bottom: 5px;
+    display: block; padding: 12px 15px;
+    color: var(--text-main); border-radius: 8px; margin-bottom: 5px;
     transition: background 0.2s;
 }
 .nav-item:hover, .nav-item.active {
     background-color: rgba(0, 75, 135, 0.1);
-    color: var(--brand-blue);
-    font-weight: 600;
+    color: var(--brand-blue); font-weight: 600;
 }
 
 .main-content {
-    flex: 1;
-    padding: 2rem;
-    max-width: 1400px;
-    margin: 0 auto;
+    flex: 1; padding: 2rem;
+    max-width: 1400px; margin: 0 auto;
 }
 
 /* =========================================
-   6. VISTA DASHBOARD (Tarjetas Cursos)
+   6. VISTAS Y EXAMEN
    ========================================= */
 .courses-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 2rem;
-    margin-top: 2rem;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem; margin-top: 2rem;
 }
 
 .course-card {
-    background: var(--bg-card);
-    border-radius: 12px;
-    padding: 2rem;
+    background: var(--bg-card); border-radius: 12px; padding: 2rem;
     border: 1px solid var(--border-color);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    transition: transform 0.2s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s;
 }
 .course-card:hover { transform: translateY(-5px); }
 .btn-course {
-    display: inline-block;
-    margin-top: 1rem;
-    padding: 10px 20px;
-    background-color: var(--brand-blue);
-    color: white;
-    border-radius: 6px;
+    display: inline-block; margin-top: 1rem; padding: 10px 20px;
+    background-color: var(--brand-blue); color: white; border-radius: 6px;
 }
 
-/* =========================================
-   7. VISTA EXAMEN (3 COLUMNAS - CRÍTICO)
-   ========================================= */
 .exam-header { display: flex; justify-content: space-between; margin-bottom: 2rem; }
 .btn-back { color: var(--text-muted); }
 
-.exam-layout {
-    display: flex;
-    gap: 2rem;
-    align-items: flex-start;
-}
-
-/* Columna Izq: Índice */
-.exam-sidebar {
-    width: 200px;
-    position: sticky; top: 90px;
-    display: none; /* Oculto móvil */
-}
+.exam-layout { display: flex; gap: 2rem; align-items: flex-start; }
+.exam-sidebar { width: 200px; position: sticky; top: 90px; display: none; }
 @media(min-width: 1024px) { .exam-sidebar { display: block; } }
 
-/* Columna Central: Preguntas (moduls-container) */
 .exam-center {
-    flex: 1;
-    background: var(--bg-card);
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    flex: 1; background: var(--bg-card); padding: 2rem;
+    border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
+.exam-rightbar { width: 250px; position: sticky; top: 90px; }
 
-/* Columna Der: Status (quiz-grid) */
-.exam-rightbar {
-    width: 250px;
-    position: sticky; top: 90px;
-}
-
-/* Estilos internos del Examen (Inyectados por JS) */
+/* Estilos Examen */
 .question-block { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border-color); }
 .question-text { font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem; }
 .option-label {
     display: block; padding: 10px; margin-bottom: 5px;
-    border: 1px solid var(--border-color); border-radius: 4px;
-    cursor: pointer;
+    border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer;
 }
 .option-label:hover { background-color: rgba(0,0,0,0.02); }
-
-/* Feedback Anti-Trampas */
 .option-label.correct { background-color: var(--correct-bg); color: var(--correct-text); border-color: var(--correct-text); }
 .option-label.wrong { background-color: var(--wrong-bg); color: var(--wrong-text); border-color: var(--wrong-text); }
 .explanation {
     margin-top: 10px; padding: 10px;
     background-color: rgba(0, 75, 135, 0.05);
-    border-left: 3px solid var(--brand-blue);
-    font-size: 0.9rem;
+    border-left: 3px solid var(--brand-blue); font-size: 0.9rem;
 }

@@ -1,39 +1,33 @@
 // js/dashboard.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Solo ejecutar si estamos en la vista de Dashboard
+    // Si ya estamos dentro (recarga de página), cargamos.
     const dashboardView = document.getElementById('dashboard-view');
-    if (!dashboardView || dashboardView.style.display === 'none') return;
-
-    loadUserCourses();
+    if (dashboardView && dashboardView.style.display !== 'none') {
+        loadUserCourses();
+    }
 });
 
-async function loadUserCourses() {
+// Hacemos la función GLOBAL para que auth.js pueda llamarla al hacer Login
+window.loadUserCourses = async function() {
     const coursesList = document.getElementById('courses-list');
     const token = localStorage.getItem('jwt');
     const user = JSON.parse(localStorage.getItem('user'));
 
-    if (!token || !user) return;
+    // Si no hay token o no existe el contenedor, no hacemos nada
+    if (!token || !user || !coursesList) return;
 
     coursesList.innerHTML = '<div class="loader"></div>';
 
     try {
-        // AHORA SÍ: Usamos el nombre real del campo que vimos en tu captura de Admin.
-        // Al haber activado los permisos en el PASO 1, esto dejará de dar error.
         const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
-        
         const url = `${STRAPI_URL}/api/matriculas?${query}`;
-
-        console.log("Pidiendo cursos a:", url);
 
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(JSON.stringify(err));
-        }
+        if (!response.ok) throw new Error('Error API');
 
         const data = await response.json();
         const matriculas = data.data;
@@ -49,31 +43,36 @@ async function loadUserCourses() {
             return;
         }
 
-        // RENDERIZADO
         matriculas.forEach(item => {
             const mat = item; 
             const curso = mat.curs; 
             
-            if(!curso) return;
+            if (!curso) return;
 
-            // Gestión de Imagen
-            let imgUrl = 'img/logo-sicap.png'; 
-            if (curso.imatge && curso.imatge.url) {
-                imgUrl = curso.imatge.url; 
-            } else if (curso.imatge && curso.imatge[0] && curso.imatge[0].url) {
-                imgUrl = curso.imatge[0].url;
+            // --- LÓGICA DE IMAGEN MEJORADA ---
+            let imgUrl = 'img/logo-sicap.png'; // Imagen por defecto
+            
+            // Intentamos sacar la imagen de Strapi
+            const imgData = curso.imatge;
+            if (imgData) {
+                // Strapi v5 a veces devuelve array si es múltiple, o objeto si es single
+                const realImg = Array.isArray(imgData) ? imgData[0] : imgData;
+                
+                if (realImg && realImg.url) {
+                    imgUrl = realImg.url;
+                    // IMPORTANTE: Si la URL empieza por '/', le falta el dominio. Se lo ponemos.
+                    if (imgUrl.startsWith('/')) {
+                        imgUrl = `${STRAPI_URL}${imgUrl}`;
+                    }
+                }
             }
 
             // Barra de progreso
             const progressColor = mat.progres >= 100 ? '#10b981' : 'var(--brand-blue)';
 
-            const card = document.createElement('div');
-            card.className = 'course-card-item';
-            
-            // Descripción cortada si es muy larga
+            // Descripción corta
             let desc = 'Sense descripció.';
             if (curso.descripcio) {
-                // Si es texto rico (array), lo ignoramos en la tarjeta para no romper el diseño, o ponemos un texto genérico
                 if(Array.isArray(curso.descripcio)) {
                      desc = "Fes clic per veure els detalls del curs.";
                 } else {
@@ -81,6 +80,9 @@ async function loadUserCourses() {
                 }
             }
 
+            const card = document.createElement('div');
+            card.className = 'course-card-item';
+            
             card.innerHTML = `
                 <div class="card-image-header" style="background-image: url('${imgUrl}');">
                     ${curso.etiqueta ? `<span class="course-badge">${curso.etiqueta}</span>` : ''}
@@ -108,6 +110,6 @@ async function loadUserCourses() {
 
     } catch (error) {
         console.error("ERROR:", error);
-        coursesList.innerHTML = `<p style="color:red; text-align:center;">Error carregant cursos. Revisa els permisos en Strapi.</p>`;
+        coursesList.innerHTML = `<p style="color:red; text-align:center;">Error carregant cursos.</p>`;
     }
-}
+};

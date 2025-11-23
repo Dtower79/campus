@@ -180,7 +180,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showCampus(user) {
         loginOverlay.style.display = 'none'; 
-        document.getElementById('app-container').style.display = 'block';
+        document.getElementById('app-container').style.display = 'block'; 
+        if (userNameDisplay) userNameDisplay.innerText = user.username || user.email;
+
+        // --- LÍNEA NUEVA: Cargar cursos automáticamente al entrar ---
+        if (window.loadUserCourses) window.loadUserCourses(); 
     }
 
     function showLogin() {

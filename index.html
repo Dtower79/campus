@@ -3,227 +3,186 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SICAP Campus</title>
-    
-    <link rel="icon" type="image/png" href="img/logo-sicap.png">
+    <title>SICAP Campus Virtual</title>
     <link rel="stylesheet" href="css/estil.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Netlify Identity -->
-    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <!-- Favicon (Opcional) -->
+    <link rel="icon" href="img/logo-sicap.png" type="image/png">
 </head>
 <body>
 
-    <!-- CABECERA -->
-    <header class="main-header">
-        <div class="header-content">
-            <div class="header-logo-container">
-                <a href="/">
-                    <img src="img/logo-sicap.png" alt="SICAP" class="header-logo">
-                </a>
+    <!-- ==========================================
+         FASE 3: PANTALLA DE LOGIN (OVERLAY)
+         Esto tapa todo el contenido hasta que se valida
+         ========================================== -->
+    <div id="login-overlay" class="login-wrapper">
+        <div class="login-card">
+            <!-- Logo SICAP -->
+            <div class="login-header">
+                <!-- Asegúrate de tener la imagen en la carpeta img/ -->
+                <img src="img/logo-sicap.png" alt="SICAP Logo" class="login-logo">
             </div>
-            
-            <div class="header-controls">
-                <!-- Botón Tema -->
-                <button id="theme-toggle" class="btn-icon" title="Canviar tema">
-                    <i class="fas fa-moon"></i>
-                </button>
 
-                <!-- Botones Usuario -->
-                <div id="auth-buttons" style="display:inline-block;">
-                    <button id="btn-login" class="user-btn" onclick="netlifyIdentity.open()">Accedir</button>
-                    <button id="btn-logout" class="user-btn" style="display:none;" onclick="logoutUser()">Sortir</button>
-                    <span id="user-name" style="font-size:0.8rem; margin-right:10px; display:none;"></span>
+            <!-- Mensaje de error (Oculto por defecto) -->
+            <div id="login-error-msg" class="login-error" style="display: none;">
+                DNI no encontrado o no activo.
+            </div>
+
+            <!-- Formulario -->
+            <form id="login-form">
+                <div class="input-group">
+                    <label for="login-dni" class="sr-only">Usuario o DNI</label>
+                    <input type="text" id="login-dni" placeholder="Introduce tu DNI/NIF" required autocomplete="username">
                 </div>
-            </div>
-        </div>
-    </header>
+                
+                <div class="input-group">
+                    <label for="login-pass" class="sr-only">Contraseña</label>
+                    <input type="password" id="login-pass" placeholder="Contraseña" required autocomplete="current-password">
+                </div>
+                
+                <button type="submit" class="btn-login">Inicia la sessió</button>
+            </form>
 
-    <!-- VISTA 1: DASHBOARD (LISTA DE CURSOS) -->
-    <div id="dashboard-view" class="container-dashboard" style="display:none;">
-        <div class="dashboard-card">
-            <h1 style="color: var(--primary-color);">Els Meus Cursos</h1>
-            
-            <!-- Aquí se inyectarán los cursos -->
-            <div id="courses-list" class="courses-grid">
-                <div class="loader"></div>
-                <p class="loading-text">Connectant amb el servidor...</p>
+            <!-- Enlaces de ayuda -->
+            <div class="login-footer">
+                <a href="#" id="forgot-pass">Heu oblidat la contrasenya?</a>
+            </div>
+
+            <!-- Botón Registro para Afiliados -->
+            <div class="register-section">
+                <p>¿Eres afiliado y es tu primera vez?</p>
+                <button id="btn-show-register" class="btn-secondary">Regístrate aquí</button>
+            </div>
+
+            <!-- Aviso de Cookies -->
+            <div class="cookie-notice">
+                <small>Avis de galetes: Utilitzem cookies pròpies per gestionar la sessió.</small>
             </div>
         </div>
     </div>
+    <!-- FIN LOGIN OVERLAY -->
 
-    <!-- VISTA 2: EXAMEN (3 COLUMNAS) -->
-    <div id="exam-view" class="app-container" style="display:none;">
+
+    <!-- ==========================================
+         APP PRINCIPAL (CAMPUS)
+         Se mantiene oculto visualmente por el overlay
+         hasta que el usuario hace login.
+         ========================================== -->
+    <div id="app-container" class="app-container">
         
-        <!-- IZQUIERDA -->
-        <aside class="sidebar-left" id="sidebar-index">
-            <div class="sidebar-header"><h3>Índex del Curs</h3></div>
-            <div id="course-index"><p class="loading-text">Carregant índex...</p></div>
-            <div style="padding: 15px; text-align: center; margin-top:auto;">
-                <a href="/" class="btn-small">
-                    <i class="fas fa-arrow-left"></i> Tornar als Cursos
-                </a>
+        <!-- HEADER / NAVBAR -->
+        <header class="app-header">
+            <div class="header-logo-container">
+                <img src="img/logo-sicap.png" alt="SICAP Campus" class="header-logo">
             </div>
-        </aside>
+            <div class="header-user">
+                <span id="user-name-display">Usuario</span>
+                <button id="btn-logout" class="btn-logout">Sortir</button>
+                <button id="theme-toggle" class="btn-theme" title="Canviar Tema">🌓</button>
+            </div>
+        </header>
 
-        <!-- CENTRO -->
-        <main class="main-content">
-            <div id="exam-header">
-                <h1 id="curs-titol">Carregant curs...</h1>
-                <div id="curs-descripcio" style="color: var(--text-main); margin-bottom: 1rem;"></div>
-            </div>
-            <div class="exam-card">
-                <div id="moduls-container"><div class="loader"></div></div>
-            </div>
-        </main>
+        <!-- LAYOUT PRINCIPAL (Sidebar + Contenido) -->
+        <div class="main-layout">
+            
+            <!-- Sidebar Izquierda (Menú) -->
+            <aside class="sidebar-left">
+                <nav class="nav-menu">
+                    <a href="index.html" class="nav-item active">📚 Els meus Cursos</a>
+                    <a href="#" class="nav-item">🏆 Els meus Certificats</a>
+                    <a href="#" class="nav-item">👤 El meu Perfil</a>
+                </nav>
+            </aside>
 
-        <!-- DERECHA -->
-        <aside class="sidebar-right" id="sidebar-nav">
-            <div class="sidebar-header"><h3>Navegació</h3></div>
-            <div id="quiz-grid" class="grid-container"></div>
-        </aside>
+            <!-- Contenido Central (Router View) -->
+            <main class="main-content">
+                
+                <!-- VISTA 1: DASHBOARD (Lista de Cursos) -->
+                <div id="dashboard-view">
+                    <h1>Els meus Cursos</h1>
+                    <!-- Aquí se inyectan los cursos desde Strapi -->
+                    <div id="courses-list" class="courses-grid">
+                        <!-- Fallback Manual por si falla la API (Regla de Oro) -->
+                        <div class="course-card fallback-card">
+                            <h3>Iniciació al Règim Disciplinari</h3>
+                            <p>Curs fonamental per a funcionaris de presons.</p>
+                            <a href="index.html?slug=iniciacio-regim-disciplinari" class="btn-course">Accedir al Curs</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VISTA 2: EXAMEN / CURSO (Layout 3 Columnas) -->
+                <div id="exam-view" style="display: none;">
+                    <div class="exam-header">
+                        <h2 id="curs-titol">Cargando curso...</h2>
+                        <a href="index.html" class="btn-back">⬅ Tornar</a>
+                    </div>
+                    
+                    <div class="exam-layout">
+                        <!-- Columna Izq: Índice -->
+                        <div class="exam-sidebar" id="course-index">
+                            <!-- Se llena con JS -->
+                        </div>
+
+                        <!-- Columna Central: Preguntas (CRÍTICO: ID moduls-container) -->
+                        <div class="exam-center" id="moduls-container">
+                            <!-- El JS renderitzadorCurs.js inyecta aquí las preguntas -->
+                            <div class="loading-spinner">Carregant contingut...</div>
+                        </div>
+
+                        <!-- Columna Der: Estado / Navegación Rápida (CRÍTICO: ID quiz-grid) -->
+                        <div class="exam-rightbar">
+                            <div id="quiz-grid" class="quiz-status-grid">
+                                <!-- Se llena con JS -->
+                            </div>
+                            <div id="final-score-card" class="score-card" style="display: none;">
+                                <!-- Resultado final -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
     </div>
 
     <!-- SCRIPTS -->
-    <script src="js/renderitzadorCurs.js"></script>
-
+    <!-- 1. Lógica del Router Simple -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // 1. GESTIÓN DE VISTAS (ROUTER)
-            const params = new URLSearchParams(window.location.search);
-            const slug = params.get('slug');
-            
+            const urlParams = new URLSearchParams(window.location.search);
+            const slug = urlParams.get('slug');
             const dashboardView = document.getElementById('dashboard-view');
             const examView = document.getElementById('exam-view');
 
             if (slug) {
-                // MODO EXAMEN
-                console.log("Modo Examen activado.");
+                // Estamos en modo Examen
                 dashboardView.style.display = 'none';
-                examView.style.display = 'flex';
+                examView.style.display = 'block';
+                // El archivo renderitzadorCurs.js se encargará de cargar los datos usando el slug
             } else {
-                // MODO DASHBOARD
-                console.log("Modo Dashboard activado.");
+                // Estamos en modo Dashboard
                 dashboardView.style.display = 'block';
                 examView.style.display = 'none';
-                
-                // AQUÍ ESTABA EL ERROR: Llamada a la función unificada
-                cargarCursos(); 
+                // Aquí se llamaría a llistaCursos.js si estuviéramos conectados
             }
 
-            // 2. MODO OSCURO
-            const toggleBtn = document.getElementById('theme-toggle');
-            const htmlElement = document.documentElement;
-            if (localStorage.getItem('theme') === 'dark') htmlElement.setAttribute('data-theme', 'dark');
-            
-            if(toggleBtn) {
-                toggleBtn.addEventListener('click', () => {
-                    const isDark = htmlElement.getAttribute('data-theme') === 'dark';
-                    if(isDark) {
-                        htmlElement.removeAttribute('data-theme');
-                        localStorage.setItem('theme', 'light');
-                    } else {
-                        htmlElement.setAttribute('data-theme', 'dark');
-                        localStorage.setItem('theme', 'dark');
-                    }
-                });
-            }
-
-            // 3. NETLIFY IDENTITY (Auth)
-            if (window.netlifyIdentity) {
-                netlifyIdentity.on('init', user => updateAuthUI(user));
-                netlifyIdentity.on('login', user => {
-                    updateAuthUI(user);
-                    netlifyIdentity.close();
-                    if(!slug) window.location.reload();
-                });
-                netlifyIdentity.on('logout', () => {
-                    updateAuthUI(null);
-                    window.location.href = "/";
-                });
-            }
+            // Dark Mode Toggle Lógica
+            const themeBtn = document.getElementById('theme-toggle');
+            themeBtn.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme');
+                const next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('theme', next);
+            });
+            // Cargar preferencia guardada
+            const savedTheme = localStorage.getItem('theme');
+            if(savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
         });
-
-        // --- FUNCIÓN UNIFICADA PARA CARGAR CURSOS ---
-        async function cargarCursos() {
-            const container = document.getElementById('courses-list');
-            
-            try {
-                // Intentamos conectar con la API
-                const response = await fetch('/.netlify/functions/llistaCursos');
-                
-                // Si la respuesta no es OK, lanzamos error para ir al catch
-                if (!response.ok) throw new Error('Error connectant');
-                
-                const data = await response.json();
-                
-                // Si la lista está vacía, lanzamos error para activar el manual
-                if (!data || data.length === 0) throw new Error('Llista buida');
-
-                container.innerHTML = ''; // Limpiar loader
-                
-                data.forEach(curs => {
-                    crearTarjetaCurso(container, curs.titol, curs.slug, curs.descripcioBreu);
-                });
-
-            } catch (error) {
-                console.warn('Backend falló, activando modo manual:', error);
-                
-                // --- FALLBACK MANUAL (SEGURO) ---
-                container.innerHTML = ''; 
-                
-                // Creamos tu curso manualmente
-                crearTarjetaCurso(
-                    container, 
-                    "Curs d'Iniciació al Règim Disciplinari", 
-                    "iniciacio-regim-disciplinari", 
-                    "Un curs fonamental sobre faltes i sancions."
-                );
-            }
-        }
-
-        // Función auxiliar para pintar el HTML de la tarjeta
-        function crearTarjetaCurso(container, titulo, slug, descripcion) {
-            const card = document.createElement('a');
-            card.className = 'course-card-item';
-            card.href = `?slug=${slug}`; 
-            
-            card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <h3 style="margin:0; font-size:1.1rem; color:var(--primary-color);">${titulo}</h3>
-                    <i class="fas fa-chevron-right" style="color:#ccc;"></i>
-                </div>
-                <p style="margin:0; font-size:0.9rem; color:var(--text-secondary); line-height:1.4;">
-                    ${descripcion || 'Fes clic per accedir al contingut.'}
-                </p>
-            `;
-            container.appendChild(card);
-        }
-
-        // Funciones de Auth
-        function updateAuthUI(user) {
-            const btnLogin = document.getElementById('btn-login');
-            const btnLogout = document.getElementById('btn-logout');
-            const userName = document.getElementById('user-name');
-
-            if (user) {
-                if(btnLogin) btnLogin.style.display = 'none';
-                if(btnLogout) btnLogout.style.display = 'inline-block';
-                if(userName) {
-                    userName.style.display = 'inline-block';
-                    userName.innerText = user.user_metadata.full_name || user.email;
-                }
-            } else {
-                if(btnLogin) btnLogin.style.display = 'inline-block';
-                if(btnLogout) btnLogout.style.display = 'none';
-                if(userName) userName.style.display = 'none';
-            }
-        }
-
-        function logoutUser() {
-            netlifyIdentity.logout();
-        }
     </script>
+
+    <!-- 2. Scripts del Proyecto -->
+    <script src="js/renderitzadorCurs.js"></script>
+    <!-- <script src="js/auth.js"></script> (Lo crearemos en la Fase 4) -->
+
 </body>
 </html>

@@ -10,18 +10,20 @@
 </head>
 <body>
 
-    <!-- LOGIN (Sin cambios) -->
+    <!-- =========================
+         LOGIN (DISEÑO ATMOSPHERE)
+         ========================= -->
     <div id="login-overlay" class="login-wrapper">
         <div class="login-card">
-            <div class="login-header"><img src="img/logo-sicap.png" alt="SICAP Logo" class="login-logo"></div>
+            <div class="login-header">
+                <img src="img/logo-sicap.png" alt="SICAP Logo" class="login-logo">
+            </div>
             <div id="login-error-msg" class="login-error" style="display: none;">DNI no trobat o no actiu.</div>
             <form id="login-form">
                 <div class="input-group">
-                    <label for="login-dni" class="sr-only">Usuari</label>
                     <input type="text" id="login-dni" placeholder="Introdueix el teu DNI/NIF" required autocomplete="username">
                 </div>
                 <div class="input-group">
-                    <label for="login-pass" class="sr-only">Contrasenya</label>
                     <input type="password" id="login-pass" placeholder="Contrasenya" required autocomplete="current-password">
                 </div>
                 <button type="submit" class="btn-login">Inicia la sessió</button>
@@ -31,92 +33,101 @@
                 <p>Ets afiliat i és la teva primera vegada?</p>
                 <button id="btn-show-register" class="btn-secondary">Registra't aquí</button>
             </div>
+            <div class="cookie-notice"><small>Avís de galetes: Utilitzem galetes pròpies per gestionar la sessió.</small></div>
         </div>
     </div>
 
-    <!-- APP -->
-    <div id="app-container" class="app-container">
+    <!-- =========================
+         APP PRINCIPAL
+         ========================= -->
+    <div id="app-container" style="display: none;">
         
-        <!-- HEADER: Igual a la foto (Borde rojo arriba, fondo blanco) -->
-        <header class="app-header">
-            <div class="header-left">
-                <img src="img/logo-sicap.png" alt="SICAP Campus" class="header-logo">
-            </div>
-            <div class="header-right">
-                <button id="theme-toggle" class="btn-icon" title="Canviar Tema"><i class="fa-solid fa-moon"></i></button>
-                <div class="user-pill">
-                    <span id="user-name-display">12345678Z</span>
-                    <button id="btn-logout" class="btn-logout-text">Sortir</button>
+        <!-- HEADER -->
+        <header class="main-header">
+            <div class="header-content">
+                <div class="header-logo-container">
+                    <img src="img/logo-sicap.png" alt="SICAP Campus" class="header-logo">
+                </div>
+                <div class="header-controls">
+                    <button id="theme-toggle" class="btn-icon" title="Canviar Tema">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                    <button id="btn-logout" class="user-btn">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i> Sortir
+                    </button>
                 </div>
             </div>
         </header>
 
-        <div class="main-layout">
-            
-            <!-- DASHBOARD -->
-            <div id="dashboard-view" class="view-container">
-                <h1 class="page-title">Els meus Cursos</h1>
+        <!-- VISTA DASHBOARD -->
+        <div id="dashboard-view" class="container-dashboard">
+            <div class="dashboard-card">
+                <h1>Els meus Cursos</h1>
                 <div id="courses-list" class="courses-grid">
-                    <div class="course-card fallback-card">
+                    <div class="course-card-item">
                         <h3>Iniciació al Règim Disciplinari</h3>
-                        <p>Curs fonamental per a funcionaris de presons.</p>
-                        <a href="index.html?slug=iniciacio-regim-disciplinari" class="btn-course">Accedir al Curs</a>
+                        <p style="margin-top:10px; color:var(--text-secondary);">Curs fonamental per a funcionaris de presons.</p>
+                        <a href="index.html?slug=iniciacio-regim-disciplinari" class="btn-primary" style="margin-top:15px; display:inline-block; width:auto;">Accedir al Curs</a>
                     </div>
                 </div>
             </div>
-
-            <!-- VISTA EXAMEN (Estructura exacta a la foto) -->
-            <div id="exam-view" style="display: none;">
-                
-                <!-- Título fuera de las columnas -->
-                <div class="course-main-title">
-                    <h1 id="curs-titol">Curs d'Iniciació...</h1>
-                    <p class="curs-subtitol">Un curs fonamental sobre...</p>
-                </div>
-
-                <div class="exam-layout">
-                    
-                    <!-- COL IZQ: ÍNDEX (Tarjeta Blanca) -->
-                    <aside class="exam-sidebar-left card-white">
-                        <h3 class="sidebar-header">Índex del Curs</h3>
-                        <div id="course-index" class="index-list"></div>
-                        <div style="margin-top: 20px; text-align: center;">
-                            <a href="index.html" class="btn-back-simple">
-                                <i class="fa-solid fa-arrow-left"></i> Tornar als Cursos
-                            </a>
-                        </div>
-                    </aside>
-
-                    <!-- COL CENTRO: PREGUNTAS (Panel Blanco Grande) -->
-                    <main class="exam-center card-white">
-                        <!-- El JS inyectará aquí las preguntas y el botón rojo al final -->
-                        <div id="moduls-container">
-                            <div class="loading-spinner">Carregant...</div>
-                        </div>
-                    </main>
-
-                    <!-- COL DER: NAVEGACIÓ (Tarjeta Blanca) -->
-                    <aside class="exam-sidebar-right card-white">
-                        <h3 class="sidebar-header">Navegació</h3>
-                        <div id="quiz-grid" class="quiz-status-grid"></div>
-                        <div id="final-score-card" style="display: none;"></div>
-                    </aside>
-
-                </div>
-            </div>
         </div>
+
+        <!-- VISTA EXAMEN -->
+        <div id="exam-view" class="app-container" style="display: none;">
+            
+            <!-- Columna Izquierda: Índice -->
+            <aside class="sidebar-left">
+                <div class="sidebar-header">
+                    <h3>Índex del Curs</h3>
+                </div>
+                <div id="course-index"></div>
+                <div style="margin-top:20px;">
+                    <a href="index.html" class="btn-small">
+                        <i class="fa-solid fa-arrow-left"></i> Tornar als Cursos
+                    </a>
+                </div>
+            </aside>
+
+            <!-- Columna Central: Contenido -->
+            <main class="main-content">
+                <div class="exam-card">
+                    <h2 id="curs-titol">Carregant curs...</h2>
+                    <div id="moduls-container">
+                        <div class="loader"></div>
+                        <p class="loading-text">Carregant contingut...</p>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Columna Derecha: Navegación -->
+            <aside class="sidebar-right">
+                <div class="sidebar-header">
+                    <h3>Navegació</h3>
+                </div>
+                <div id="quiz-grid" class="grid-container"></div>
+                
+                <!-- Tarjeta de Resultados (Oculta) -->
+                <div id="final-score-card" style="display: none;"></div>
+            </aside>
+
+        </div>
+
     </div>
 
     <!-- SCRIPTS -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Router
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('slug')) {
                 document.getElementById('dashboard-view').style.display = 'none';
-                document.getElementById('exam-view').style.display = 'block';
+                document.getElementById('exam-view').style.display = 'flex'; // Flex para layout columnas
+            } else {
+                document.getElementById('dashboard-view').style.display = 'block';
+                document.getElementById('exam-view').style.display = 'none';
             }
-            // Theme logic
+            
+            // Lógica Tema (Luna)
             const themeBtn = document.getElementById('theme-toggle');
             const icon = themeBtn.querySelector('i');
             themeBtn.addEventListener('click', () => {
@@ -126,6 +137,11 @@
                 localStorage.setItem('theme', next);
                 icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
             });
+            const savedTheme = localStorage.getItem('theme');
+            if(savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+                icon.className = savedTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            }
         });
     </script>
     <script src="js/config.js"></script>

@@ -4,39 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SICAP Campus Virtual</title>
+    
     <link rel="stylesheet" href="css/estil.css">
-    <!-- Favicon (Opcional) -->
-    <link rel="icon" href="img/logo-sicap.png" type="image/png">
+    
+    <!-- FAVICON: Aquí se define el logo de la pestaña.
+         Asegúrate de guardar una imagen cuadrada llamada 'favicon.png' en la carpeta img -->
+    <link rel="icon" href="img/favicon.png" type="image/png">
 </head>
 <body>
 
     <!-- ==========================================
          FASE 3: PANTALLA DE LOGIN (OVERLAY)
-         Esto tapa todo el contenido hasta que se valida
+         Tot en Català - Disseny Net
          ========================================== -->
     <div id="login-overlay" class="login-wrapper">
         <div class="login-card">
             <!-- Logo SICAP -->
             <div class="login-header">
-                <!-- Asegúrate de tener la imagen en la carpeta img/ -->
                 <img src="img/logo-sicap.png" alt="SICAP Logo" class="login-logo">
             </div>
 
             <!-- Mensaje de error (Oculto por defecto) -->
             <div id="login-error-msg" class="login-error" style="display: none;">
-                DNI no encontrado o no activo.
+                DNI no trobat o no actiu.
             </div>
 
             <!-- Formulario -->
             <form id="login-form">
                 <div class="input-group">
-                    <label for="login-dni" class="sr-only">Usuario o DNI</label>
-                    <input type="text" id="login-dni" placeholder="Introduce tu DNI/NIF" required autocomplete="username">
+                    <label for="login-dni" class="sr-only">Usuari o DNI</label>
+                    <input type="text" id="login-dni" placeholder="Introdueix el teu DNI/NIF" required autocomplete="username">
                 </div>
                 
                 <div class="input-group">
-                    <label for="login-pass" class="sr-only">Contraseña</label>
-                    <input type="password" id="login-pass" placeholder="Contraseña" required autocomplete="current-password">
+                    <label for="login-pass" class="sr-only">Contrasenya</label>
+                    <input type="password" id="login-pass" placeholder="Contrasenya" required autocomplete="current-password">
                 </div>
                 
                 <button type="submit" class="btn-login">Inicia la sessió</button>
@@ -49,13 +51,13 @@
 
             <!-- Botón Registro para Afiliados -->
             <div class="register-section">
-                <p>¿Eres afiliado y es tu primera vez?</p>
-                <button id="btn-show-register" class="btn-secondary">Regístrate aquí</button>
+                <p>Ets afiliat i és la teva primera vegada?</p>
+                <button id="btn-show-register" class="btn-secondary">Registra't aquí</button>
             </div>
-
+            
             <!-- Aviso de Cookies -->
             <div class="cookie-notice">
-                <small>Avis de galetes: Utilitzem cookies pròpies per gestionar la sessió.</small>
+                <small>Avís de galetes: Utilitzem galetes pròpies per gestionar la sessió.</small>
             </div>
         </div>
     </div>
@@ -64,8 +66,6 @@
 
     <!-- ==========================================
          APP PRINCIPAL (CAMPUS)
-         Se mantiene oculto visualmente por el overlay
-         hasta que el usuario hace login.
          ========================================== -->
     <div id="app-container" class="app-container">
         
@@ -75,16 +75,16 @@
                 <img src="img/logo-sicap.png" alt="SICAP Campus" class="header-logo">
             </div>
             <div class="header-user">
-                <span id="user-name-display">Usuario</span>
+                <span id="user-name-display">Usuari</span>
                 <button id="btn-logout" class="btn-logout">Sortir</button>
                 <button id="theme-toggle" class="btn-theme" title="Canviar Tema">🌓</button>
             </div>
         </header>
 
-        <!-- LAYOUT PRINCIPAL (Sidebar + Contenido) -->
+        <!-- LAYOUT PRINCIPAL -->
         <div class="main-layout">
             
-            <!-- Sidebar Izquierda (Menú) -->
+            <!-- Sidebar Izquierda -->
             <aside class="sidebar-left">
                 <nav class="nav-menu">
                     <a href="index.html" class="nav-item active">📚 Els meus Cursos</a>
@@ -93,15 +93,14 @@
                 </nav>
             </aside>
 
-            <!-- Contenido Central (Router View) -->
+            <!-- Contenido Central -->
             <main class="main-content">
                 
-                <!-- VISTA 1: DASHBOARD (Lista de Cursos) -->
+                <!-- VISTA 1: DASHBOARD -->
                 <div id="dashboard-view">
                     <h1>Els meus Cursos</h1>
-                    <!-- Aquí se inyectan los cursos desde Strapi -->
                     <div id="courses-list" class="courses-grid">
-                        <!-- Fallback Manual por si falla la API (Regla de Oro) -->
+                        <!-- Fallback Manual -->
                         <div class="course-card fallback-card">
                             <h3>Iniciació al Règim Disciplinari</h3>
                             <p>Curs fonamental per a funcionaris de presons.</p>
@@ -110,33 +109,26 @@
                     </div>
                 </div>
 
-                <!-- VISTA 2: EXAMEN / CURSO (Layout 3 Columnas) -->
+                <!-- VISTA 2: EXAMEN -->
                 <div id="exam-view" style="display: none;">
                     <div class="exam-header">
-                        <h2 id="curs-titol">Cargando curso...</h2>
+                        <h2 id="curs-titol">Carregant curs...</h2>
                         <a href="index.html" class="btn-back">⬅ Tornar</a>
                     </div>
                     
                     <div class="exam-layout">
-                        <!-- Columna Izq: Índice -->
-                        <div class="exam-sidebar" id="course-index">
-                            <!-- Se llena con JS -->
-                        </div>
+                        <!-- Índice -->
+                        <div class="exam-sidebar" id="course-index"></div>
 
-                        <!-- Columna Central: Preguntas (CRÍTICO: ID moduls-container) -->
+                        <!-- Preguntas -->
                         <div class="exam-center" id="moduls-container">
-                            <!-- El JS renderitzadorCurs.js inyecta aquí las preguntas -->
                             <div class="loading-spinner">Carregant contingut...</div>
                         </div>
 
-                        <!-- Columna Der: Estado / Navegación Rápida (CRÍTICO: ID quiz-grid) -->
+                        <!-- Estado -->
                         <div class="exam-rightbar">
-                            <div id="quiz-grid" class="quiz-status-grid">
-                                <!-- Se llena con JS -->
-                            </div>
-                            <div id="final-score-card" class="score-card" style="display: none;">
-                                <!-- Resultado final -->
-                            </div>
+                            <div id="quiz-grid" class="quiz-status-grid"></div>
+                            <div id="final-score-card" class="score-card" style="display: none;"></div>
                         </div>
                     </div>
                 </div>
@@ -146,7 +138,6 @@
     </div>
 
     <!-- SCRIPTS -->
-    <!-- 1. Lógica del Router Simple -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -155,18 +146,13 @@
             const examView = document.getElementById('exam-view');
 
             if (slug) {
-                // Estamos en modo Examen
                 dashboardView.style.display = 'none';
                 examView.style.display = 'block';
-                // El archivo renderitzadorCurs.js se encargará de cargar los datos usando el slug
             } else {
-                // Estamos en modo Dashboard
                 dashboardView.style.display = 'block';
                 examView.style.display = 'none';
-                // Aquí se llamaría a llistaCursos.js si estuviéramos conectados
             }
 
-            // Dark Mode Toggle Lógica
             const themeBtn = document.getElementById('theme-toggle');
             themeBtn.addEventListener('click', () => {
                 const current = document.documentElement.getAttribute('data-theme');
@@ -174,15 +160,11 @@
                 document.documentElement.setAttribute('data-theme', next);
                 localStorage.setItem('theme', next);
             });
-            // Cargar preferencia guardada
             const savedTheme = localStorage.getItem('theme');
             if(savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
         });
     </script>
-
-    <!-- 2. Scripts del Proyecto -->
     <script src="js/renderitzadorCurs.js"></script>
-    <!-- <script src="js/auth.js"></script> (Lo crearemos en la Fase 4) -->
 
 </body>
 </html>

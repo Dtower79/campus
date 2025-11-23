@@ -6,12 +6,11 @@
     <title>SICAP Campus Virtual</title>
     <link rel="stylesheet" href="css/estil.css">
     <link rel="icon" href="img/favicon.png" type="image/png">
-    <!-- FontAwesome para los iconos (Luna, Usuario, Flechas) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-    <!-- PANTALLA LOGIN (Se mantiene igual, no la toco) -->
+    <!-- LOGIN (Sin cambios) -->
     <div id="login-overlay" class="login-wrapper">
         <div class="login-card">
             <div class="login-header"><img src="img/logo-sicap.png" alt="SICAP Logo" class="login-logo"></div>
@@ -35,31 +34,26 @@
         </div>
     </div>
 
-    <!-- APP PRINCIPAL -->
+    <!-- APP -->
     <div id="app-container" class="app-container">
         
-        <!-- HEADER (Estilo Captura: Borde rojo arriba, fondo blanco) -->
+        <!-- HEADER: Igual a la foto (Borde rojo arriba, fondo blanco) -->
         <header class="app-header">
             <div class="header-left">
                 <img src="img/logo-sicap.png" alt="SICAP Campus" class="header-logo">
             </div>
-            
             <div class="header-right">
-                <!-- Icono Luna (Recuperado) -->
-                <button id="theme-toggle" class="btn-icon" title="Canviar Tema">
-                    <i class="fa-solid fa-moon"></i>
-                </button>
-                
-                <!-- Botón Usuario / Salir (Estilo Píldora) -->
+                <button id="theme-toggle" class="btn-icon" title="Canviar Tema"><i class="fa-solid fa-moon"></i></button>
                 <div class="user-pill">
-                    <span id="user-name-display">Usuari</span>
+                    <span id="user-name-display">12345678Z</span>
                     <button id="btn-logout" class="btn-logout-text">Sortir</button>
                 </div>
             </div>
         </header>
 
         <div class="main-layout">
-            <!-- VISTA DASHBOARD -->
+            
+            <!-- DASHBOARD -->
             <div id="dashboard-view" class="view-container">
                 <h1 class="page-title">Els meus Cursos</h1>
                 <div id="courses-list" class="courses-grid">
@@ -71,38 +65,41 @@
                 </div>
             </div>
 
-            <!-- VISTA EXAMEN (3 Columnas flotantes) -->
-            <div id="exam-view" class="view-container" style="display: none;">
+            <!-- VISTA EXAMEN (Estructura exacta a la foto) -->
+            <div id="exam-view" style="display: none;">
+                
+                <!-- Título fuera de las columnas -->
+                <div class="course-main-title">
+                    <h1 id="curs-titol">Curs d'Iniciació...</h1>
+                    <p class="curs-subtitol">Un curs fonamental sobre...</p>
+                </div>
+
                 <div class="exam-layout">
                     
-                    <!-- COL 1: ÍNDEX (Tarjeta Blanca Pequeña) -->
-                    <aside class="exam-sidebar-left card-panel">
-                        <h3 class="sidebar-title">Índex del Curs</h3>
+                    <!-- COL IZQ: ÍNDEX (Tarjeta Blanca) -->
+                    <aside class="exam-sidebar-left card-white">
+                        <h3 class="sidebar-header">Índex del Curs</h3>
                         <div id="course-index" class="index-list"></div>
-                        <a href="index.html" class="btn-back-course">
-                            <i class="fa-solid fa-arrow-left"></i> Tornar als Cursos
-                        </a>
+                        <div style="margin-top: 20px; text-align: center;">
+                            <a href="index.html" class="btn-back-simple">
+                                <i class="fa-solid fa-arrow-left"></i> Tornar als Cursos
+                            </a>
+                        </div>
                     </aside>
 
-                    <!-- COL 2: CONTENIDO (Tarjeta Blanca Grande) -->
-                    <main class="exam-center">
-                        <!-- Título del curso (Fuera de la tarjeta o dentro, según captura parece dentro o justo encima) -->
-                        <div class="course-header-info">
-                            <h2 id="curs-titol">Carregant...</h2>
-                            <p class="curs-descripcio">Un curs fonamental sobre faltes i sancions.</p>
-                            <hr class="separator-red">
-                        </div>
-
+                    <!-- COL CENTRO: PREGUNTAS (Panel Blanco Grande) -->
+                    <main class="exam-center card-white">
+                        <!-- El JS inyectará aquí las preguntas y el botón rojo al final -->
                         <div id="moduls-container">
-                            <div class="loading-spinner">Carregant contingut...</div>
+                            <div class="loading-spinner">Carregant...</div>
                         </div>
                     </main>
 
-                    <!-- COL 3: NAVEGACIÓ (Tarjeta Blanca Pequeña) -->
-                    <aside class="exam-sidebar-right card-panel">
-                        <h3 class="sidebar-title">Navegació</h3>
+                    <!-- COL DER: NAVEGACIÓ (Tarjeta Blanca) -->
+                    <aside class="exam-sidebar-right card-white">
+                        <h3 class="sidebar-header">Navegació</h3>
                         <div id="quiz-grid" class="quiz-status-grid"></div>
-                        <div id="final-score-card" class="score-card" style="display: none;"></div>
+                        <div id="final-score-card" style="display: none;"></div>
                     </aside>
 
                 </div>
@@ -115,42 +112,20 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Router
             const urlParams = new URLSearchParams(window.location.search);
-            const slug = urlParams.get('slug');
-            if (slug) {
+            if (urlParams.get('slug')) {
                 document.getElementById('dashboard-view').style.display = 'none';
                 document.getElementById('exam-view').style.display = 'block';
-            } else {
-                document.getElementById('dashboard-view').style.display = 'block';
-                document.getElementById('exam-view').style.display = 'none';
             }
-
-            // Lógica Modo Noche (Botón Luna)
+            // Theme logic
             const themeBtn = document.getElementById('theme-toggle');
             const icon = themeBtn.querySelector('i');
-            
-            function updateIcon(theme) {
-                if(theme === 'dark') {
-                    icon.classList.remove('fa-moon');
-                    icon.classList.add('fa-sun');
-                } else {
-                    icon.classList.remove('fa-sun');
-                    icon.classList.add('fa-moon');
-                }
-            }
-
             themeBtn.addEventListener('click', () => {
                 const current = document.documentElement.getAttribute('data-theme');
                 const next = current === 'dark' ? 'light' : 'dark';
                 document.documentElement.setAttribute('data-theme', next);
                 localStorage.setItem('theme', next);
-                updateIcon(next);
+                icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
             });
-
-            const savedTheme = localStorage.getItem('theme');
-            if(savedTheme) {
-                document.documentElement.setAttribute('data-theme', savedTheme);
-                updateIcon(savedTheme);
-            }
         });
     </script>
     <script src="js/config.js"></script>

@@ -133,7 +133,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 username: dni,      // Usamos DNI como username
                 email: emailReal,   // Email oficial del sindicato
                 password: pass,
-                dni: dni            // Campo custom en user (si existe)
             };
 
             const regResp = await fetch(API_ROUTES.register, {

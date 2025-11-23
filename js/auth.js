@@ -1,24 +1,23 @@
 // js/auth.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- REFERENCIAS DOM ---
+    // Referencias del DOM
     const loginOverlay = document.getElementById('login-overlay');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
     const errorMsg = document.getElementById('login-error-msg');
     
     // Vistas
     const loginView = document.getElementById('login-view');
     const registerView = document.getElementById('register-view');
 
-    // Formularios
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
-
-    // Botones Navegación
+    // Botones
     const btnShowRegister = document.getElementById('btn-show-register');
     const btnShowLogin = document.getElementById('btn-show-login');
     const btnLogout = document.getElementById('btn-logout');
+    const userNameDisplay = document.getElementById('user-name-display');
 
-    // --- 1. CHEQUEO DE SESIÓN INICIAL ---
+    // 1. CHEQUEO DE SESIÓN AL INICIAR
     const token = localStorage.getItem('jwt');
     const userData = JSON.parse(localStorage.getItem('user'));
 
@@ -28,14 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
         showLogin();
     }
 
-    // --- 2. NAVEGACIÓN ENTRE LOGIN Y REGISTRO ---
+    // 2. NAVEGACIÓN
     if (btnShowRegister) {
         btnShowRegister.addEventListener('click', (e) => {
             e.preventDefault();
             hideError();
             loginView.style.display = 'none';
             registerView.style.display = 'block';
-            // Pre-rellenar DNI si lo habían escrito
             const dniVal = document.getElementById('login-dni').value;
             if(dniVal) document.getElementById('reg-dni').value = dniVal;
         });
@@ -50,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 3. LÓGICA DE LOGIN (Usuario Existente) ---
+    // 3. LOGIN
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideError();
@@ -73,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 saveSession(data);
             } else {
-                showError('Credencials incorrectes o compte no activat.');
+                showError('Usuari o contrasenya incorrectes.');
             }
         } catch (error) {
             console.error(error);
@@ -83,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- 4. LÓGICA DE REGISTRO (Nuevo Usuario) ---
+    // 4. REGISTRO
     registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideError();
@@ -93,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const passConf = document.getElementById('reg-pass-conf').value;
         const btnSubmit = registerForm.querySelector('button[type="submit"]');
 
-        // Validaciones Locales
         if (pass !== passConf) {
             showError("Les contrasenyes no coincideixen.");
             return;
@@ -106,14 +103,9 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleLoading(btnSubmit, true, "Verificant Afiliació...");
 
         try {
-            // PASO A: Consultar si el DNI existe en la colección 'afiliados'
-            // Strapi v5 filtering syntax
             const checkUrl = `${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dni}`;
-            
             const checkResp = await fetch(checkUrl);
             const checkData = await checkResp.json();
-            
-            // En Strapi v5 la respuesta suele venir dentro de 'data' array
             const afiliados = checkData.data;
 
             if (!afiliados || afiliados.length === 0) {
@@ -122,17 +114,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Tenemos afiliado válido. Obtenemos su email real de la BD.
-            const afiliadoData = afiliados[0]; // El primer resultado
+            const afiliadoData = afiliados[0];
             const emailReal = afiliadoData.email; 
 
-            // PASO B: Crear el usuario en Strapi (Users-Permissions)
             toggleLoading(btnSubmit, true, "Creant compte...");
 
             const registerPayload = {
-                username: dni,      // Usamos DNI como username
-                email: emailReal,   // Email oficial del sindicato
-                password: pass,
+                username: dni,
+                email: emailReal,
+                password: pass
             };
 
             const regResp = await fetch(API_ROUTES.register, {
@@ -144,10 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const regData = await regResp.json();
 
             if (regResp.ok) {
-                // Registro exitoso -> Login automático
                 saveSession(regData);
             } else {
-                // Manejo de errores de Strapi (ej: Email already taken)
                 const apiError = regData.error?.message || "Error al registrar.";
                 if (apiError.includes('email') || apiError.includes('username')) {
                     showError("Aquest usuari ja està registrat. Prova a fer Login.");
@@ -158,21 +146,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error(error);
-            showError("Error tècnic. Torna-ho a provar més tard.");
+            showError("Error tècnic.");
         } finally {
-            if (!localStorage.getItem('jwt')) { // Si no hemos logueado, restaurar botón
+            if (!localStorage.getItem('jwt')) {
                 toggleLoading(btnSubmit, false, "Validar i Entrar");
             }
         }
     });
 
-    // --- 5. LOGOUT ---
+    // 5. LOGOUT
     if (btnLogout) {
         btnLogout.addEventListener('click', () => {
             localStorage.removeItem('jwt');
             localStorage.removeItem('user');
-            // Recargar para limpiar estados
             window.location.href = window.location.pathname;
+        });
+    }
+
+    // 6. FORGOT PASS
+    const forgotLink = document.getElementById('forgot-pass');
+    if(forgotLink) {
+        forgotLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert("Funció en manteniment.\nContacta amb soporte@sicap.cat");
         });
     }
 
@@ -183,13 +179,19 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('app-container').style.display = 'block'; 
         if (userNameDisplay) userNameDisplay.innerText = user.username || user.email;
 
-        // --- LÍNEA NUEVA: Cargar cursos automáticamente al entrar ---
-        if (window.loadUserCourses) window.loadUserCourses(); 
+        // --- SOLUCIÓN F5: Esperamos 200ms a que todo cargue y llamamos a la función global ---
+        setTimeout(() => {
+            if (typeof window.loadUserCourses === 'function') {
+                console.log("Cargando cursos post-login...");
+                window.loadUserCourses();
+            } else {
+                console.error("Dashboard script no cargado aún.");
+            }
+        }, 200);
     }
 
     function showLogin() {
         loginOverlay.style.display = 'flex';
-        // Asegurar que vemos el form de login, no el de registro
         loginView.style.display = 'block';
         registerView.style.display = 'none';
     }
@@ -203,7 +205,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function showError(message) {
         errorMsg.innerText = message;
         errorMsg.style.display = 'block';
-        // Pequeña animación de shake si quisieras
     }
 
     function hideError() {

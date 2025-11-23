@@ -276,11 +276,15 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* Cabecera con Imagen */
+/* Cabecera con Imagen (VERSIÓN CORREGIDA) */
 .card-image-header {
     height: 180px;
-    background-size: cover;
+    /* Cambiamos 'cover' por 'contain' para que se vea la imagen entera */
+    background-size: contain; 
+    background-repeat: no-repeat;
     background-position: center;
-    background-color: #eee;
+    /* Color de fondo por si la imagen no llena todo el espacio (Gris muy suave) */
+    background-color: #f8f9fa; 
     position: relative;
     border-bottom: 1px solid var(--border-color);
 }

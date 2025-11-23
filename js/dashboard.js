@@ -1,11 +1,8 @@
 // js/dashboard.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Solo ejecutar si estamos en la vista de Dashboard (Lista de cursos)
     const dashboardView = document.getElementById('dashboard-view');
-    // Si no existe el dashboard o está oculto (estamos en un examen), no hacemos nada
     if (!dashboardView || dashboardView.style.display === 'none') return;
-
     loadUserCourses();
 });
 
@@ -16,33 +13,36 @@ async function loadUserCourses() {
 
     if (!token || !user) return;
 
-    // Spinner de carga mientras Strapi responde
     coursesList.innerHTML = '<div class="loader"></div>';
 
     try {
-        // Petición a Strapi v5:
-        // 1. Filtramos por el ID del usuario logueado.
-        // 2. Usamos 'populate' para traernos los datos del curso (título, horas...) y la imagen.
-        // ANTIGUA (MALA):
-// const query = `filters[user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
+        // INTENTO 3: Usamos 'user' que es el estándar.
+        // Si esto falla, es que el permiso en Strapi (Roles -> Authenticated -> Matricula) no está en 'find'.
+        const query = `filters[user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
+        
+        // Construimos la URL
+        // Asegúrate de que API_ROUTES.checkAffiliate está definido en config.js
+        // Truco para sacar la base:
+        const baseUrl = STRAPI_URL; 
+        const url = `${baseUrl}/api/matriculas?${query}`;
 
-// NUEVA (BUENA):
-const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
-        const url = `${API_ROUTES.checkAffiliate.replace('/api/afiliados', '')}/api/matriculas?${query}`; 
-        // Nota: Usamos la URL base sacada de config (truco para no reescribir la url base)
+        console.log("Pidiendo datos a:", url); // Para ver en consola si la URL está bien
 
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (!response.ok) throw new Error('Error al cargar cursos');
+        if (!response.ok) {
+            // Si falla, mostramos el error técnico en la tarjeta para saber qué pasa
+            const errorData = await response.json();
+            throw new Error(JSON.stringify(errorData.error));
+        }
 
         const data = await response.json();
         const matriculas = data.data;
 
-        coursesList.innerHTML = ''; // Limpiar loader
+        coursesList.innerHTML = ''; 
 
-        // Caso: Usuario sin cursos
         if (!matriculas || matriculas.length === 0) {
             coursesList.innerHTML = `
                 <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #666;">
@@ -52,25 +52,22 @@ const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate[curs
             return;
         }
 
-        // Renderizar Tarjetas
+        // RENDERIZADO
         matriculas.forEach(item => {
             const mat = item; 
             const curso = mat.curs; 
             
             if(!curso) return;
 
-            // Gestión de Imagen (Strapi a veces devuelve array o objeto simple)
-            let imgUrl = 'img/logo-sicap.png'; // Imagen por defecto si no hay
+            let imgUrl = 'img/logo-sicap.png'; 
             if (curso.imatge && curso.imatge.url) {
                 imgUrl = curso.imatge.url; 
             } else if (curso.imatge && curso.imatge[0] && curso.imatge[0].url) {
                 imgUrl = curso.imatge[0].url;
             }
 
-            // Calculamos color de barra según progreso (Verde si completo, Azul si no)
             const progressColor = mat.progres >= 100 ? '#10b981' : 'var(--brand-blue)';
 
-            // Crear HTML de la Tarjeta
             const card = document.createElement('div');
             card.className = 'course-card-item';
             
@@ -102,7 +99,8 @@ const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate[curs
         });
 
     } catch (error) {
-        console.error(error);
-        coursesList.innerHTML = '<p style="color:red; text-align:center; width:100%;">Error de connexió carregant els cursos.</p>';
+        console.error("ERROR:", error);
+        // Esto imprimirá el error exacto en la pantalla roja
+        coursesList.innerHTML = `<p style="color:red; word-break:break-all;">Error: ${error.message}</p>`;
     }
 }

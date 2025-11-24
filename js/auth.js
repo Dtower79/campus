@@ -154,14 +154,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const afiliadoData = afiliados[0];
-            const emailReal = afiliadoData.email; 
+            const emailReal = afiliadoData.email;
+            
+            // CAPTURAMOS NOMBRE Y APELLIDOS DE LA BASE DE DATOS DE AFILIADOS
+            const nombreReal = afiliadoData.nombre;
+            const apellidosReal = afiliadoData.apellidos;
 
             toggleLoading(btnSubmit, true, "Creant compte...");
 
             const registerPayload = {
                 username: dni,
                 email: emailReal,
-                password: pass
+                password: pass,
+                // AÑADIMOS ESTOS DOS CAMPOS NUEVOS
+                nombre: nombreReal,
+                apellidos: apellidosReal
             };
 
             const regResp = await fetch(API_ROUTES.register, {

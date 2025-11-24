@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Solo iniciamos si hay token. Si auth.js ya lo inició, esto actúa como fallback.
     if (localStorage.getItem('jwt') && !window.appIniciada) {
         window.iniciarApp();
     }
@@ -10,7 +9,6 @@ window.logoutApp = function() {
     window.location.href = 'index.html';
 };
 
-// Variable para evitar doble inicialización
 window.appIniciada = false;
 
 window.iniciarApp = function() {
@@ -19,32 +17,29 @@ window.iniciarApp = function() {
 
     console.log("🚀 Iniciando SICAP App...");
 
-    // 1. Inicializar Navegación (Prioridad Alta)
+    // 1. Navegación
     try {
         initNavigation();
-        console.log("✅ Navegación lista");
     } catch (e) {
-        console.error("❌ Error en Navegación:", e);
+        console.error("❌ Error Navegación:", e);
     }
 
-    // 2. Inicializar Cabecera y Usuario (Visual)
+    // 2. Cabecera (Aquí arreglamos el botón RN)
     try {
         initHeader();
-        console.log("✅ Cabecera cargada");
     } catch (e) {
-        console.error("❌ Error en Header:", e);
+        console.error("❌ Error Header:", e);
     }
 
-    // 3. Router inicial (Decidir qué ver)
+    // 3. Router
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.get('slug')) {
-        // Si no hay slug, forzamos la vista dashboard
         window.showView('dashboard');
     } else {
-        // Si hay slug (curso), el renderitzadorCurs.js se encarga, 
-        // pero necesitamos ocultar el dashboard base.
-        document.getElementById('dashboard-view').style.display = 'none';
-        document.getElementById('exam-view').style.display = 'flex';
+        const dashView = document.getElementById('dashboard-view');
+        const examView = document.getElementById('exam-view');
+        if(dashView) dashView.style.display = 'none';
+        if(examView) examView.style.display = 'flex';
     }
 };
 
@@ -52,7 +47,7 @@ function initHeader() {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return;
 
-    // 1. Calcular Iniciales
+    // --- A. Pintar Iniciales y Textos ---
     let initials = "US";
     if (user.nombre) {
         initials = user.nombre.charAt(0) + (user.apellidos ? user.apellidos.charAt(0) : '');
@@ -60,7 +55,6 @@ function initHeader() {
         initials = user.username.substring(0, 2);
     }
 
-    // 2. Rellenar Textos (Protegido contra nulos)
     const safeSetText = (id, text) => {
         const el = document.getElementById(id);
         if (el) el.innerText = text;
@@ -69,38 +63,67 @@ function initHeader() {
     safeSetText('user-initials', initials.toUpperCase());
     safeSetText('dropdown-username', user.nombre ? `${user.nombre} ${user.apellidos}` : user.username);
     safeSetText('dropdown-email', user.email);
-    
-    // Datos del perfil (si existen en el DOM)
     safeSetText('profile-avatar-big', initials.toUpperCase());
     safeSetText('profile-name-display', user.nombre ? `${user.nombre} ${user.apellidos}` : user.username);
     safeSetText('profile-dni-display', user.username);
 
-    // 3. Lógica del Desplegable (SIN CLONE NODE para evitar perder referencias)
+    // --- B. Lógica del Botón "RN" (CORREGIDA) ---
     const trigger = document.getElementById('user-menu-trigger');
     const menu = document.getElementById('user-dropdown-menu');
 
     if (trigger && menu) {
-        // Eliminamos listeners viejos reasignando el onclick
-        trigger.onclick = (e) => {
-            e.stopPropagation(); // Evitar que el click llegue al document
-            menu.classList.toggle('show');
-        };
+        console.log("✅ Botón RN detectado y activado.");
 
-        // Listener global para cerrar al hacer click fuera
-        // Usamos una propiedad en window para no añadir 100 listeners si se recarga
-        if (!window.clickOutsideListenerAdded) {
-            document.addEventListener('click', (e) => {
-                if (menu.classList.contains('show') && !trigger.contains(e.target) && !menu.contains(e.target)) {
-                    menu.classList.remove('show');
-                }
-            });
-            window.clickOutsideListenerAdded = true;
-        }
+        // 1. Limpiamos eventos previos clonando el elemento
+        const newTrigger = trigger.cloneNode(true);
+        trigger.parentNode.replaceChild(newTrigger, trigger);
+
+        // 2. Recuperamos referencias tras el clonado
+        const activeTrigger = document.getElementById('user-menu-trigger');
+        // El menú estaba DENTRO del trigger, así que hay que buscarlo dentro del nuevo nodo
+        const activeMenu = activeTrigger.querySelector('.user-dropdown') || document.getElementById('user-dropdown-menu');
+
+        // 3. Asignamos el evento CLICK
+        activeTrigger.addEventListener('click', (e) => {
+            // Detenemos la propagación para que el 'document' no lo cierre al instante
+            e.stopPropagation(); 
+            console.log("🖱️ Click en RN recibido");
+
+            // Alternamos la clase 'show'
+            activeMenu.classList.toggle('show');
+            
+            // FUERZA BRUTA: Si CSS falla, usamos display inline
+            if (activeMenu.classList.contains('show')) {
+                activeMenu.style.display = 'block';
+            } else {
+                activeMenu.style.display = 'none';
+            }
+        });
+
+        // 4. Cerrar al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!activeTrigger.contains(e.target)) {
+                activeMenu.classList.remove('show');
+                activeMenu.style.display = 'none'; // Asegurar cierre
+            }
+        });
+        
+        // 5. Evitar que clicks DENTRO del menú lo cierren (opcional, para links)
+        activeMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        // Reactivar links del menú (porque al clonar se perdieron)
+        const links = activeMenu.querySelectorAll('a');
+        if(links[0]) links[0].onclick = (e) => { e.preventDefault(); window.showView('profile'); activeMenu.style.display = 'none'; }; // Perfil
+        if(links[1]) links[1].onclick = (e) => { e.preventDefault(); window.showView('grades'); activeMenu.style.display = 'none'; }; // Notas
+        // Logout tiene su propio onclick en HTML, debería funcionar, pero por si acaso:
+        const logoutBtn = activeMenu.querySelector('#btn-logout-dropdown');
+        if(logoutBtn) logoutBtn.onclick = window.logoutApp;
     }
 }
 
 function initNavigation() {
-    // Mapeo de Vistas
     const views = {
         home: document.getElementById('catalog-view'),
         dashboard: document.getElementById('dashboard-view'),
@@ -110,176 +133,65 @@ function initNavigation() {
     };
 
     window.showView = function(viewName) {
-        console.log("Navegando a:", viewName);
-        
-        // Ocultar todas
-        Object.values(views).forEach(el => {
-            if(el) el.style.display = 'none';
-        });
-
-        // Mostrar seleccionada
-        if(views[viewName]) {
-            views[viewName].style.display = viewName === 'exam' ? 'flex' : 'block';
-        }
-
-        // Actualizar clases activas en menú
+        Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
+        if(views[viewName]) views[viewName].style.display = viewName === 'exam' ? 'flex' : 'block';
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         
-        const activeMap = {
-            'home': 'nav-catalog',
-            'profile': 'nav-profile',
-            'dashboard': 'nav-dashboard'
-        };
-        
-        if (activeMap[viewName]) {
-            const activeBtn = document.getElementById(activeMap[viewName]);
-            if(activeBtn) activeBtn.classList.add('active');
-        }
+        const activeMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
+        if (activeMap[viewName]) document.getElementById(activeMap[viewName])?.classList.add('active');
 
-        // Cargar datos según la vista
         if(viewName === 'dashboard') loadUserCourses();
         if(viewName === 'home') loadCatalog();
         if(viewName === 'profile') loadFullProfile();
         if(viewName === 'grades') loadGrades();
     };
 
-    // Asignar eventos a botones (Protegido)
     const assignClick = (id, view) => {
         const btn = document.getElementById(id);
-        if (btn) {
-            btn.onclick = (e) => {
-                e.preventDefault();
-                window.showView(view);
-            };
-        }
+        if (btn) btn.onclick = (e) => { e.preventDefault(); window.showView(view); };
     };
 
     assignClick('nav-catalog', 'home');
     assignClick('nav-profile', 'profile');
     assignClick('nav-dashboard', 'dashboard');
-
-    // Enlaces del Dropdown
-    const dropLinks = document.querySelectorAll('.user-dropdown ul li a');
-    // Perfil
-    if(dropLinks[0]) dropLinks[0].onclick = (e) => { e.preventDefault(); window.showView('profile'); };
-    // Notas
-    if(dropLinks[1]) dropLinks[1].onclick = (e) => { e.preventDefault(); window.showView('grades'); };
 }
 
-// --- FUNCIONES DE CARGA DE DATOS ---
-
+// --- CARGA DE DATOS ---
 async function loadUserCourses() {
     const list = document.getElementById('courses-list');
     const token = localStorage.getItem('jwt');
     const user = JSON.parse(localStorage.getItem('user'));
-
     if(!list || !token) return;
-    
     list.innerHTML = '<div class="loader"></div>';
-
     try {
-        // Filtramos matrículas del usuario y traemos la imagen del curso
         const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
-        const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
+        const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
-        
         list.innerHTML = '';
-        
-        if(!json.data || json.data.length === 0) {
-            list.innerHTML = '<p style="text-align:center; padding:20px; width:100%;">No tens cursos actius actualment.</p>';
-            return;
-        }
-
+        if(!json.data || json.data.length === 0) { list.innerHTML = '<p style="text-align:center; padding:20px;">No tens cursos actius.</p>'; return; }
         json.data.forEach(mat => {
-            const curs = mat.curs;
-            if(!curs) return;
-
-            // Gestión de imagen segura
-            let imgUrl = 'img/logo-sicap.png'; // Fallback
-            if(curs.imatge) {
-                const imgObj = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge;
-                if(imgObj?.url) {
-                    imgUrl = imgObj.url.startsWith('/') ? STRAPI_URL + imgObj.url : imgObj.url;
-                }
-            }
-
-            const progressColor = mat.progres >= 100 ? '#10b981' : 'var(--brand-blue)';
-
-            const card = document.createElement('div');
-            card.className = 'course-card-item';
-            card.innerHTML = `
-                <div class="card-image-header" style="background-image: url('${imgUrl}');">
-                    ${curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : ''}
-                </div>
-                <div class="card-body">
-                    <h3 class="course-title">${curs.titol}</h3>
-                    <div class="course-meta">${curs.hores || 'Durada N/A'}</div>
-                    
-                    <div class="progress-container">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width:${mat.progres||0}%; background:${progressColor}"></div>
-                        </div>
-                        <span class="progress-text">${mat.progres||0}% Completat</span>
-                    </div>
-                    
-                    <a href="index.html?slug=${curs.slug}" class="btn-primary" style="margin-top:auto; text-align:center;">Accedir</a>
-                </div>
-            `;
-            list.appendChild(card);
+            const curs = mat.curs; if(!curs) return;
+            let imgUrl = 'img/logo-sicap.png';
+            if(curs.imatge) { const img = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge; if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url; }
+            const color = mat.progres >= 100 ? '#10b981' : 'var(--brand-blue)';
+            list.innerHTML += `<div class="course-card-item"><div class="card-image-header" style="background-image: url('${imgUrl}');">${curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : ''}</div><div class="card-body"><h3 class="course-title">${curs.titol}</h3><div class="course-meta">${curs.hores || ''}</div><div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${mat.progres||0}%; background:${color}"></div></div><span class="progress-text">${mat.progres||0}% Completat</span></div><a href="index.html?slug=${curs.slug}" class="btn-primary" style="margin-top:auto; text-align:center;">Accedir</a></div></div>`;
         });
-
-    } catch(e) {
-        console.error(e);
-        list.innerHTML = '<p style="color:red;">Error carregant cursos.</p>';
-    }
+    } catch(e) { list.innerHTML = '<p style="color:red;">Error.</p>'; }
 }
 
 async function loadFullProfile() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
-    
-    // Rellenar email del user standard
-    const emailInput = document.getElementById('prof-email');
-    if(emailInput) emailInput.value = user.email;
-
+    document.getElementById('prof-email').value = user.email;
     try {
-        const res = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
-
         if(json.data && json.data.length > 0) {
             const afi = json.data[0];
-            // Mapeo ID input -> Campo API
-            const map = {
-                'prof-movil': afi.TelefonoMobil,
-                'prof-prov': afi.Provincia,
-                'prof-pob': afi.Poblacion,
-                'prof-centre': afi.CentroTrabajo,
-                'prof-cat': afi.CategoriaProfesional,
-                'prof-dir': afi.Direccion,
-                'prof-iban': afi.IBAN
-            };
-
-            for (const [id, val] of Object.entries(map)) {
-                const el = document.getElementById(id);
-                if(el) el.value = val || '-';
-            }
+            const map = {'prof-movil': afi.TelefonoMobil, 'prof-prov': afi.Provincia, 'prof-pob': afi.Poblacion, 'prof-centre': afi.CentroTrabajo, 'prof-cat': afi.CategoriaProfesional, 'prof-dir': afi.Direccion, 'prof-iban': afi.IBAN};
+            for (const [id, val] of Object.entries(map)) { const el = document.getElementById(id); if(el) el.value = val || '-'; }
         }
-    } catch(e) {
-        console.error("Error perfil", e);
-    }
+    } catch(e) {}
 }
-
-async function loadCatalog() {
-    const list = document.getElementById('catalog-list');
-    if(list) list.innerHTML = '<p style="text-align:center; padding:20px;">Actualment no hi ha nous cursos al catàleg.</p>';
-}
-
-async function loadGrades() {
-    const body = document.getElementById('grades-table-body');
-    if(body) body.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Sense dades.</td></tr>';
-}
+async function loadCatalog() { document.getElementById('catalog-list').innerHTML = '<p style="text-align:center; padding:20px;">No hi ha nous cursos.</p>'; }
+async function loadGrades() { document.getElementById('grades-table-body').innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Sense dades.</td></tr>'; }

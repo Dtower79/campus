@@ -1,76 +1,271 @@
-<!DOCTYPE html>
-<html lang="ca">
-<head>
-    <meta charset="UTF-8">
-    <title>El Meu Panell de Cursos</title>
-    <link rel="stylesheet" href="/css/estil.css">
-    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
-    <style>
-        .course-card {
-            border: 1px solid #ddd; border-radius: 8px; padding: 1rem;
-            margin-top: 1rem; text-align: left; background-color: #f9f9f9;
-        }
-        .course-card a { text-decoration: none; font-size: 1.2rem; font-weight: bold; color: #003366; }
-        .course-card p { margin-top: 0.5rem; font-size: 0.9rem; }
-    </style>
-</head>
-<body>
-    <nav data-netlify-identity-menu></nav>
+// js/dashboard.js
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Solo iniciamos si hay sesión guardada
+    if (localStorage.getItem('jwt')) {
+        window.iniciarApp();
+    }
+});
+
+// --- FUNCIÓN MAESTRA DE INICIO ---
+window.iniciarApp = function() {
+    console.log("🚀 Iniciando App SICAP...");
     
-    <main class="container">
-        <h1>Els Meus Cursos</h1>
-        <p>Aquests són els cursos als quals tens accés. Fes clic per començar.</p>
-        <div id="courses-list">
-            <p>Carregant els teus cursos...</p>
-        </div>
-    </main>
+    try {
+        initHeader();      // 1. Preparar cabecera (RN, Menús...)
+        initNavigation();  // 2. Activar botones del menú
+    } catch (e) {
+        console.error("Error iniciando componentes:", e);
+    }
     
-    <script>
-        netlifyIdentity.on('init', user => {
-            if (!user) {
-                window.location.replace('/');
-            } else {
-                loadAllCourses();
+    // 3. Router Básico: Decidir qué vista mostrar
+    // Si venimos de un "reload" en una vista concreta, podríamos guardarla en localStorage,
+    // pero por defecto vamos a 'dashboard' (Mis Cursos)
+    const dashboardView = document.getElementById('dashboard-view');
+    if (dashboardView && dashboardView.style.display !== 'none') {
+        loadUserCourses();
+    }
+};
+
+// --- GESTIÓN CABECERA (Usuario, Dropdown) ---
+function initHeader() {
+    const userJson = localStorage.getItem('user');
+    if (!userJson) return;
+
+    let user = {};
+    try { user = JSON.parse(userJson); } catch (e) { console.error("Error parseando usuario"); return; }
+
+    // 1. Rellenar Iniciales y Nombre
+    let initials = "US";
+    // Lógica segura para iniciales
+    if (user.nombre) {
+        initials = user.nombre.charAt(0) + (user.apellidos ? user.apellidos.charAt(0) : '');
+    } else if (user.username) {
+        initials = user.username.substring(0, 2);
+    }
+    
+    const els = {
+        initials: document.getElementById('user-initials'),
+        dropName: document.getElementById('dropdown-username'),
+        dropEmail: document.getElementById('dropdown-email'),
+        profileAvatar: document.getElementById('profile-avatar-big'), // Avatar vista perfil
+        profileName: document.getElementById('profile-name-display'), // Nombre vista perfil
+        profileDni: document.getElementById('profile-dni-display')    // DNI vista perfil
+    };
+    
+    if (els.initials) els.initials.innerText = initials.toUpperCase();
+    if (els.dropName) els.dropName.innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
+    if (els.dropEmail) els.dropEmail.innerText = user.email;
+    
+    // Rellenar también la vista de perfil por si acaso
+    if (els.profileAvatar) els.profileAvatar.innerText = initials.toUpperCase();
+    if (els.profileName) els.profileName.innerText = els.dropName.innerText;
+    if (els.profileDni) els.profileDni.innerText = user.username;
+
+    // 2. Lógica del Menú Desplegable (RN)
+    const trigger = document.getElementById('user-menu-trigger');
+    const menu = document.getElementById('user-dropdown-menu');
+    
+    if (trigger && menu) {
+        // Usamos onclick directo para evitar acumulación de eventos
+        trigger.onclick = (e) => {
+            e.stopPropagation();
+            menu.classList.toggle('show');
+            console.log("Click en usuario -> Toggle menú");
+        };
+
+        // Cerrar al hacer clic fuera
+        document.addEventListener('click', (e) => {
+            if (!trigger.contains(e.target)) {
+                menu.classList.remove('show');
             }
         });
+    } else {
+        console.warn("No se ha encontrado el menú de usuario (user-menu-trigger)");
+    }
+}
+
+// --- GESTIÓN NAVEGACIÓN (Router) ---
+function initNavigation() {
+    const views = {
+        home: document.getElementById('catalog-view'),      // Catálogo
+        dashboard: document.getElementById('dashboard-view'), // Mis cursos
+        profile: document.getElementById('profile-view'),     // Perfil
+        grades: document.getElementById('grades-view'),       // Notas
+        exam: document.getElementById('exam-view')            // Examen
+    };
+
+    // Función para cambiar de vista
+    window.showView = function(viewName) {
+        console.log("Navegando a:", viewName);
         
-        function loadAllCourses() {
-            // =======================================================
-            //  AQUÍ ESTÀ LA CORRECCIÓ
-            // =======================================================
-            fetch('/.netlify/functions/llistaCursos') 
-            // =======================================================
-            .then(response => {
-                if(!response.ok) throw new Error('Error del servidor');
-                return response.json()
-            })
-            .then(cursos => {
-                const coursesListDiv = document.getElementById('courses-list');
-                coursesListDiv.innerHTML = '';
-                
-                if (!cursos || cursos.length === 0) {
-                    coursesListDiv.innerHTML = '<p>Encara no hi ha cursos disponibles.</p>';
-                    return;
-                }
-                
-                cursos.forEach(curs => {
-                    const { titol, slug, descripcio } = curs;
-                    const card = document.createElement('div');
-                    card.className = 'course-card';
-                    const simpleDesc = descripcio[0]?.children[0]?.text || '';
-                    
-                    card.innerHTML = `
-                        <a href="/curs.html?slug=${slug}">${titol}</a>
-                        <p>${simpleDesc}</p>
-                    `;
-                    coursesListDiv.appendChild(card);
-                });
-            })
-            .catch(error => {
-                console.error("Error al carregar la llista de cursos:", error);
-                document.getElementById('courses-list').innerHTML = '<p>Hi ha hagut un error en carregar els cursos.</p>';
-            });
+        // Ocultar todas
+        Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
+        
+        // Mostrar la deseada
+        if(views[viewName]) {
+            views[viewName].style.display = viewName === 'exam' ? 'flex' : 'block';
         }
-    </script>
-</body>
-</html>
+
+        // Gestionar clase 'active' en el menú
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        if(viewName === 'home') document.getElementById('nav-catalog')?.classList.add('active');
+        if(viewName === 'profile') document.getElementById('nav-profile')?.classList.add('active');
+        if(viewName === 'dashboard') document.getElementById('nav-dashboard')?.classList.add('active');
+
+        // Cargar datos específicos
+        if(viewName === 'dashboard') loadUserCourses();
+        if(viewName === 'home') loadCatalog();
+        if(viewName === 'profile') loadFullProfile();
+        if(viewName === 'grades') loadGrades();
+    };
+
+    // ASIGNAR EVENTOS A LOS BOTONES (Usando los nuevos IDs)
+    const btnHome = document.getElementById('nav-catalog');
+    const btnProfile = document.getElementById('nav-profile');
+    const btnDash = document.getElementById('nav-dashboard');
+    
+    if(btnHome) btnHome.onclick = (e) => { e.preventDefault(); showView('home'); };
+    if(btnProfile) btnProfile.onclick = (e) => { e.preventDefault(); showView('profile'); };
+    if(btnDash) btnDash.onclick = (e) => { e.preventDefault(); showView('dashboard'); };
+
+    // Iconos (Alertas temporales)
+    const btnNotifs = document.getElementById('btn-notifs');
+    const btnMsgs = document.getElementById('btn-messages');
+    if(btnNotifs) btnNotifs.onclick = () => alert("No tens noves notificacions.");
+    if(btnMsgs) btnMsgs.onclick = () => alert("Safata d'entrada buida.");
+
+    // Enlaces del Dropdown
+    const dropLinks = document.querySelectorAll('.user-dropdown ul li a');
+    // Asumimos orden: 0=Perfil, 1=Notas, 2=Pref, 3=Logout
+    if(dropLinks[0]) dropLinks[0].onclick = (e) => { e.preventDefault(); showView('profile'); };
+    if(dropLinks[1]) dropLinks[1].onclick = (e) => { e.preventDefault(); showView('grades'); };
+    if(dropLinks[2]) dropLinks[2].onclick = (e) => { e.preventDefault(); alert("Preferències en construcció."); };
+}
+
+// --- CARGAS DE DATOS ---
+
+// 1. MIS CURSOS
+window.loadUserCourses = async function() {
+    const list = document.getElementById('courses-list');
+    const token = localStorage.getItem('jwt');
+    const user = JSON.parse(localStorage.getItem('user'));
+
+    if(!list) return;
+    list.innerHTML = '<div class="loader"></div>';
+
+    try {
+        const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
+        const url = `${STRAPI_URL}/api/matriculas?${query}`;
+        
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if(!res.ok) throw new Error("Error API");
+        const json = await res.json();
+        
+        list.innerHTML = '';
+        if(!json.data || json.data.length === 0) {
+            list.innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No estàs matriculat a cap curs actualment.</p>';
+            return;
+        }
+
+        json.data.forEach(mat => {
+            const curs = mat.curs; if(!curs) return;
+            
+            // Imagen segura
+            let imgUrl = 'img/logo-sicap.png';
+            if(curs.imatge) {
+                const imgObj = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge;
+                if(imgObj?.url) imgUrl = imgObj.url.startsWith('/') ? STRAPI_URL + imgObj.url : imgObj.url;
+            }
+
+            const progressColor = mat.progres >= 100 ? '#10b981' : 'var(--brand-blue)';
+            
+            const card = document.createElement('div');
+            card.className = 'course-card-item';
+            card.innerHTML = `
+                <div class="card-image-header" style="background-image: url('${imgUrl}');">
+                    ${curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : ''}
+                </div>
+                <div class="card-body">
+                    <h3 class="course-title">${curs.titol}</h3>
+                    <div class="course-meta"><i class="fa-regular fa-clock"></i> ${curs.hores || ''}</div>
+                    
+                    <div class="progress-container">
+                        <div class="progress-bar"><div class="progress-fill" style="width:${mat.progres||0}%; background:${progressColor}"></div></div>
+                        <span class="progress-text">${mat.progres||0}% Completat</span>
+                    </div>
+                    <a href="index.html?slug=${curs.slug}" class="btn-primary" style="margin-top:auto; text-align:center;">Accedir</a>
+                </div>
+            `;
+            list.appendChild(card);
+        });
+    } catch(e) {
+        console.error(e);
+        list.innerHTML = '<p style="color:red; text-align:center;">Error de connexió amb el servidor.</p>';
+    }
+};
+
+// 2. PERFIL COMPLETO (Datos Afiliado)
+async function loadFullProfile() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('jwt');
+    
+    // Llenar campos básicos del user mientras carga el resto
+    const fields = {
+        'prof-email': user.email
+    };
+    for (const [id, val] of Object.entries(fields)) {
+        const el = document.getElementById(id); if(el) el.value = val;
+    }
+
+    try {
+        // Buscar afiliado por DNI (username)
+        const url = `${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`;
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        const json = await res.json();
+        
+        if(json.data && json.data.length > 0) {
+            const afi = json.data[0]; // Strapi v5 data object
+            // Ajustar campos según tu modelo de Strapi
+            const dataMap = {
+                'prof-movil': afi.TelefonoMobil || afi.TelefonoFijo,
+                'prof-prov': afi.Provincia,
+                'prof-pob': afi.Poblacion,
+                'prof-centre': afi.CentroTrabajo,
+                'prof-cat': afi.CategoriaProfesional,
+                'prof-dir': afi.Direccion,
+                'prof-iban': afi.IBAN
+            };
+            for (const [id, val] of Object.entries(dataMap)) {
+                const el = document.getElementById(id);
+                if(el) el.value = val || '-';
+            }
+        }
+    } catch(e) { console.error("Error loading profile", e); }
+}
+
+// 3. CATÁLOGO (Mockup o Real)
+async function loadCatalog() {
+    const container = document.getElementById('catalog-list');
+    if(!container) return;
+    container.innerHTML = '<p style="text-align:center;">Carregant catàleg...</p>';
+    
+    // Aquí usaríamos /api/curs igual que en Mis Cursos pero sin filtrar por usuario
+    // De momento lo dejo vacío o con mock
+    // ... (Implementaremos la lógica real si la necesitas, de momento muestra mis cursos)
+    container.innerHTML = '<p style="text-align:center; padding:20px;">No hi ha nous cursos disponibles al catàleg.</p>';
+}
+
+// 4. NOTAS
+async function loadGrades() {
+    const tbody = document.getElementById('grades-table-body');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Sense dades.</td></tr>';
+    // ... (Lógica futura)
+}
+
+// --- LOGOUT GLOBAL ---
+window.logoutApp = function() {
+    localStorage.clear();
+    window.location.href = 'index.html';
+};

@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
+    <!-- ESTILOS -->
     <link rel="stylesheet" href="css/estil.css">
     <link rel="icon" href="img/favicon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,7 +18,7 @@
 <body>
 
     <!-- =========================
-         LOGIN & REGISTRO (ATMOSPHERE)
+         1. LOGIN & REGISTRO
          ========================= -->
     <div id="login-overlay" class="login-wrapper">
         <div class="login-card">
@@ -28,11 +29,10 @@
             <!-- Mensaje de Error Global -->
             <div id="login-error-msg" class="login-error" style="display: none;">DNI no trobat o no actiu.</div>
 
-            <!-- VISTA 1: FORMULARIO LOGIN (Visible por defecto) -->
+            <!-- VISTA LOGIN (Visible por defecto) -->
             <div id="login-view">
                 <form id="login-form">
                     <div class="input-group">
-                        <!-- Añadido maxlength="9" para limitar caracteres -->
                         <input type="text" id="login-dni" placeholder="Introdueix el teu DNI/NIF" required autocomplete="username" maxlength="9">
                     </div>
                     <div class="input-group">
@@ -44,12 +44,12 @@
                 <div class="login-footer"><a href="#" id="forgot-pass">Heu oblidat la contrasenya?</a></div>
                 
                 <div class="register-section">
-                    <p>Ets afiliat y és la teva primera vegada?</p>
+                    <p>Ets afiliat i és la teva primera vegada?</p>
                     <button id="btn-show-register" class="btn-secondary">Registra't aquí</button>
                 </div>
             </div>
 
-            <!-- VISTA 2: FORMULARIO REGISTRO (Oculto por defecto) -->
+            <!-- VISTA REGISTRO (Oculta) -->
             <div id="register-view" style="display: none;">
                 <h3 style="color:var(--brand-blue); margin-bottom:15px;">Activació de Compte</h3>
                 <p style="font-size:0.9rem; color:#666; margin-bottom:20px;">
@@ -57,7 +57,6 @@
                 </p>
                 <form id="register-form">
                     <div class="input-group">
-                        <!-- Añadido maxlength="9" para limitar caracteres -->
                         <input type="text" id="reg-dni" placeholder="El teu DNI/NIF" required autocomplete="username" maxlength="9">
                     </div>
                     <div class="input-group">
@@ -81,56 +80,48 @@
     </div>
 
     <!-- =========================
-         APP PRINCIPAL (CAMPUS)
+         2. APP PRINCIPAL (PROTEGIDA)
          ========================= -->
     <div id="app-container" style="display: none;">
         
-        <!-- HEADER PRO (Clon FEPOL) -->
+        <!-- HEADER PRO -->
         <header class="main-header">
             <div class="header-content">
-                
-                <!-- 1. LOGO -->
                 <div class="header-left">
                     <img src="img/logo-sicap.png" alt="SICAP Campus" class="header-logo">
                 </div>
 
-                <!-- 2. MENÚ DE NAVEGACIÓN -->
+                <!-- Menú Central con IDs -->
                 <nav class="header-nav">
-                    <a href="#" class="nav-link active">Pàgina Principal</a>
-                    <a href="#" class="nav-link">Àrea personal</a>
-                    <a href="#" class="nav-link">Els meus cursos</a>
+                    <a href="#" id="nav-catalog" class="nav-link">Pàgina Principal</a>
+                    <a href="#" id="nav-profile" class="nav-link">Àrea personal</a>
+                    <a href="#" id="nav-dashboard" class="nav-link active">Els meus cursos</a>
                 </nav>
 
-                <!-- 3. CONTROLES DERECHA -->
                 <div class="header-right">
-                    <!-- Tema -->
                     <button id="theme-toggle" class="btn-icon" title="Canviar Tema">
                         <i class="fa-solid fa-moon"></i>
                     </button>
 
-                    <!-- Notificaciones -->
-                    <div class="icon-wrapper">
+                    <div class="icon-wrapper" id="btn-notifs">
                         <i class="fa-regular fa-bell"></i>
-                        <span class="notification-dot"></span> <!-- Puntito rojo -->
+                        <span class="notification-dot"></span>
                     </div>
 
-                    <!-- Mensajes -->
-                    <div class="icon-wrapper">
+                    <div class="icon-wrapper" id="btn-messages">
                         <i class="fa-regular fa-comment"></i>
                     </div>
 
-                    <!-- Separador -->
                     <div class="header-divider"></div>
 
-                    <!-- USUARIO + DROPDOWN -->
+                    <!-- Usuario + Dropdown -->
                     <div class="user-profile-container" id="user-menu-trigger">
-                        <div class="user-avatar-circle" id="user-initials">RN</div>
+                        <div class="user-avatar-circle" id="user-initials">US</div>
                         <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; color: #666;"></i>
                         
-                        <!-- Menú Desplegable -->
                         <div class="user-dropdown" id="user-dropdown-menu">
                             <div class="dropdown-header">
-                                <strong id="dropdown-username">Nom Usuari</strong>
+                                <strong id="dropdown-username">Usuari</strong>
                                 <small id="dropdown-email">email@test.com</small>
                             </div>
                             <ul>
@@ -138,8 +129,8 @@
                                 <li><a href="#"><i class="fa-solid fa-chart-bar"></i> Qualificacions</a></li>
                                 <li><a href="#"><i class="fa-solid fa-gear"></i> Preferències</a></li>
                                 <li class="divider"></li>
-                                <!-- Dentro de tu <header> ... <div class="user-dropdown"> ... -->
                                 <li>
+                                    <!-- Logout Seguro -->
                                     <a href="#" id="btn-logout-dropdown" onclick="logoutApp()" style="color:var(--brand-red);">
                                         <i class="fa-solid fa-power-off"></i> Sortir
                                     </a>
@@ -151,62 +142,36 @@
             </div>
         </header>
 
-        <!-- VISTA DASHBOARD (Mis Cursos) -->
+        <!-- VISTA 1: MIS CURSOS (DASHBOARD) -->
         <div id="dashboard-view" class="container-dashboard">
             <div class="dashboard-card">
                 <h1>Els meus Cursos</h1>
-                <!-- Aquí se inyectan las tarjetas desde dashboard.js -->
-                <div id="courses-list" class="courses-grid">
-                    <!-- CONTENIDO DINÁMICO: Se carga vía JS -->
-                </div>
+                <div id="courses-list" class="courses-grid"></div>
             </div>
         </div>
 
-        <!-- VISTA EXAMEN (Renderitzador) -->
-        <div id="exam-view" class="app-container" style="display: none;">
-            <!-- Columna Izquierda: Índice -->
-            <aside class="sidebar-left">
-                <div class="sidebar-header"><h3>Índex del Curs</h3></div>
-                <div id="course-index"></div>
-                <div style="margin-top:20px;">
-                    <a href="index.html" class="btn-small"><i class="fa-solid fa-arrow-left"></i> Tornar als Cursos</a>
-                </div>
-            </aside>
-            
-            <!-- Columna Central: Contenido -->
-            <main class="main-content">
-                <div class="exam-card">
-                    <h2 id="curs-titol">Carregant curs...</h2>
-                    <div id="moduls-container">
-                        <div class="loader"></div>
-                        <p class="loading-text">Carregant contingut...</p>
-                    </div>
-                </div>
-            </main>
-            
-            <!-- Columna Derecha: Navegación -->
-            <aside class="sidebar-right">
-                <div class="sidebar-header"><h3>Navegació</h3></div>
-                <div id="quiz-grid" class="grid-container"></div>
-                <div id="final-score-card" style="display: none;"></div>
-            </aside>
+        <!-- VISTA 2: CATÁLOGO -->
+        <div id="catalog-view" class="container-dashboard" style="display: none;">
+            <div class="dashboard-card">
+                <h1>Catàleg de Formació</h1>
+                <p style="color:var(--text-secondary); margin-bottom:20px;">Tots els cursos disponibles al sindicat.</p>
+                <div id="catalog-list" class="courses-grid"></div>
+            </div>
         </div>
-        <!-- VISTA PERFIL -->
-        <!-- VISTA PERFIL COMPLETO -->
+
+        <!-- VISTA 3: PERFIL COMPLETO -->
         <div id="profile-view" class="container-dashboard" style="display: none;">
             <div class="dashboard-card">
                 <h1 style="border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px;">La meva Fitxa d'Afiliat</h1>
-                
                 <div class="profile-grid-layout">
-                    <!-- Columna Izq: Foto y Resumen -->
+                    <!-- Resumen -->
                     <div class="profile-sidebar-card">
-                        <div class="user-avatar-big" id="profile-avatar-big">RN</div>
+                        <div class="user-avatar-big" id="profile-avatar-big">US</div>
                         <h3 id="profile-name-display">Carregant...</h3>
                         <span class="badge-role">Afiliat Actiu</span>
                         <p style="font-size:0.9rem; color:#666; margin-top:10px;">DNI: <span id="profile-dni-display">...</span></p>
                     </div>
-
-                    <!-- Columna Der: Datos -->
+                    <!-- Datos Detallados -->
                     <div class="profile-data-form">
                         <div class="form-grid-2">
                             <div class="input-group"><label>Telèfon Mòbil</label><input type="text" id="prof-movil" disabled></div>
@@ -216,13 +181,11 @@
                             <div class="input-group"><label>Centre de Treball</label><input type="text" id="prof-centre" disabled></div>
                             <div class="input-group"><label>Categoria</label><input type="text" id="prof-cat" disabled></div>
                             <div class="input-group span-2"><label>Adreça Completa</label><input type="text" id="prof-dir" disabled></div>
-                            <div class="input-group span-2"><label>IBAN (Compte Bancari)</label><input type="text" id="prof-iban" disabled></div>
+                            <div class="input-group span-2"><label>IBAN</label><input type="text" id="prof-iban" disabled></div>
                         </div>
-                        
-                        <div class="alert-info" style="margin-top:20px; background:#e3f2fd; padding:15px; border-radius:6px; font-size:0.9rem; color:#0d47a1;">
-                            <i class="fa-solid fa-circle-info"></i> <strong>Nota:</strong> Per seguretat, les dades sensibles (com l'IBAN o DNI) no es poden modificar des de la web. Contacta amb secretaria si hi ha algun error.
+                        <div class="alert-info" style="margin-top:20px; background:var(--quiz-question-bg); padding:15px; border-radius:6px; font-size:0.9rem; border:1px solid var(--border-color);">
+                            <i class="fa-solid fa-circle-info"></i> <strong>Nota:</strong> Per seguretat, les dades personals es gestionen des de secretaria.
                         </div>
-                        
                         <button class="btn-primary" onclick="window.location.href='mailto:secretaria@sicap.cat'" style="width:auto; margin-top:15px;">
                             Sol·licitar canvi de dades
                         </button>
@@ -231,19 +194,7 @@
             </div>
         </div>
 
-        <!-- VISTA CATÁLOGO (Página Principal) -->
-         <div id="catalog-view" class="container-dashboard" style="display: none;">
-            <div class="dashboard-card">
-                <h1>Catàleg de Formació</h1>
-                <p style="color:#666; margin-bottom:20px;">Tots els cursos disponibles al sindicat.</p>
-                <div id="catalog-list" class="courses-grid">
-                    <!-- Se llena con JS -->
-                </div>
-            </div>
-        </div>
-        </div>
-
-        <!-- VISTA CALIFICACIONES -->
+        <!-- VISTA 4: CALIFICACIONES -->
         <div id="grades-view" class="container-dashboard" style="display: none;">
             <div class="dashboard-card">
                 <h1>Qualificacions</h1>
@@ -256,48 +207,79 @@
                             <th style="padding: 10px;">Diploma</th>
                         </tr>
                     </thead>
-                    <tbody id="grades-table-body">
-                        <!-- Se llena con JS -->
-                    </tbody>
+                    <tbody id="grades-table-body"></tbody>
                 </table>
             </div>
         </div>
+
+        <!-- VISTA 5: EXAMEN (Renderitzador) -->
+        <div id="exam-view" class="app-container" style="display: none;">
+            <aside class="sidebar-left">
+                <div class="sidebar-header"><h3>Índex del Curs</h3></div>
+                <div id="course-index"></div>
+                <div style="margin-top:20px;">
+                    <a href="index.html" class="btn-small"><i class="fa-solid fa-arrow-left"></i> Tornar als Cursos</a>
+                </div>
+            </aside>
+            <main class="main-content">
+                <div class="exam-card">
+                    <h2 id="curs-titol">Carregant curs...</h2>
+                    <div id="moduls-container">
+                        <div class="loader"></div>
+                        <p class="loading-text">Carregant contingut...</p>
+                    </div>
+                </div>
+            </main>
+            <aside class="sidebar-right">
+                <div class="sidebar-header"><h3>Navegació</h3></div>
+                <div id="quiz-grid" class="grid-container"></div>
+                <div id="final-score-card" style="display: none;"></div>
+            </aside>
+        </div>
+
     </div>
 
-    <!-- SCRIPTS -->
+    <!-- SCRIPTS (Orden Importante) -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            // Si hay 'slug', activamos el modo examen
-            if (urlParams.get('slug')) {
-                document.getElementById('dashboard-view').style.display = 'none';
-                document.getElementById('exam-view').style.display = 'flex';
-            } else {
-                // Si no, activamos el modo dashboard
-                document.getElementById('dashboard-view').style.display = 'block';
-                document.getElementById('exam-view').style.display = 'none';
-            }
-            
-            // Lógica Tema (Modo Oscuro/Claro)
-            const themeBtn = document.getElementById('theme-toggle');
-            const icon = themeBtn.querySelector('i');
-            themeBtn.addEventListener('click', () => {
-                const current = document.documentElement.getAttribute('data-theme');
-                const next = current === 'dark' ? 'light' : 'dark';
-                document.documentElement.setAttribute('data-theme', next);
-                localStorage.setItem('theme', next);
-                icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-            });
+        // Script inline para Tema Oscuro (Evita parpadeo blanco al cargar)
+        (function() {
             const savedTheme = localStorage.getItem('theme');
             if(savedTheme) {
                 document.documentElement.setAttribute('data-theme', savedTheme);
-                icon.className = savedTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
             }
-        });
+        })();
     </script>
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/renderitzadorCurs.js"></script>
+    
+    <!-- Script auxiliar tema -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Router Básico por URL (si entras directo a un examen)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('slug')) {
+                document.getElementById('dashboard-view').style.display = 'none';
+                document.getElementById('exam-view').style.display = 'flex';
+            }
+
+            // Botón Tema
+            const themeBtn = document.getElementById('theme-toggle');
+            const icon = themeBtn.querySelector('i');
+            
+            // Poner icono correcto al inicio
+            const current = localStorage.getItem('theme');
+            icon.className = current === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+
+            themeBtn.addEventListener('click', () => {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                const next = isDark ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('theme', next);
+                icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            });
+        });
+    </script>
 </body>
 </html>

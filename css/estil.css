@@ -308,4 +308,81 @@ ul { list-style: none; padding: 0; margin: 0; }
     .profile-grid-layout { grid-template-columns: 1fr; }
     .form-grid-2 { grid-template-columns: 1fr; }
     .span-2 { grid-column: span 1; }
+
+    /* --- RESPONSIVE & MOBILE MENU --- */
+
+/* Por defecto (Desktop), el botón hamburguesa está oculto */
+.mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 5px;
+    margin-right: 15px;
+}
+
+/* Estilos para pantallas pequeñas (Tablets y Móviles) */
+@media (max-width: 900px) {
+    /* Mostramos el botón hamburguesa */
+    .mobile-menu-btn {
+        display: block;
+        order: 2; /* Lo ponemos después del logo */
+    }
+
+    /* Reordenamos el header para que el usuario quede a la derecha */
+    .header-content {
+        justify-content: space-between;
+    }
+
+    .header-right {
+        order: 3;
+        gap: 10px;
+    }
+
+    /* Transformamos el menú de navegación en un desplegable vertical */
+    .header-nav {
+        display: none; /* Oculto por defecto */
+        position: absolute;
+        top: 70px; /* Altura del header aprox */
+        left: 0;
+        width: 100%;
+        background-color: var(--card-bg);
+        flex-direction: column;
+        padding: 20px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        border-top: 1px solid var(--border-color);
+        z-index: 999;
+    }
+
+    /* Clase que añadiremos con JS para mostrar el menú */
+    .header-nav.show-mobile {
+        display: flex;
+        animation: slideDown 0.3s ease-out;
+    }
+
+    .nav-link {
+        width: 100%;
+        padding: 15px 0;
+        border-bottom: 1px solid var(--border-color);
+        text-align: center;
+    }
+    
+    /* Ocultar divider en móvil para ganar espacio */
+    .header-divider {
+        display: none;
+    }
+    
+    /* Ajustar texto de bienvenida del usuario en móvil */
+    .user-dropdown {
+        right: -10px; /* Ajuste para que no se salga de pantalla */
+        width: 260px;
+    }
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 }

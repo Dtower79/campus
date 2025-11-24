@@ -85,63 +85,56 @@
     <div id="app-container" style="display: none;">
         
         <!-- HEADER PRO -->
+        <!-- EN ARCHIVO: index.html -> Dentro de <div id="app-container"> -->
+
         <header class="main-header">
             <div class="header-content">
+                <!-- 1. Logo -->
                 <div class="header-left">
                     <img src="img/logo-sicap.png" alt="SICAP Campus" class="header-logo">
                 </div>
 
-                <!-- Menú Central con IDs -->
-                <nav class="header-nav">
+                <!-- 2. Botón Hamburguesa (Solo visible en móvil) -->
+                <button id="mobile-menu-btn" class="mobile-menu-btn">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <!-- 3. Navegación (Se ocultará en móvil hasta pulsar el botón) -->
+                <nav class="header-nav" id="main-nav">
                     <a href="#" id="nav-catalog" class="nav-link">Pàgina Principal</a>
                     <a href="#" id="nav-profile" class="nav-link">Àrea personal</a>
                     <a href="#" id="nav-dashboard" class="nav-link active">Els meus cursos</a>
                 </nav>
 
+                <!-- 4. Iconos y Perfil -->
                 <div class="header-right">
-                    <button id="theme-toggle" class="btn-icon" title="Canviar Tema">
-                        <i class="fa-solid fa-moon"></i>
-                    </button>
-
-                    <div class="icon-wrapper" id="btn-notifs">
-                        <i class="fa-regular fa-bell"></i>
-                        <span class="notification-dot"></span>
-                    </div>
-
-                    <div class="icon-wrapper" id="btn-messages">
-                        <i class="fa-regular fa-comment"></i>
-                    </div>
-
+                    <button id="theme-toggle" class="btn-icon" title="Canviar Tema"><i class="fa-solid fa-moon"></i></button>
+                    <div class="icon-wrapper" id="btn-notifs"><i class="fa-regular fa-bell"></i><span class="notification-dot"></span></div>
+                    
                     <div class="header-divider"></div>
-
-                    <!-- Usuario + Dropdown -->
+                    
+                    <!-- Menú Usuario (RN) -->
                     <div class="user-profile-container" id="user-menu-trigger">
                         <div class="user-avatar-circle" id="user-initials">US</div>
                         <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; color: #666;"></i>
                         
+                        <!-- El desplegable va aquí dentro -->
                         <div class="user-dropdown" id="user-dropdown-menu">
                             <div class="dropdown-header">
                                 <strong id="dropdown-username">Usuari</strong>
                                 <small id="dropdown-email">email@test.com</small>
                             </div>
                             <ul>
-                                <li><a href="#"><i class="fa-regular fa-user"></i> Perfil</a></li>
-                                <li><a href="#"><i class="fa-solid fa-chart-bar"></i> Qualificacions</a></li>
-                                <li><a href="#"><i class="fa-solid fa-gear"></i> Preferències</a></li>
+                                <li><a href="#" data-action="profile"><i class="fa-regular fa-user"></i> Perfil</a></li>
+                                <li><a href="#" data-action="grades"><i class="fa-solid fa-chart-bar"></i> Qualificacions</a></li>
                                 <li class="divider"></li>
-                                <li>
-                                    <!-- Logout Seguro -->
-                                    <a href="#" id="btn-logout-dropdown" onclick="logoutApp()" style="color:var(--brand-red);">
-                                        <i class="fa-solid fa-power-off"></i> Sortir
-                                    </a>
-                                </li>
+                                <li><a href="#" id="btn-logout-dropdown" onclick="logoutApp()" style="color:var(--brand-red);"><i class="fa-solid fa-power-off"></i> Sortir</a></li>
                             </ul>
                         </div>
                     </div>
                 </div>
             </div>
         </header>
-
         <!-- VISTA 1: MIS CURSOS (DASHBOARD) -->
         <div id="dashboard-view" class="container-dashboard">
             <div class="dashboard-card">

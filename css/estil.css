@@ -26,6 +26,7 @@
     --wrong-bg: #f8d7da; --wrong-border: #f5c6cb; --wrong-text: #721c24;
 
     --selected-bg: #e3f2fd; --selected-border: #2196f3; --selected-text: #0d47a1;
+    --bg-image-container: #f8f9fa; /* Gris claro por defecto */
 }
 
 [data-theme="dark"] {
@@ -47,6 +48,7 @@
     --wrong-bg: #5c1e23; --wrong-border: #7a282e; --wrong-text: #f8d7da;
 
     --selected-bg: #1565c0; --selected-border: #42a5f5; --selected-text: #ffffff;
+    --bg-image-container: #2c2c2c; /* O el mismo color que tu tarjeta (#1e1e1e) si prefieres 
 }
 
 /* ==========================================================================
@@ -227,7 +229,7 @@ a { text-decoration: none; color: inherit; }
 
 .card-image-header {
     height: 180px; background-size: contain; background-repeat: no-repeat; background-position: center;
-    background-color: #f8f9fa; position: relative; border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-image-container); /* AHORA ES DINÁMICO */
 }
 .course-badge {
     position: absolute; top: 15px; left: 15px; background-color: var(--brand-blue); color: white;

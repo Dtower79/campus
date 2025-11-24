@@ -138,7 +138,12 @@
                                 <li><a href="#"><i class="fa-solid fa-chart-bar"></i> Qualificacions</a></li>
                                 <li><a href="#"><i class="fa-solid fa-gear"></i> Preferències</a></li>
                                 <li class="divider"></li>
-                                <li><a href="#" id="btn-logout-dropdown" style="color:var(--brand-red);"><i class="fa-solid fa-power-off"></i> Sortir</a></li>
+                                <!-- Dentro de tu <header> ... <div class="user-dropdown"> ... -->
+                                <li>
+                                    <a href="#" id="btn-logout-dropdown" onclick="logoutApp()" style="color:var(--brand-red);">
+                                        <i class="fa-solid fa-power-off"></i> Sortir
+                                    </a>
+                                </li>
                             </ul>
                         </div>
                     </div>

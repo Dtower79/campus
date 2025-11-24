@@ -223,14 +223,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function showCampus(user) {
         loginOverlay.style.display = 'none'; 
         document.getElementById('app-container').style.display = 'block'; 
-        if (userNameDisplay) userNameDisplay.innerText = user.username || user.email;
+        
+        // Actualizar nombre en el mensaje de bienvenida si existe
+        if (userNameDisplay) userNameDisplay.innerText = user.nombre || user.username;
 
-        // Cargar cursos con pequeño delay
-        setTimeout(() => {
-            if (typeof window.loadUserCourses === 'function') {
-                window.loadUserCourses();
-            }
-        }, 200);
+        // SOLUCIÓN DEFINITIVA AL F5:
+        // Llamamos a la función global de inicio (que definiremos en dashboard.js)
+        if (typeof window.iniciarApp === 'function') {
+            window.iniciarApp(); 
+        } else {
+            // Si el script aun no cargó (raro), esperamos un poco
+            setTimeout(() => { if(typeof window.iniciarApp === 'function') window.iniciarApp(); }, 100);
+        }
     }
 
     function showLogin() {

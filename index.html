@@ -187,28 +187,55 @@
             </aside>
         </div>
         <!-- VISTA PERFIL -->
+        <!-- VISTA PERFIL COMPLETO -->
         <div id="profile-view" class="container-dashboard" style="display: none;">
             <div class="dashboard-card">
-                <h1>El meu Perfil</h1>
-                <div class="profile-grid" style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px; margin-top: 20px;">
-                    <div class="profile-sidebar" style="text-align: center;">
-                        <div class="user-avatar-big" id="profile-avatar-big" style="width: 120px; height: 120px; background: #eee; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: var(--brand-blue); font-weight: bold;">RN</div>
-                        <h3 id="profile-name" style="margin-top: 15px;">Nom Usuari</h3>
-                        <p id="profile-role" style="color: #666;">Afiliat</p>
+                <h1 style="border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px;">La meva Fitxa d'Afiliat</h1>
+                
+                <div class="profile-grid-layout">
+                    <!-- Columna Izq: Foto y Resumen -->
+                    <div class="profile-sidebar-card">
+                        <div class="user-avatar-big" id="profile-avatar-big">RN</div>
+                        <h3 id="profile-name-display">Carregant...</h3>
+                        <span class="badge-role">Afiliat Actiu</span>
+                        <p style="font-size:0.9rem; color:#666; margin-top:10px;">DNI: <span id="profile-dni-display">...</span></p>
                     </div>
-                    <div class="profile-details">
-                        <div class="input-group">
-                            <label>DNI/NIF</label>
-                            <input type="text" id="profile-dni" disabled style="background: #f9f9f9;">
+
+                    <!-- Columna Der: Datos -->
+                    <div class="profile-data-form">
+                        <div class="form-grid-2">
+                            <div class="input-group"><label>Telèfon Mòbil</label><input type="text" id="prof-movil" disabled></div>
+                            <div class="input-group"><label>Email</label><input type="text" id="prof-email" disabled></div>
+                            <div class="input-group"><label>Província</label><input type="text" id="prof-prov" disabled></div>
+                            <div class="input-group"><label>Població</label><input type="text" id="prof-pob" disabled></div>
+                            <div class="input-group"><label>Centre de Treball</label><input type="text" id="prof-centre" disabled></div>
+                            <div class="input-group"><label>Categoria</label><input type="text" id="prof-cat" disabled></div>
+                            <div class="input-group span-2"><label>Adreça Completa</label><input type="text" id="prof-dir" disabled></div>
+                            <div class="input-group span-2"><label>IBAN (Compte Bancari)</label><input type="text" id="prof-iban" disabled></div>
                         </div>
-                        <div class="input-group">
-                            <label>Email</label>
-                            <input type="text" id="profile-email" disabled style="background: #f9f9f9;">
+                        
+                        <div class="alert-info" style="margin-top:20px; background:#e3f2fd; padding:15px; border-radius:6px; font-size:0.9rem; color:#0d47a1;">
+                            <i class="fa-solid fa-circle-info"></i> <strong>Nota:</strong> Per seguretat, les dades sensibles (com l'IBAN o DNI) no es poden modificar des de la web. Contacta amb secretaria si hi ha algun error.
                         </div>
-                        <button class="btn-primary" onclick="alert('Contacta amb secretaria per modificar les dades.')">Sol·licitar canvi de dades</button>
+                        
+                        <button class="btn-primary" onclick="window.location.href='mailto:secretaria@sicap.cat'" style="width:auto; margin-top:15px;">
+                            Sol·licitar canvi de dades
+                        </button>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- VISTA CATÁLOGO (Página Principal) -->
+         <div id="catalog-view" class="container-dashboard" style="display: none;">
+            <div class="dashboard-card">
+                <h1>Catàleg de Formació</h1>
+                <p style="color:#666; margin-bottom:20px;">Tots els cursos disponibles al sindicat.</p>
+                <div id="catalog-list" class="courses-grid">
+                    <!-- Se llena con JS -->
+                </div>
+            </div>
+        </div>
         </div>
 
         <!-- VISTA CALIFICACIONES -->

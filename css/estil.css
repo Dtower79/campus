@@ -209,3 +209,59 @@ ul { list-style: none; padding: 0; margin: 0; }
 .user-dropdown {
     z-index: 1003 !important;
 }
+
+/* --- AÑADIR AL FINAL DE css/estil.css --- */
+
+/* Estados de las opciones del examen */
+.option-item.selected {
+    background-color: var(--selected-bg) !important;
+    border-color: var(--selected-border) !important;
+}
+
+.option-item.correct {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+    color: #155724 !important;
+}
+
+.option-item.correct span::after {
+    content: ' ✓';
+    font-weight: bold;
+}
+
+.option-item.wrong {
+    background-color: #f8d7da !important;
+    border-color: #f5c6cb !important;
+    color: #721c24 !important;
+    text-decoration: line-through;
+}
+
+.option-item.wrong span::after {
+    content: ' ✗';
+    font-weight: bold;
+}
+
+/* Ajuste para el índice lateral */
+.module-link {
+    display: block;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 2px;
+    transition: background 0.2s;
+}
+.module-link:hover {
+    background-color: rgba(0,0,0,0.05);
+    color: var(--brand-blue);
+}
+
+/* Ocultar elementos al imprimir si alguien intenta imprimir la web normal en vez del diploma */
+@media print {
+    .sidebar-left, .sidebar-right, .main-header, .btn-primary {
+        display: none !important;
+    }
+    .main-content {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+}

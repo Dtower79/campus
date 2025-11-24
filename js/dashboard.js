@@ -15,74 +15,63 @@ window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
 
-    console.log("🚀 Iniciando SICAP App v2.0 (Mobile Ready)...");
+    console.log("🚀 Iniciando SICAP App (Fix UI)...");
 
-    // 1. Inicializar Global Events (Click delegado para Menús y Hamburguesa)
+    // 1. Eventos Globales (Clics delegados para menús y botones)
     initGlobalEvents();
 
-    // 2. Cargar datos visuales
-    try {
-        initHeaderData();
-    } catch (e) { console.error("Header data error:", e); }
+    // 2. Cargar datos del header
+    try { initHeaderData(); } catch (e) { console.error("Header Error:", e); }
 
     // 3. Router
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.get('slug')) {
         window.showView('dashboard');
     } else {
-        const dashView = document.getElementById('dashboard-view');
-        const examView = document.getElementById('exam-view');
-        if(dashView) dashView.style.display = 'none';
-        if(examView) examView.style.display = 'flex';
+        const dash = document.getElementById('dashboard-view');
+        const exam = document.getElementById('exam-view');
+        if(dash) dash.style.display = 'none';
+        if(exam) exam.style.display = 'flex';
     }
 };
 
-/**
- * LÓGICA CENTRALIZADA DE CLICS (SOLUCIÓN DEFINITIVA MENÚS)
- * En lugar de asignar onclicks individuales que fallan, escuchamos a todo el documento.
- */
 function initGlobalEvents() {
     const navMenu = document.getElementById('main-nav');
     const userDropdown = document.getElementById('user-dropdown-menu');
 
+    // ESCUCHA GLOBAL DE CLICS
     document.addEventListener('click', (e) => {
-        // A. LOGICA BOTÓN HAMBURGUESA
+        
+        // A. BOTÓN HAMBURGUESA
         const btnMobile = e.target.closest('#mobile-menu-btn');
         if (btnMobile) {
             navMenu.classList.toggle('show-mobile');
-            return; // Stop processing
+            return;
         }
 
-        // B. LOGICA BOTÓN USUARIO (RN)
+        // B. BOTÓN USUARIO (RN)
         const btnUser = e.target.closest('#user-menu-trigger');
         if (btnUser) {
             userDropdown.classList.toggle('show');
-            // Forzar display block si CSS falla
+            // Fallback CSS por si acaso
             userDropdown.style.display = userDropdown.classList.contains('show') ? 'block' : 'none';
             return;
         }
 
-        // C. LOGICA PARA CERRAR MENÚS AL HACER CLICK FUERA
-        // Si click fuera del dropdown usuario -> cerrar
-        if (!e.target.closest('#user-dropdown-menu') && !e.target.closest('#user-menu-trigger')) {
-            if (userDropdown) {
-                userDropdown.classList.remove('show');
-                userDropdown.style.display = 'none';
-            }
+        // C. ICONOS (Campana y Mensajes) - ¡REACTIVADOS!
+        if (e.target.closest('#btn-notifs')) {
+            alert("No tens notificacions noves.");
+            return;
         }
-        
-        // Si click fuera del menú móvil -> cerrar (opcional, mejor UX)
-        if (!e.target.closest('#main-nav') && !e.target.closest('#mobile-menu-btn')) {
-            if (navMenu && navMenu.classList.contains('show-mobile')) {
-                navMenu.classList.remove('show-mobile');
-            }
+        if (e.target.closest('#btn-messages')) {
+            alert("Sistema de missatgeria en desenvolupament.");
+            return;
         }
 
-        // D. NAVEGACIÓN (Links del menú principal)
+        // D. NAVEGACIÓN PRINCIPAL
         const navLink = e.target.closest('.nav-link');
         if (navLink) {
             e.preventDefault();
-            // Mapeo ID -> Vista
             const map = {
                 'nav-catalog': 'home',
                 'nav-profile': 'profile',
@@ -91,21 +80,34 @@ function initGlobalEvents() {
             const view = map[navLink.id];
             if (view) {
                 window.showView(view);
-                // Cerrar menú móvil si estaba abierto
-                if(navMenu) navMenu.classList.remove('show-mobile');
+                if(navMenu) navMenu.classList.remove('show-mobile'); // Cerrar móvil al navegar
             }
         }
 
-        // E. NAVEGACIÓN (Links del dropdown usuario)
-        const dropLink = e.target.closest('a[data-action]');
+        // E. DROPDOWN USUARIO (Perfil / Calificaciones)
+        const dropLink = e.target.closest('#user-dropdown-menu a');
         if (dropLink) {
-            e.preventDefault();
-            const action = dropLink.getAttribute('data-action');
-            if (action === 'profile') window.showView('profile');
-            if (action === 'grades') window.showView('grades');
-            // Cerrar dropdown
-            userDropdown.classList.remove('show');
-            userDropdown.style.display = 'none';
+            // Si es el botón logout, dejamos que su onclick funcione
+            if (dropLink.id !== 'btn-logout-dropdown') {
+                e.preventDefault();
+                const action = dropLink.getAttribute('data-action');
+                if (action === 'profile') window.showView('profile');
+                if (action === 'grades') window.showView('grades');
+                
+                userDropdown.classList.remove('show');
+                userDropdown.style.display = 'none';
+            }
+        }
+
+        // F. CERRAR MENÚS AL CLICAR FUERA
+        if (!e.target.closest('#user-menu-trigger') && !e.target.closest('#user-dropdown-menu')) {
+            if(userDropdown) {
+                userDropdown.classList.remove('show');
+                userDropdown.style.display = 'none';
+            }
+        }
+        if (!e.target.closest('#main-nav') && !e.target.closest('#mobile-menu-btn')) {
+            if(navMenu) navMenu.classList.remove('show-mobile');
         }
     });
 }
@@ -114,10 +116,11 @@ function initHeaderData() {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return;
 
-    // Textos
     const setText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
     
-    let initials = user.nombre ? user.nombre.charAt(0) + (user.apellidos ? user.apellidos.charAt(0) : '') : user.username.substring(0, 2);
+    let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
+    if (user.apellidos) initials += user.apellidos.charAt(0);
+    else if (user.username.length > 1) initials += user.username.charAt(1);
     initials = initials.toUpperCase();
 
     setText('user-initials', initials);
@@ -137,25 +140,19 @@ window.showView = function(viewName) {
         exam: document.getElementById('exam-view')
     };
 
-    // Ocultar todas
     Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
-    
-    // Mostrar actual
     if(views[viewName]) views[viewName].style.display = viewName === 'exam' ? 'flex' : 'block';
     
-    // Actualizar clases Active
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     const activeMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
     if (activeMap[viewName]) document.getElementById(activeMap[viewName])?.classList.add('active');
 
-    // Cargar datos
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
     if(viewName === 'grades') loadGrades();
 };
 
-// --- CARGADORES DE DATOS (IGUAL QUE ANTES) ---
 async function loadUserCourses() {
     const list = document.getElementById('courses-list');
     const token = localStorage.getItem('jwt');
@@ -177,10 +174,12 @@ async function loadUserCourses() {
         });
     } catch(e) { list.innerHTML = '<p style="color:red;">Error.</p>'; }
 }
-async function loadFullProfile() { /* ... MISMA LOGICA ... */
+
+async function loadFullProfile() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
-    document.getElementById('prof-email').value = user.email;
+    const emailIn = document.getElementById('prof-email');
+    if(emailIn) emailIn.value = user.email;
     try {
         const res = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
@@ -191,5 +190,6 @@ async function loadFullProfile() { /* ... MISMA LOGICA ... */
         }
     } catch(e) {}
 }
+
 async function loadCatalog() { document.getElementById('catalog-list').innerHTML = '<p style="text-align:center; padding:20px;">No hi ha nous cursos.</p>'; }
 async function loadGrades() { document.getElementById('grades-table-body').innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Sense dades.</td></tr>'; }

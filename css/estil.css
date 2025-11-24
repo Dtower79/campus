@@ -385,4 +385,114 @@ ul { list-style: none; padding: 0; margin: 0; }
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+}/* --- ESTILOS ESPECÍFICOS PARA HEADER Y RESPONSIVE --- */
+
+/* Ajustes generales del Header */
+.main-header {
+    position: relative; /* Necesario para que el menú móvil se ancle aquí */
+    z-index: 1000;      /* Header siempre encima del contenido */
+    background: var(--card-bg);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Separa Logo (Izq) de Resto (Der) */
+    height: 70px;
+    padding: 0 20px;
+}
+
+/* Navegación Desktop */
+.header-nav {
+    display: flex;
+    gap: 20px;
+    position: absolute;     /* Truco para centrarlo perfectamente */
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Hamburguesa oculta por defecto */
+.mobile-menu-btn {
+    display: none;
+}
+
+/* Perfil Usuario */
+.user-profile-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-right: 0;
+}
+
+/* --- MEDIA QUERY: MÓVIL Y TABLET (< 900px) --- */
+@media (max-width: 900px) {
+    
+    /* 1. Mostrar Hamburguesa */
+    .mobile-menu-btn {
+        display: block;
+        background: none;
+        border: none;
+        font-size: 1.4rem;
+        color: var(--text-primary);
+        cursor: pointer;
+        margin-left: 15px; /* Separar del avatar */
+    }
+
+    /* 2. Ocultar Navegación Desktop */
+    .header-nav {
+        display: none; /* Se oculta hasta que se pulse el botón */
+        position: absolute;
+        top: 100%; /* Justo debajo del header */
+        left: 0;
+        width: 100%;
+        transform: none; /* Quitar el centrado de desktop */
+        background-color: var(--card-bg);
+        flex-direction: column;
+        padding: 0;
+        border-top: 1px solid var(--border-color);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15); /* Sombra fuerte para destacar */
+        z-index: 9999; /* ¡ENCIMA DE TODO! */
+    }
+
+    /* Clase para mostrar menú (JS) */
+    .header-nav.show-mobile {
+        display: flex;
+        animation: slideDown 0.2s ease-out;
+    }
+
+    /* Estilo de enlaces en móvil */
+    .header-nav .nav-link {
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--border-color);
+        width: 100%;
+        text-align: left;
+        font-size: 1rem;
+    }
+    .header-nav .nav-link:hover {
+        background-color: var(--bg-hover);
+    }
+
+    /* 3. Ajustes Header Derecho */
+    .header-right {
+        gap: 10px;
+    }
+    
+    /* Ocultar flechita del usuario en móvil para ahorrar espacio */
+    .desktop-only {
+        display: none;
+    }
+    
+    /* Ajustar dropdown de usuario en móvil para que no se salga */
+    .user-dropdown {
+        right: -50px; /* Mueve el dropdown un poco a la izquierda */
+        width: 280px;
+    }
+}
+
+/* Animación suave */
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }

@@ -87,38 +87,47 @@
         <!-- HEADER PRO -->
         <!-- EN ARCHIVO: index.html -> Dentro de <div id="app-container"> -->
 
+        <!-- REEMPLAZAR HEADER EN index.html -->
         <header class="main-header">
             <div class="header-content">
-                <!-- 1. Logo -->
+                <!-- 1. LOGO (Izquierda) -->
                 <div class="header-left">
                     <img src="img/logo-sicap.png" alt="SICAP Campus" class="header-logo">
                 </div>
 
-                <!-- 2. Botón Hamburguesa (Solo visible en móvil) -->
-                <button id="mobile-menu-btn" class="mobile-menu-btn">
-                    <i class="fa-solid fa-bars"></i>
-                </button>
-
-                <!-- 3. Navegación (Se ocultará en móvil hasta pulsar el botón) -->
+                <!-- 2. NAVEGACIÓN (Centro - Se oculta en móvil) -->
                 <nav class="header-nav" id="main-nav">
                     <a href="#" id="nav-catalog" class="nav-link">Pàgina Principal</a>
                     <a href="#" id="nav-profile" class="nav-link">Àrea personal</a>
                     <a href="#" id="nav-dashboard" class="nav-link active">Els meus cursos</a>
                 </nav>
 
-                <!-- 4. Iconos y Perfil -->
+                <!-- 3. HERRAMIENTAS (Derecha) -->
                 <div class="header-right">
-                    <button id="theme-toggle" class="btn-icon" title="Canviar Tema"><i class="fa-solid fa-moon"></i></button>
-                    <div class="icon-wrapper" id="btn-notifs"><i class="fa-regular fa-bell"></i><span class="notification-dot"></span></div>
+                    <!-- Modo Oscuro -->
+                    <button id="theme-toggle" class="btn-icon" title="Canviar Tema">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
                     
+                    <!-- Notificaciones -->
+                    <div class="icon-wrapper" id="btn-notifs">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="notification-dot"></span>
+                    </div>
+
+                    <!-- Mensajes (RECUPERADO) -->
+                    <div class="icon-wrapper" id="btn-messages">
+                        <i class="fa-regular fa-comment"></i>
+                    </div>
+
                     <div class="header-divider"></div>
-                    
-                    <!-- Menú Usuario (RN) -->
+
+                    <!-- Perfil Usuario (RN) -->
                     <div class="user-profile-container" id="user-menu-trigger">
                         <div class="user-avatar-circle" id="user-initials">US</div>
-                        <i class="fa-solid fa-chevron-down" style="font-size: 0.8rem; color: #666;"></i>
+                        <i class="fa-solid fa-chevron-down desktop-only" style="font-size: 0.8rem; color: #666; margin-left: 5px;"></i>
                         
-                        <!-- El desplegable va aquí dentro -->
+                        <!-- Dropdown Usuario -->
                         <div class="user-dropdown" id="user-dropdown-menu">
                             <div class="dropdown-header">
                                 <strong id="dropdown-username">Usuari</strong>
@@ -132,6 +141,11 @@
                             </ul>
                         </div>
                     </div>
+
+                    <!-- 4. HAMBURGUESA (Solo móvil, alineada a la derecha) -->
+                    <button id="mobile-menu-btn" class="mobile-menu-btn">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
                 </div>
             </div>
         </header>

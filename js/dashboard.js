@@ -19,11 +19,11 @@ window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
 
-    console.log("🚀 Iniciando SICAP App (Full Connected)...");
+    console.log("🚀 Iniciando SICAP App (Full + Grades)...");
 
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
 
-    // RETARDO CRÍTICO: Esperamos 100ms para asegurar que el DOM existe antes de conectar botones
+    // Retardo para asegurar DOM
     setTimeout(() => {
         setupDirectClicks();
     }, 100);
@@ -38,20 +38,18 @@ window.iniciarApp = function() {
 };
 
 /**
- * CONEXIÓN MANUAL DE BOTONES (Infalible)
+ * CONEXIÓN MANUAL DE BOTONES
  */
 function setupDirectClicks() {
-    console.log("🔌 Conectando botones...");
-
-    // --- A. CAMPANA ---
+    // A. CAMPANA
     const btnBell = document.getElementById('btn-notifs');
     if (btnBell) btnBell.onclick = (e) => { e.stopPropagation(); alert("No tens notificacions."); };
 
-    // --- B. MENSAJES ---
+    // B. MENSAJES
     const btnMsg = document.getElementById('btn-messages');
     if (btnMsg) btnMsg.onclick = (e) => { e.stopPropagation(); alert("Missatgeria en manteniment."); };
 
-    // --- C. HAMBURGUESA ---
+    // C. HAMBURGUESA
     const btnMobile = document.getElementById('mobile-menu-btn');
     const navMenu = document.getElementById('main-nav');
     if (btnMobile && navMenu) {
@@ -61,25 +59,24 @@ function setupDirectClicks() {
         };
     }
 
-    // --- D. USUARIO (RN) ---
+    // D. USUARIO (RN)
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
     if (btnUser && userDropdown) {
         btnUser.onclick = (e) => {
             e.stopPropagation();
-            // Toggle manual
             if (userDropdown.style.display === 'flex') {
                 userDropdown.style.display = 'none';
                 userDropdown.classList.remove('show');
             } else {
-                closeAllMenus(); // Cerrar otros primero
+                closeAllMenus();
                 userDropdown.style.display = 'flex';
                 userDropdown.classList.add('show');
             }
         };
     }
 
-    // --- E. ITEMS DEL DESPLEGABLE USUARIO ---
+    // E. ITEMS DEL DESPLEGABLE
     const links = document.querySelectorAll('#user-dropdown-menu a');
     links.forEach(link => {
         link.onclick = (e) => {
@@ -95,28 +92,23 @@ function setupDirectClicks() {
         };
     });
 
-    // --- F. CLIC GLOBAL (Cerrar menús) ---
+    // F. CLIC GLOBAL
     document.body.addEventListener('click', closeAllMenus);
 
-    // --- G. NAVEGACIÓN PRINCIPAL (LO QUE FALTABA) ---
-    // Conectamos manualmente cada botón del menú superior
+    // G. NAVEGACIÓN PRINCIPAL
     const navButtons = [
         { id: 'nav-catalog', view: 'home' },
         { id: 'nav-profile', view: 'profile' },
         { id: 'nav-dashboard', view: 'dashboard' }
     ];
-
     navButtons.forEach(btn => {
         const el = document.getElementById(btn.id);
         if (el) {
             el.onclick = (e) => {
                 e.preventDefault();
-                console.log("Navegando a:", btn.view);
                 window.showView(btn.view);
-                closeAllMenus(); // Por si estamos en móvil
+                closeAllMenus();
             };
-        } else {
-            console.warn("Botón no encontrado:", btn.id);
         }
     });
 }
@@ -128,8 +120,7 @@ function closeAllMenus() {
     if (navMenu) { navMenu.classList.remove('show-mobile'); }
 }
 
-// --- RESTO DEL CÓDIGO (Header, Router, Cargas) ---
-
+// --- AUXILIARES ---
 function initHeaderData() {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return;
@@ -147,14 +138,13 @@ function initHeaderData() {
     setText('profile-dni-display', user.username);
 }
 
+// --- ROUTER ---
 window.showView = function(viewName) {
-    // 1. Ocultar todo
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
-    // 2. Mostrar target
     let targetId = '';
     if(viewName === 'home') targetId = 'catalog-view';
     if(viewName === 'dashboard') targetId = 'dashboard-view';
@@ -165,7 +155,6 @@ window.showView = function(viewName) {
     const targetEl = document.getElementById(targetId);
     if(targetEl) targetEl.style.display = viewName === 'exam' ? 'flex' : 'block';
 
-    // 3. Actualizar menú activo
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     const navMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
     if (navMap[viewName]) {
@@ -173,20 +162,19 @@ window.showView = function(viewName) {
         if(activeBtn) activeBtn.classList.add('active');
     }
 
-    // 4. Cargar datos
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
     if(viewName === 'grades') loadGrades();
 };
 
+// --- CARGADORES DE DATOS ---
 async function loadUserCourses() {
     const list = document.getElementById('courses-list');
     const token = localStorage.getItem('jwt');
     const user = JSON.parse(localStorage.getItem('user'));
     if(!list || !token) return;
     list.innerHTML = '<div class="loader"></div>';
-    
     try {
         const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -204,20 +192,117 @@ async function loadUserCourses() {
 }
 
 async function loadFullProfile() {
+    console.log("📥 Cargando perfil extendido...");
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
+    
+    // 1. Email y botón de contacto
     const emailIn = document.getElementById('prof-email');
-    if(emailIn) emailIn.value = user.email;
+    if(emailIn) emailIn.value = user.email || '-';
+
+    // Arreglo del botón de correo
+    const mailBtn = document.querySelector('.profile-data-form button');
+    if(mailBtn) {
+        mailBtn.onclick = () => window.location.href = 'mailto:sicap@sicap.cat';
+    }
+
     try {
-        const res = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        // 2. Petición a Strapi
+        const res = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { 
+            headers: { 'Authorization': `Bearer ${token}` } 
+        });
         const json = await res.json();
+        
+        console.log("📦 Respuesta API Afiliados:", json); // MIRAR CONSOLA SI FALLA
+
         if(json.data && json.data.length > 0) {
             const afi = json.data[0];
-            const map = {'prof-movil': afi.TelefonoMobil, 'prof-prov': afi.Provincia, 'prof-pob': afi.Poblacion, 'prof-centre': afi.CentroTrabajo, 'prof-cat': afi.CategoriaProfesional, 'prof-dir': afi.Direccion, 'prof-iban': afi.IBAN};
-            for (const [id, val] of Object.entries(map)) { const el = document.getElementById(id); if(el) el.value = val || '-'; }
+            
+            // 3. Mapeo Inteligente (Prueba Mayúsculas y Minúsculas)
+            // Helper para buscar propiedad ignorando mayúsculas
+            const getVal = (key) => afi[key] || afi[key.charAt(0).toLowerCase() + key.slice(1)] || '-';
+
+            const map = {
+                'prof-movil': 'TelefonoMobil', // Intenta TelefonoMobil o telefonoMobil
+                'prof-prov': 'Provincia',
+                'prof-pob': 'Poblacion',
+                'prof-centre': 'CentroTrabajo',
+                'prof-cat': 'CategoriaProfesional',
+                'prof-dir': 'Direccion',
+                'prof-iban': 'IBAN'
+            };
+
+            for (const [domId, apiField] of Object.entries(map)) { 
+                const el = document.getElementById(domId); 
+                if(el) el.value = getVal(apiField);
+            }
+        } else {
+            console.warn("⚠️ No se encontró afiliado con DNI:", user.username);
         }
-    } catch(e) {}
+    } catch(e) { 
+        console.error("❌ Error cargando perfil:", e); 
+    }
 }
 
-async function loadCatalog() { document.getElementById('catalog-list').innerHTML = '<p style="text-align:center; padding:20px;">No hi ha nous cursos.</p>'; }
-async function loadGrades() { document.getElementById('grades-table-body').innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Sense dades.</td></tr>'; }
+async function loadCatalog() { 
+    document.getElementById('catalog-list').innerHTML = '<p style="text-align:center; padding:20px;">No hi ha nous cursos.</p>'; 
+}
+
+// --- FUNCIÓN DE NOTAS (RESTAURADA) ---
+async function loadGrades() {
+    const tbody = document.getElementById('grades-table-body');
+    const token = localStorage.getItem('jwt');
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if(!tbody || !token) return;
+    
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;"><div class="loader"></div></td></tr>';
+
+    try {
+        // Pedimos TODAS las matrículas del usuario (sin filtrar por estado)
+        const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`;
+        const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const json = await res.json();
+
+        tbody.innerHTML = ''; // Limpiar loader
+
+        if(!json.data || json.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">No tens cursos matriculats.</td></tr>';
+            return;
+        }
+
+        json.data.forEach(mat => {
+            const curs = mat.curs;
+            if(!curs) return;
+
+            // Determinar estado
+            const isCompleted = mat.estat === 'completat' || mat.progres === 100;
+            const statusHtml = isCompleted 
+                ? '<span style="color:#10b981; font-weight:bold;">Completat</span>' 
+                : '<span style="color:var(--brand-blue);">En Curs</span>';
+            
+            // Nota (Si no hay, ponemos guión)
+            const nota = mat.nota_final !== undefined && mat.nota_final !== null ? mat.nota_final : '-';
+
+            // Diploma (Botón o texto)
+            const diplomaHtml = isCompleted 
+                ? `<button class="btn-small" onclick="alert('Descàrrega de diploma properament')"><i class="fa-solid fa-download"></i> PDF</button>` 
+                : '<small style="color:#999;">Pendent</small>';
+
+            // Insertar fila
+            const row = `
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 15px;"><strong>${curs.titol}</strong></td>
+                    <td style="padding: 15px;">${statusHtml}</td>
+                    <td style="padding: 15px;">${nota}</td>
+                    <td style="padding: 15px;">${diplomaHtml}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+
+    } catch(e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Error carregant qualificacions.</td></tr>';
+    }
+}

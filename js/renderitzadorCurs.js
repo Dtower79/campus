@@ -5,18 +5,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const slug = params.get('slug');
 
-    // ¡CRÍTICO! Si no hay 'slug' en la URL, significa que estamos en el Login
-    // o en el Dashboard general. Este script DEBE DETENERSE aquí mismo.
+    // Si no hay 'slug', no estamos en un curso -> DETENER SCRIPT
     if (!slug) return; 
 
     // ------------------------------------------------------------------------
-    // 2. VERIFICACIÓN DE SEGURIDAD (Solo si hay slug)
+    // 2. VERIFICACIÓN DE SEGURIDAD
     // ------------------------------------------------------------------------
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
 
     if (!user || !token) {
-        // Si intenta ver un curso sin estar logueado, le mandamos fuera
         alert("Sessió caducada. Torna a identificar-te.");
         window.location.href = 'index.html';
         return;
@@ -37,26 +35,31 @@ document.addEventListener('DOMContentLoaded', () => {
     let examenEntregado = false;
     let totalPreguntas = 0;
 
-    // Arrancamos la carga del curso
+    // INICIAR CARGA
     cargarCursoDesdeStrapi();
 
     // ------------------------------------------------------------------------
-    // 4. FUNCIONES DE LÓGICA
+    // 4. FUNCIONES DE LÓGICA DE CARGA
     // ------------------------------------------------------------------------
 
     async function cargarCursoDesdeStrapi() {
         if(contenedorCentral) {
-            contenedorCentral.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
+            contenedorCentral.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant contingut...</p>';
         }
 
         try {
-            // Construimos la URL para Strapi v5 buscando la matrícula exacta
-            // Filtramos por Usuario + Slug del Curso
-            // Usamos 'populate' para bajar niveles: Curso -> Módulos -> Preguntas -> Opciones
+            // Construimos la URL para Strapi v5.
+            // AHORA PEDIMOS TAMBIÉN: material_pdf y targetes_memoria
             const query = [
                 `filters[users_permissions_user][id][$eq]=${user.id}`,
                 `filters[curs][slug][$eq]=${slug}`,
+                // Bajamos niveles: Curso -> Módulos -> Preguntas -> Opciones
                 `populate[curs][populate][moduls][populate][preguntes][populate][opcions]=true`, 
+                // Bajamos nivel: Curso -> Módulos -> PDF
+                `populate[curs][populate][moduls][populate][material_pdf]=true`,
+                // Bajamos nivel: Curso -> Módulos -> Flashcards
+                `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
+                // Imagen principal
                 `populate[curs][populate][imatge]=true`
             ].join('&');
 
@@ -70,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const json = await res.json();
 
-            // Si no devuelve datos, es que el usuario no está matriculado en ese curso
+            // Si no devuelve datos...
             if (!json.data || json.data.length === 0) {
                 contenedorCentral.innerHTML = `
                     <div class="dashboard-card" style="border-top: 4px solid var(--brand-red);">
@@ -81,12 +84,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Datos encontrados
+            // Guardamos datos
             const matricula = json.data[0];
-            matriculaId = matricula.documentId || matricula.id; // Compatibilidad Strapi v4/v5
+            matriculaId = matricula.documentId || matricula.id;
             datosCurso = matricula.curs;
 
-            // Renderizamos el contenido
+            // Renderizamos
             renderizarCurso(datosCurso, matricula);
 
         } catch (error) {
@@ -98,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderizarCurso(curso, matriculaData) {
-        // Poner título
+        // Título
         if(tituloCursEl) tituloCursEl.innerText = curso.titol;
 
         // Limpiar zonas
@@ -108,13 +111,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         totalPreguntas = 0;
 
-        // Validar contenido
+        // Validar si hay módulos
         if (!curso.moduls || curso.moduls.length === 0) {
             contenedorCentral.innerHTML = '<p>Aquest curs encara no té mòduls disponibles.</p>';
             return;
         }
 
-        // Bucle de Módulos
+        // --- BUCLE DE MÓDULOS ---
         curso.moduls.forEach((modul, idx) => {
             // A. Índice Lateral
             const li = document.createElement('li');
@@ -127,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modDiv.className = 'module-section';
             modDiv.style.marginBottom = '60px';
 
-            // Título
+            // 1. Título Módulo
             const h2 = document.createElement('h2');
             h2.innerText = modul.titol;
             h2.style.borderBottom = '2px solid var(--brand-blue)';
@@ -135,31 +138,78 @@ document.addEventListener('DOMContentLoaded', () => {
             h2.style.marginBottom = '20px';
             modDiv.appendChild(h2);
 
-            // Contenido (Resumen / Texto)
+            // 2. Texto (Resumen / Contenido HTML)
             if (modul.resum) {
                 const textDiv = document.createElement('div');
                 textDiv.className = 'module-content-text';
-                textDiv.style.marginBottom = '30px';
+                textDiv.style.marginBottom = '20px';
                 textDiv.innerHTML = parseStrapiRichText(modul.resum);
                 modDiv.appendChild(textDiv);
             }
 
-            // Preguntas (Si tiene)
+            // 3. MATERIAL PDF (NUEVO)
+            if (modul.material_pdf && modul.material_pdf.url) {
+                const pdfContainer = document.createElement('div');
+                pdfContainer.style.marginBottom = '30px';
+                
+                const pdfBtn = document.createElement('a');
+                pdfBtn.href = modul.material_pdf.url;
+                pdfBtn.target = "_blank";
+                pdfBtn.className = "btn-pdf"; // Clase definida en CSS
+                pdfBtn.innerHTML = `<i class="fa-solid fa-file-pdf"></i> Descarregar Temari (PDF)`;
+                
+                pdfContainer.appendChild(pdfBtn);
+                modDiv.appendChild(pdfContainer);
+            }
+
+            // 4. FLASHCARDS / TARJETAS DE MEMORIA (NUEVO)
+            if (modul.targetes_memoria && modul.targetes_memoria.length > 0) {
+                const flashTitle = document.createElement('h3');
+                flashTitle.innerText = "Targetes de Repàs";
+                flashTitle.style.marginTop = "30px";
+                flashTitle.style.fontSize = "1.2rem";
+                flashTitle.style.color = "var(--brand-blue)";
+                modDiv.appendChild(flashTitle);
+
+                const flashContainer = document.createElement('div');
+                flashContainer.className = 'flashcards-container'; // Clase CSS Grid
+
+                modul.targetes_memoria.forEach(card => {
+                    const cardHtml = `
+                        <div class="flashcard" onclick="this.classList.toggle('flipped')">
+                            <div class="flashcard-inner">
+                                <div class="flashcard-front">
+                                    <h4>${card.pregunta}</h4>
+                                    <small><i class="fa-solid fa-rotate"></i> Clica per veure la solució</small>
+                                </div>
+                                <div class="flashcard-back">
+                                    <p>${card.resposta}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    flashContainer.innerHTML += cardHtml;
+                });
+                modDiv.appendChild(flashContainer);
+            }
+
+            // 5. PREGUNTAS (QUIZ)
             if (modul.preguntes && modul.preguntes.length > 0) {
                 const quizSection = document.createElement('div');
                 quizSection.className = 'quiz-container';
+                quizSection.innerHTML = `<h3 style="margin-top:40px; color:var(--brand-red); border-bottom:1px solid #eee; padding-bottom:10px;">Test d'Avaluació</h3>`;
                 
                 modul.preguntes.forEach((preg, pIdx) => {
                     totalPreguntas++;
-                    const qId = `q-${idx}-${pIdx}`; // ID único
+                    const qId = `q-${idx}-${pIdx}`;
 
-                    // Crear Tarjeta Pregunta
+                    // Tarjeta
                     const card = document.createElement('div');
                     card.className = 'question-card';
                     card.id = `card-${qId}`;
                     card.dataset.id = qId;
 
-                    // Grid Navegación Derecha
+                    // Grid Navegación
                     const gridItem = document.createElement('div');
                     gridItem.className = 'grid-item';
                     gridItem.id = `grid-${qId}`;
@@ -167,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     gridItem.onclick = () => card.scrollIntoView({behavior: 'smooth', block: 'center'});
                     contenedorGrid.appendChild(gridItem);
 
-                    // HTML de la Pregunta
+                    // HTML Pregunta
                     let htmlPreg = `
                         <div class="q-header">Pregunta ${totalPreguntas}</div>
                         <div class="q-text" style="font-size:1.1rem; font-weight:500; margin-bottom:15px;">${preg.text}</div>
@@ -177,9 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Opciones
                     if (preg.opcions) {
                         preg.opcions.forEach((opt, oIdx) => {
-                            // "Encriptamos" la respuesta correcta en un string simple
                             const isCorrect = opt.esCorrecta === true ? 'true' : 'false';
-                            
                             htmlPreg += `
                                 <div class="option-item" data-val="${oIdx}" data-correct="${isCorrect}" onclick="window.seleccionarOpcion('${qId}', ${oIdx})">
                                     <input type="radio" name="${qId}" value="${oIdx}" style="pointer-events:none;">
@@ -188,15 +236,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             `;
                         });
                     }
+                    htmlPreg += `</div>`;
 
-                    htmlPreg += `</div>`; // Cierre opciones
-
-                    // Feedback (oculto)
+                    // Explicación (Feedback)
                     if (preg.explicacio) {
                         htmlPreg += `
                             <div class="explanation-box" id="explain-${qId}" style="display:none; margin-top:15px; background:#fff3cd; padding:15px; border-radius:5px;">
-                                <strong>Explicació:</strong><br>
-                                ${parseStrapiRichText(preg.explicacio)}
+                                <strong>Explicació:</strong><br>${parseStrapiRichText(preg.explicacio)}
                             </div>
                         `;
                     }
@@ -211,12 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
             contenedorCentral.appendChild(modDiv);
         });
 
-        // C. Zona de Acción (Botón Final)
+        // C. FOOTER (BOTÓN ACCIÓN)
         if (matriculaData.estat === 'completat') {
-            // Si ya estaba hecho, mostrar resultado directamente
             mostrarPanelResultado(matriculaData.nota_final, true);
         } else {
-            // Si no, botón de entregar
             const footerDiv = document.createElement('div');
             footerDiv.id = 'exam-footer-action';
             footerDiv.style.textAlign = 'center';
@@ -224,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
             footerDiv.style.paddingBottom = '50px';
             footerDiv.innerHTML = `
                 <button class="btn-primary" onclick="window.procesarEntrega()" style="max-width:300px; padding:15px; font-size:1.1rem;">
-                    Finalitzar i Calcular Nota
+                    Finalitzar Curs i Calcular Nota
                 </button>
             `;
             contenedorCentral.appendChild(footerDiv);
@@ -232,16 +276,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 5. FUNCIONES GLOBALES (Window) para los eventos onclick
+    // 5. FUNCIONES GLOBALES (Interacción Examen)
     // ------------------------------------------------------------------------
 
     window.seleccionarOpcion = function(qId, valIdx) {
-        if (examenEntregado) return; // Bloquear si ya se entregó
+        if (examenEntregado) return;
 
-        // Guardar lógica
         respuestasUsuario[qId] = valIdx;
 
-        // Feedback Visual Inmediato (Selección)
+        // Visual
         const card = document.getElementById(`card-${qId}`);
         const allOpts = card.querySelectorAll('.option-item');
         
@@ -255,22 +298,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Actualizar Grid
+        // Grid
         const grid = document.getElementById(`grid-${qId}`);
         if(grid) grid.classList.add('answered');
     };
 
     window.procesarEntrega = async function() {
-        if (!confirm("Estàs segur que vols entregar l'examen? No podràs modificar les respostes.")) return;
+        if (!confirm("Estàs segur que vols entregar? No podràs modificar les respostes.")) return;
 
-        // UI Loading
         const btn = document.querySelector('#exam-footer-action button');
-        if(btn) { btn.innerText = "Corregint i Guardant..."; btn.disabled = true; }
+        if(btn) { btn.innerText = "Guardant..."; btn.disabled = true; }
 
         let aciertos = 0;
         examenEntregado = true;
 
-        // CORRECCIÓN CLIENTE
+        // Corrección Visual Cliente
         const cards = document.querySelectorAll('.question-card');
         cards.forEach(card => {
             const qId = card.dataset.id;
@@ -278,42 +320,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const feedback = card.querySelector('.explanation-box');
             const grid = document.getElementById(`grid-${qId}`);
 
-            const userRes = respuestasUsuario[qId]; // índice elegido
+            const userRes = respuestasUsuario[qId];
             let correctIdx = -1;
 
-            // Buscar cuál era la correcta
             options.forEach((opt, idx) => {
                 if (opt.getAttribute('data-correct') === 'true') correctIdx = idx;
-                // Bloquear clicks
-                opt.onclick = null;
+                opt.onclick = null; // Bloquear
                 opt.style.cursor = 'default';
             });
 
             if (userRes !== undefined) {
-                // Respondida
                 if (userRes === correctIdx) {
                     aciertos++;
                     options[userRes].classList.add('correct');
                     if(grid) { grid.classList.remove('answered'); grid.classList.add('correct'); }
                 } else {
                     options[userRes].classList.add('wrong');
-                    if(correctIdx !== -1) options[correctIdx].classList.add('correct'); // Mostrar la correcta
+                    if(correctIdx !== -1) options[correctIdx].classList.add('correct');
                     if(grid) { grid.classList.remove('answered'); grid.classList.add('wrong'); }
                 }
             } else {
-                // No respondida
                 if(grid) grid.style.opacity = '0.5';
             }
 
-            // Mostrar explicacion
             if(feedback) feedback.style.display = 'block';
         });
 
-        // CÁLCULO
-        // Si no hay preguntas, ponemos un 10 por defecto
+        // Nota
         const notaFinal = totalPreguntas > 0 ? ((aciertos / totalPreguntas) * 10).toFixed(2) : 10.00;
 
-        // GUARDADO EN STRAPI
+        // Guardar
         await guardarNotaEnStrapi(notaFinal);
     };
 
@@ -322,8 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = {
                 data: {
                     nota_final: parseFloat(nota),
-                    estat: 'completat',
-                    // Si tienes campo fecha_fin, añádelo aquí: fecha_fin: new Date()
+                    estat: 'completat'
                 }
             };
 
@@ -337,20 +372,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (res.ok) {
-                // Borrar botón
                 const footer = document.getElementById('exam-footer-action');
                 if(footer) footer.remove();
-                
-                // Mostrar resultados
                 mostrarPanelResultado(nota, false);
             } else {
                 console.error(await res.json());
-                alert("Error guardant la nota. Fes captura de pantalla del resultat.");
+                alert("Error guardant la nota. Fes una captura.");
             }
-
         } catch (e) {
             console.error(e);
-            alert("Error de connexió amb el servidor.");
+            alert("Error de xarxa.");
         }
     }
 
@@ -363,10 +394,11 @@ document.addEventListener('DOMContentLoaded', () => {
         card.style.marginTop = '30px';
         card.style.textAlign = 'center';
         card.style.borderTop = `5px solid ${color}`;
+        
         card.innerHTML = `
             <h2 style="color:${color}; text-transform:uppercase;">${aprobado ? 'Curs Superat' : 'Nota Insuficient'}</h2>
             <div style="font-size:3.5rem; font-weight:700; color:${color}; margin:20px 0;">${nota}</div>
-            <p>${aprobado ? "Enhorabona! Has aprovat satisfactòriament." : "Has de repassar els continguts."}</p>
+            <p>${aprobado ? "Enhorabona! Has aprovat." : "Has de repassar els continguts."}</p>
             
             <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
                 <button class="btn-secondary" onclick="window.location.href='index.html'">Tornar a l'inici</button>
@@ -382,11 +414,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Helper: Rich Text de Strapi a HTML simple
+    // Helper Rich Text
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
-        // Si es Blocks (Array de objetos)
         if (Array.isArray(content)) {
             return content.map(block => {
                 if (block.type === 'paragraph' && block.children) {
@@ -399,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 6. GENERADOR DE DIPLOMA
+    // 6. GENERADOR DIPLOMA
     // ------------------------------------------------------------------------
     window.imprimirDiploma = function(nota) {
         const nombreCurso = document.getElementById('curs-titol') ? document.getElementById('curs-titol').innerText : 'Curs de Formació';
@@ -433,11 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p>ha superat el curs de formació:</p>
                     <h2>${nombreCurso}</h2>
                     <p>Nota Final: <strong>${nota}</strong> | Data: ${fechaHoy}</p>
-                    
-                    <div class="firmas">
-                        <div class="firma">Secretari General</div>
-                        <div class="firma">Secretari de Formació</div>
-                    </div>
+                    <div class="firmas"><div class="firma">Secretari General</div><div class="firma">Secretari de Formació</div></div>
                 </div>
                 <script>window.onload = function() { window.print(); }</script>
             </body>
@@ -445,5 +472,4 @@ document.addEventListener('DOMContentLoaded', () => {
         `);
         ventana.document.close();
     };
-
 });

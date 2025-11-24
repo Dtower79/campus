@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Verificamos si hay sesión
     if (localStorage.getItem('jwt')) {
-        // Si la app no ha arrancado aún, la arrancamos
         if (!window.appIniciada) {
             window.iniciarApp();
         }
@@ -21,19 +19,15 @@ window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
 
-    console.log("🚀 Iniciando SICAP App (Modo Directo)...");
+    console.log("🚀 Iniciando SICAP App (Full Connected)...");
 
-    // 1. Pintar datos del usuario (Nombres, iniciales...)
-    try { 
-        initHeaderData(); 
-    } catch (e) { console.error("Error pintando header:", e); }
+    try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
 
-    // 2. ACTIVAR LOS CLICS (Aquí está la magia nueva)
+    // RETARDO CRÍTICO: Esperamos 100ms para asegurar que el DOM existe antes de conectar botones
     setTimeout(() => {
         setupDirectClicks();
-    }, 100); // Pequeño retardo para asegurar que el DOM está listo
+    }, 100);
 
-    // 3. Router (Decidir qué vista mostrar)
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.get('slug')) {
         window.showView('dashboard');
@@ -44,31 +38,20 @@ window.iniciarApp = function() {
 };
 
 /**
- * CONFIGURACIÓN DIRECTA DE CLICS
- * Asignamos eventos uno a uno a los elementos específicos.
+ * CONEXIÓN MANUAL DE BOTONES (Infalible)
  */
 function setupDirectClicks() {
-    console.log("🔧 Configurando botones del header...");
+    console.log("🔌 Conectando botones...");
 
-    // --- A. CAMPANA (Notificaciones) ---
+    // --- A. CAMPANA ---
     const btnBell = document.getElementById('btn-notifs');
-    if (btnBell) {
-        btnBell.onclick = (e) => {
-            e.stopPropagation(); // No cerrar otros menús
-            alert("No tens notificacions noves.");
-        };
-    }
+    if (btnBell) btnBell.onclick = (e) => { e.stopPropagation(); alert("No tens notificacions."); };
 
-    // --- B. BOCADILLO (Mensajes) ---
+    // --- B. MENSAJES ---
     const btnMsg = document.getElementById('btn-messages');
-    if (btnMsg) {
-        btnMsg.onclick = (e) => {
-            e.stopPropagation();
-            alert("Sistema de missatgeria en manteniment.");
-        };
-    }
+    if (btnMsg) btnMsg.onclick = (e) => { e.stopPropagation(); alert("Missatgeria en manteniment."); };
 
-    // --- C. HAMBURGUESA (Móvil) ---
+    // --- C. HAMBURGUESA ---
     const btnMobile = document.getElementById('mobile-menu-btn');
     const navMenu = document.getElementById('main-nav');
     if (btnMobile && navMenu) {
@@ -78,73 +61,78 @@ function setupDirectClicks() {
         };
     }
 
-    // --- D. USUARIO (RN - Menú desplegable) ---
+    // --- D. USUARIO (RN) ---
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
-    
     if (btnUser && userDropdown) {
-        // Al hacer clic en "RN"
         btnUser.onclick = (e) => {
             e.stopPropagation();
-            // Alternar visibilidad
+            // Toggle manual
             if (userDropdown.style.display === 'flex') {
                 userDropdown.style.display = 'none';
                 userDropdown.classList.remove('show');
             } else {
-                // Cerrar otros menús si estuvieran abiertos
-                if(navMenu) navMenu.classList.remove('show-mobile');
-                
+                closeAllMenus(); // Cerrar otros primero
                 userDropdown.style.display = 'flex';
                 userDropdown.classList.add('show');
             }
         };
     }
 
-    // --- E. ENLACES DEL MENÚ USUARIO (Perfil, Notas, Salir) ---
-    // Buscamos los enlaces dentro del dropdown
+    // --- E. ITEMS DEL DESPLEGABLE USUARIO ---
     const links = document.querySelectorAll('#user-dropdown-menu a');
     links.forEach(link => {
         link.onclick = (e) => {
-            // Si es navegar (tiene data-action)
             const action = link.getAttribute('data-action');
             if (action) {
                 e.preventDefault();
                 window.showView(action);
                 closeAllMenus();
-            }
-            // Si es Salir (detectado por ID o texto)
-            else if (link.id === 'btn-logout-dropdown' || link.innerText.includes('Sortir')) {
+            } else if (link.id === 'btn-logout-dropdown' || link.innerText.includes('Sortir')) {
                 e.preventDefault();
                 window.logoutApp();
             }
         };
     });
 
-    // --- F. CLIC EN CUALQUIER OTRO SITIO (Para cerrar menús) ---
-    document.body.addEventListener('click', () => {
-        closeAllMenus();
+    // --- F. CLIC GLOBAL (Cerrar menús) ---
+    document.body.addEventListener('click', closeAllMenus);
+
+    // --- G. NAVEGACIÓN PRINCIPAL (LO QUE FALTABA) ---
+    // Conectamos manualmente cada botón del menú superior
+    const navButtons = [
+        { id: 'nav-catalog', view: 'home' },
+        { id: 'nav-profile', view: 'profile' },
+        { id: 'nav-dashboard', view: 'dashboard' }
+    ];
+
+    navButtons.forEach(btn => {
+        const el = document.getElementById(btn.id);
+        if (el) {
+            el.onclick = (e) => {
+                e.preventDefault();
+                console.log("Navegando a:", btn.view);
+                window.showView(btn.view);
+                closeAllMenus(); // Por si estamos en móvil
+            };
+        } else {
+            console.warn("Botón no encontrado:", btn.id);
+        }
     });
 }
 
-// Función auxiliar para limpiar pantalla
 function closeAllMenus() {
     const userDropdown = document.getElementById('user-dropdown-menu');
     const navMenu = document.getElementById('main-nav');
-    
-    if (userDropdown) {
-        userDropdown.style.display = 'none';
-        userDropdown.classList.remove('show');
-    }
-    if (navMenu) {
-        navMenu.classList.remove('show-mobile');
-    }
+    if (userDropdown) { userDropdown.style.display = 'none'; userDropdown.classList.remove('show'); }
+    if (navMenu) { navMenu.classList.remove('show-mobile'); }
 }
 
-// --- PINTAR DATOS HEADER ---
+// --- RESTO DEL CÓDIGO (Header, Router, Cargas) ---
+
 function initHeaderData() {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return;
-
     const setText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
     
     let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
@@ -159,18 +147,14 @@ function initHeaderData() {
     setText('profile-dni-display', user.username);
 }
 
-// --- ROUTER (Navegación) ---
 window.showView = function(viewName) {
-    console.log("Navegando a:", viewName);
-    
     // 1. Ocultar todo
-    const views = ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'];
-    views.forEach(id => {
+    ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
-    // 2. Mostrar selección
+    // 2. Mostrar target
     let targetId = '';
     if(viewName === 'home') targetId = 'catalog-view';
     if(viewName === 'dashboard') targetId = 'dashboard-view';
@@ -179,15 +163,15 @@ window.showView = function(viewName) {
     if(viewName === 'exam') targetId = 'exam-view';
 
     const targetEl = document.getElementById(targetId);
-    if(targetEl) {
-        targetEl.style.display = viewName === 'exam' ? 'flex' : 'block';
-    }
+    if(targetEl) targetEl.style.display = viewName === 'exam' ? 'flex' : 'block';
 
     // 3. Actualizar menú activo
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    const navId = viewName === 'home' ? 'nav-catalog' : (viewName === 'profile' ? 'nav-profile' : 'nav-dashboard');
-    const navBtn = document.getElementById(navId);
-    if(navBtn) navBtn.classList.add('active');
+    const navMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
+    if (navMap[viewName]) {
+        const activeBtn = document.getElementById(navMap[viewName]);
+        if(activeBtn) activeBtn.classList.add('active');
+    }
 
     // 4. Cargar datos
     if(viewName === 'dashboard') loadUserCourses();
@@ -196,7 +180,6 @@ window.showView = function(viewName) {
     if(viewName === 'grades') loadGrades();
 };
 
-// --- CARGADORES DE DATOS ---
 async function loadUserCourses() {
     const list = document.getElementById('courses-list');
     const token = localStorage.getItem('jwt');
@@ -208,40 +191,16 @@ async function loadUserCourses() {
         const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge`;
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
-        
         list.innerHTML = '';
-        if(!json.data || json.data.length === 0) { 
-            list.innerHTML = '<p style="text-align:center; padding:20px;">No tens cursos actius.</p>'; return; 
-        }
-        
+        if(!json.data || json.data.length === 0) { list.innerHTML = '<p style="text-align:center; padding:20px;">No tens cursos actius.</p>'; return; }
         json.data.forEach(mat => {
             const curs = mat.curs; if(!curs) return;
             let imgUrl = 'img/logo-sicap.png';
-            if(curs.imatge) { 
-                const img = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge; 
-                if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url; 
-            }
+            if(curs.imatge) { const img = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge; if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url; }
             const color = mat.progres >= 100 ? '#10b981' : 'var(--brand-blue)';
-            
-            list.innerHTML += `
-            <div class="course-card-item">
-                <div class="card-image-header" style="background-image: url('${imgUrl}');">
-                    ${curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : ''}
-                </div>
-                <div class="card-body">
-                    <h3 class="course-title">${curs.titol}</h3>
-                    <div class="course-meta">${curs.hores || ''}</div>
-                    <div class="progress-container">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width:${mat.progres||0}%; background:${color}"></div>
-                        </div>
-                        <span class="progress-text">${mat.progres||0}% Completat</span>
-                    </div>
-                    <a href="index.html?slug=${curs.slug}" class="btn-primary" style="margin-top:auto; text-align:center;">Accedir</a>
-                </div>
-            </div>`;
+            list.innerHTML += `<div class="course-card-item"><div class="card-image-header" style="background-image: url('${imgUrl}');">${curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : ''}</div><div class="card-body"><h3 class="course-title">${curs.titol}</h3><div class="course-meta">${curs.hores || ''}</div><div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${mat.progres||0}%; background:${color}"></div></div><span class="progress-text">${mat.progres||0}% Completat</span></div><a href="index.html?slug=${curs.slug}" class="btn-primary" style="margin-top:auto; text-align:center;">Accedir</a></div></div>`;
         });
-    } catch(e) { list.innerHTML = '<p style="color:red;">Error carregant cursos.</p>'; }
+    } catch(e) { list.innerHTML = '<p style="color:red;">Error.</p>'; }
 }
 
 async function loadFullProfile() {

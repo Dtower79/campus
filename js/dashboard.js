@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.logoutApp = function() {
+    console.log("👋 Cerrando sesión y limpiando datos...");
     localStorage.clear();
     window.location.href = 'index.html';
 };
@@ -15,15 +16,15 @@ window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
 
-    console.log("🚀 Iniciando SICAP App (Fix UI)...");
+    console.log("🚀 Iniciando SICAP App (Final v2)...");
 
-    // 1. Eventos Globales (Clics delegados para menús y botones)
+    // 1. Eventos Globales
     initGlobalEvents();
 
-    // 2. Cargar datos del header
+    // 2. Cargar Header
     try { initHeaderData(); } catch (e) { console.error("Header Error:", e); }
 
-    // 3. Router
+    // 3. Router Inicial
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.get('slug')) {
         window.showView('dashboard');
@@ -35,14 +36,16 @@ window.iniciarApp = function() {
     }
 };
 
+/**
+ * LÓGICA CENTRAL DE EVENTOS
+ */
 function initGlobalEvents() {
     const navMenu = document.getElementById('main-nav');
     const userDropdown = document.getElementById('user-dropdown-menu');
 
-    // ESCUCHA GLOBAL DE CLICS
     document.addEventListener('click', (e) => {
         
-        // A. BOTÓN HAMBURGUESA
+        // A. HAMBURGUESA (Móvil)
         const btnMobile = e.target.closest('#mobile-menu-btn');
         if (btnMobile) {
             navMenu.classList.toggle('show-mobile');
@@ -53,18 +56,31 @@ function initGlobalEvents() {
         const btnUser = e.target.closest('#user-menu-trigger');
         if (btnUser) {
             userDropdown.classList.toggle('show');
-            // Fallback CSS por si acaso
-            userDropdown.style.display = userDropdown.classList.contains('show') ? 'block' : 'none';
+            userDropdown.style.display = userDropdown.classList.contains('show') ? 'flex' : 'none';
             return;
         }
 
-        // C. ICONOS (Campana y Mensajes) - ¡REACTIVADOS!
-        if (e.target.closest('#btn-notifs')) {
-            alert("No tens notificacions noves.");
-            return;
-        }
-        if (e.target.closest('#btn-messages')) {
-            alert("Sistema de missatgeria en desenvolupament.");
+        // C. GESTIÓN DE CLICS DENTRO DEL DESPLEGABLE (PERFIL / NOTAS / SALIR)
+        const dropLink = e.target.closest('#user-dropdown-menu a');
+        if (dropLink) {
+            e.preventDefault(); // Detenemos comportamiento por defecto
+
+            const action = dropLink.getAttribute('data-action');
+            const isLogout = dropLink.id === 'btn-logout-dropdown' || dropLink.innerHTML.includes('Sortir');
+
+            // Caso 1: Navegación (Perfil / Notas)
+            if (action) {
+                console.log("👉 Ir a:", action);
+                window.showView(action);
+            } 
+            // Caso 2: Logout (Detectado por ID o Texto)
+            else if (isLogout) {
+                window.logoutApp();
+            }
+
+            // Cerrar menú tras la acción
+            userDropdown.classList.remove('show');
+            userDropdown.style.display = 'none';
             return;
         }
 
@@ -80,26 +96,11 @@ function initGlobalEvents() {
             const view = map[navLink.id];
             if (view) {
                 window.showView(view);
-                if(navMenu) navMenu.classList.remove('show-mobile'); // Cerrar móvil al navegar
+                if(navMenu) navMenu.classList.remove('show-mobile');
             }
         }
 
-        // E. DROPDOWN USUARIO (Perfil / Calificaciones)
-        const dropLink = e.target.closest('#user-dropdown-menu a');
-        if (dropLink) {
-            // Si es el botón logout, dejamos que su onclick funcione
-            if (dropLink.id !== 'btn-logout-dropdown') {
-                e.preventDefault();
-                const action = dropLink.getAttribute('data-action');
-                if (action === 'profile') window.showView('profile');
-                if (action === 'grades') window.showView('grades');
-                
-                userDropdown.classList.remove('show');
-                userDropdown.style.display = 'none';
-            }
-        }
-
-        // F. CERRAR MENÚS AL CLICAR FUERA
+        // E. CERRAR AL CLICAR FUERA
         if (!e.target.closest('#user-menu-trigger') && !e.target.closest('#user-dropdown-menu')) {
             if(userDropdown) {
                 userDropdown.classList.remove('show');
@@ -141,11 +142,17 @@ window.showView = function(viewName) {
     };
 
     Object.values(views).forEach(el => { if(el) el.style.display = 'none'; });
-    if(views[viewName]) views[viewName].style.display = viewName === 'exam' ? 'flex' : 'block';
+    
+    if(views[viewName]) {
+        views[viewName].style.display = viewName === 'exam' ? 'flex' : 'block';
+    }
     
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     const activeMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
-    if (activeMap[viewName]) document.getElementById(activeMap[viewName])?.classList.add('active');
+    if (activeMap[viewName]) {
+        const btn = document.getElementById(activeMap[viewName]);
+        if(btn) btn.classList.add('active');
+    }
 
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
@@ -190,6 +197,5 @@ async function loadFullProfile() {
         }
     } catch(e) {}
 }
-
 async function loadCatalog() { document.getElementById('catalog-list').innerHTML = '<p style="text-align:center; padding:20px;">No hi ha nous cursos.</p>'; }
 async function loadGrades() { document.getElementById('grades-table-body').innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Sense dades.</td></tr>'; }

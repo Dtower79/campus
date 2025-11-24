@@ -195,3 +195,17 @@ ul { list-style: none; padding: 0; margin: 0; }
     .form-grid-2 { grid-template-columns: 1fr; }
     .span-2 { grid-column: span 1; }
 }
+
+/* --- FIX DE INTERACTIVIDAD --- */
+.icon-wrapper, 
+.user-profile-container, 
+.mobile-menu-btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1002; /* Aseguramos que estén por encima de todo */
+}
+
+.user-dropdown {
+    z-index: 1003 !important;
+}

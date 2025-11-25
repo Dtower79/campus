@@ -397,3 +397,192 @@ ul { list-style: none; padding: 0; margin: 0; }
     color: var(--brand-red);
     font-size: 1.2rem;
 }
+
+/* --- NUEVO SIDEBAR ANIDADO --- */
+.module-group {
+    margin-bottom: 10px;
+}
+.module-header {
+    background: #f1f3f5;
+    padding: 10px 15px;
+    font-weight: bold;
+    color: var(--brand-blue);
+    border-radius: 6px;
+    cursor: default; /* O pointer si quieres colapsar */
+}
+.sub-menu {
+    list-style: none;
+    padding-left: 0;
+    margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.sub-link {
+    display: block;
+    padding: 8px 15px 8px 25px; /* Indentado */
+    font-size: 0.9rem;
+    color: #666;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+}
+.sub-link:hover {
+    background: white;
+    color: var(--brand-red);
+}
+.sub-link.active {
+    border-left-color: var(--brand-red);
+    background: white;
+    font-weight: bold;
+    color: var(--text-main);
+}
+.sub-link.locked {
+    color: #ccc;
+    cursor: not-allowed;
+    background: #f9f9f9;
+}
+.sub-link.locked::after {
+    content: ' 🔒';
+    font-size: 0.8rem;
+}
+
+/* --- CARRUSEL FLASHCARDS --- */
+.flashcards-carousel {
+    position: relative;
+    max-width: 600px;
+    margin: 0 auto;
+    overflow: hidden;
+    padding: 20px 0;
+}
+.flashcard-wrapper {
+    display: none; /* Ocultas por defecto */
+}
+.flashcard-wrapper.active {
+    display: block; /* Solo se ve la activa */
+    animation: fadeIn 0.5s;
+}
+.carousel-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+}
+.btn-carousel {
+    background: var(--brand-blue);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.btn-carousel:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+.carousel-counter {
+    font-weight: bold;
+    color: #666;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* --- SIDEBAR ANIDADO Y BLOQUEOS --- */
+.sidebar-module-group {
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.sidebar-module-title {
+    font-weight: bold;
+    color: var(--brand-blue);
+    padding: 5px 10px;
+    display: block;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 5px;
+}
+
+.sidebar-subitem {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px 8px 25px; /* Indentado */
+    font-size: 0.9rem;
+    color: #555;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+}
+
+.sidebar-subitem:hover {
+    background-color: #f0f4f8;
+    color: var(--brand-blue);
+}
+
+.sidebar-subitem.active {
+    border-left-color: var(--brand-red);
+    background-color: #eef2f5;
+    font-weight: 600;
+    color: var(--brand-blue);
+}
+
+.sidebar-subitem.locked {
+    color: #aaa;
+    cursor: not-allowed;
+    pointer-events: none; /* No clickable */
+}
+
+.sidebar-subitem.locked i {
+    color: #ccc;
+}
+
+/* --- CARRUSEL FLASHCARDS --- */
+.flashcards-wrapper {
+    max-width: 600px;
+    margin: 0 auto;
+    position: relative;
+    padding: 0 50px; /* Espacio para flechas */
+}
+
+.flashcard-slide {
+    display: none;
+    animation: fadeIn 0.4s;
+}
+
+.flashcard-slide.active {
+    display: block;
+}
+
+.carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--brand-blue);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.carousel-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.carousel-prev { left: 0; }
+.carousel-next { right: 0; }
+
+.carousel-counter {
+    text-align: center;
+    margin-top: 15px;
+    color: #666;
+    font-weight: bold;
+}

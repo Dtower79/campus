@@ -176,10 +176,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if(archivos.length > 0) {
                 html += `<div class="materials-section"><span class="materials-title">Material Descarregable</span>`;
                 archivos.forEach(a => {
-                    // FIX URL PDF
-                    let url = a.url.startsWith('http') ? a.url : `${STRAPI_URL}${a.url}`;
+                    let url = a.url;
+    
+                    if (!url.startsWith('http')) {
+                        // CRÍTICO: Si STRAPI_URL acaba en '/api', lo quitamos.
+                        // Los archivos están en "dominio.com/uploads", NO en "dominio.com/api/uploads"
+                        const baseSinApi = STRAPI_URL.replace(/\/api\/?$/, ''); 
+                        url = `${baseSinApi}${url}`;
+                    }
+
                     html += `<a href="${url}" target="_blank" class="btn-pdf"><i class="fa-solid fa-file-pdf"></i> ${a.name}</a>`;
-                });
+                });         
                 html += `</div>`;
             }
         }

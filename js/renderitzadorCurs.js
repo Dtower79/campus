@@ -49,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Construimos la URL para Strapi v5.
-            // AHORA PEDIMOS TAMBIÉN: material_pdf y targetes_memoria
             const query = [
                 `filters[users_permissions_user][id][$eq]=${user.id}`,
                 `filters[curs][slug][$eq]=${slug}`,
@@ -147,13 +146,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 modDiv.appendChild(textDiv);
             }
 
-            // 3. MATERIAL PDF (NUEVO)
+            // 3. MATERIAL PDF (CORREGIDO EL BUG DEL 404)
             if (modul.material_pdf && modul.material_pdf.url) {
                 const pdfContainer = document.createElement('div');
                 pdfContainer.style.marginBottom = '30px';
                 
+                // --- FIX URL ABSOLUTA ---
+                // Si la URL viene relativa (empieza por /), le añadimos el dominio de Strapi
+                let pdfUrl = modul.material_pdf.url;
+                if (!pdfUrl.startsWith('http')) {
+                    pdfUrl = `${STRAPI_URL}${pdfUrl}`;
+                }
+
                 const pdfBtn = document.createElement('a');
-                pdfBtn.href = modul.material_pdf.url;
+                pdfBtn.href = pdfUrl;
                 pdfBtn.target = "_blank";
                 pdfBtn.className = "btn-pdf"; // Clase definida en CSS
                 pdfBtn.innerHTML = `<i class="fa-solid fa-file-pdf"></i> Descarregar Temari (PDF)`;
@@ -162,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 modDiv.appendChild(pdfContainer);
             }
 
-            // 4. FLASHCARDS / TARJETAS DE MEMORIA (NUEVO)
+            // 4. FLASHCARDS / TARJETAS DE MEMORIA
             if (modul.targetes_memoria && modul.targetes_memoria.length > 0) {
                 const flashTitle = document.createElement('h3');
                 flashTitle.innerText = "Targetes de Repàs";
@@ -172,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 modDiv.appendChild(flashTitle);
 
                 const flashContainer = document.createElement('div');
-                flashContainer.className = 'flashcards-container'; // Clase CSS Grid
+                flashContainer.className = 'flashcards-container'; 
 
                 modul.targetes_memoria.forEach(card => {
                     const cardHtml = `

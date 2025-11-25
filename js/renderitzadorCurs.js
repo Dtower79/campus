@@ -1,15 +1,36 @@
 document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
-    // 1. PROTECCIÓN CONTRA BUCLE INFINITO
+    // 1. HELPER: TRADUCTOR DE TEXTO (RICH TEXT)
+    // Lo pongo al principio para que no falle "is not defined"
+    // ------------------------------------------------------------------------
+    function parseStrapiRichText(content) {
+        if (!content) return '';
+        if (typeof content === 'string') return content;
+        
+        // Si es Blocks (Array de objetos que devuelve Strapi v5)
+        if (Array.isArray(content)) {
+            return content.map(block => {
+                if (block.type === 'paragraph' && block.children) {
+                    return `<p>${block.children.map(c => c.text).join('')}</p>`;
+                }
+                if (block.type === 'list' && block.children) {
+                    const items = block.children.map(li => `<li>${li.children.map(c => c.text).join('')}</li>`).join('');
+                    return block.format === 'ordered' ? `<ol>${items}</ol>` : `<ul>${items}</ul>`;
+                }
+                return '';
+            }).join('');
+        }
+        return '';
+    }
+
+    // ------------------------------------------------------------------------
+    // 2. PROTECCIÓN Y SEGURIDAD
     // ------------------------------------------------------------------------
     const params = new URLSearchParams(window.location.search);
     const slug = params.get('slug');
 
     if (!slug) return; 
 
-    // ------------------------------------------------------------------------
-    // 2. VERIFICACIÓN DE SEGURIDAD
-    // ------------------------------------------------------------------------
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
 
@@ -38,9 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarCursoDesdeStrapi();
 
     // ------------------------------------------------------------------------
-    // 4. FUNCIONES DE LÓGICA DE CARGA
+    // 4. LÓGICA DE CARGA
     // ------------------------------------------------------------------------
-
     async function cargarCursoDesdeStrapi() {
         if(contenedorCentral) {
             contenedorCentral.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant contingut...</p>';
@@ -106,12 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- BUCLE DE MÓDULOS ---
         curso.moduls.forEach((modul, idx) => {
-            // A. Índice Lateral
+            // A. Índice
             const li = document.createElement('li');
             li.innerHTML = `<a href="#mod-${idx}" class="module-link"><i class="fa-regular fa-folder"></i> ${modul.titol}</a>`;
             contenedorIndice.querySelector('ul').appendChild(li);
 
-            // B. Contenedor del Módulo
+            // B. Módulo
             const modDiv = document.createElement('div');
             modDiv.id = `mod-${idx}`;
             modDiv.className = 'module-section';
@@ -125,19 +145,18 @@ document.addEventListener('DOMContentLoaded', () => {
             h2.style.marginBottom = '20px';
             modDiv.appendChild(h2);
 
-            // 2. Texto
+            // 2. Texto (Resumen)
             if (modul.resum) {
                 const textDiv = document.createElement('div');
                 textDiv.className = 'module-content-text';
                 textDiv.style.marginBottom = '20px';
+                // AQUÍ ES DONDE FALLABA ANTES, AHORA YA NO FALLARÁ
                 textDiv.innerHTML = parseStrapiRichText(modul.resum);
                 modDiv.appendChild(textDiv);
             }
 
-            // 3. MATERIAL DESCARGABLE (PDFs Múltiples) - LÓGICA ACTUALIZADA
+            // 3. MATERIAL DESCARGABLE (PDFs Múltiples)
             if (modul.material_pdf) {
-                // Strapi puede devolver un objeto (si es single) o un array (si es multiple).
-                // Normalizamos todo a un array para usar la misma lógica siempre.
                 const archivos = Array.isArray(modul.material_pdf) ? modul.material_pdf : [modul.material_pdf];
 
                 if (archivos.length > 0) {
@@ -150,7 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     materialsSection.appendChild(materialsTitle);
 
                     archivos.forEach(archivo => {
-                        // FIX URL ABSOLUTA
                         let pdfUrl = archivo.url;
                         if (!pdfUrl.startsWith('http')) {
                             pdfUrl = `${STRAPI_URL}${pdfUrl}`;
@@ -160,7 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         pdfBtn.href = pdfUrl;
                         pdfBtn.target = "_blank";
                         pdfBtn.className = "btn-pdf";
-                        // Usamos el nombre del archivo o un texto genérico
                         const nombreArchivo = archivo.name || 'Document del curs';
                         pdfBtn.innerHTML = `<i class="fa-solid fa-file-pdf"></i> ${nombreArchivo}`;
                         

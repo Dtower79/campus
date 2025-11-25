@@ -350,3 +350,50 @@ ul { list-style: none; padding: 0; margin: 0; }
     font-size: 1rem;
     overflow-y: auto; /* Por si el texto es largo */
 }
+
+/* Lista de materiales descargables */
+.materials-section {
+    background-color: #f8f9fa;
+    border-left: 4px solid var(--brand-red);
+    padding: 15px;
+    margin-bottom: 30px;
+    border-radius: 0 4px 4px 0;
+}
+
+.materials-title {
+    font-size: 0.9rem;
+    color: #666;
+    text-transform: uppercase;
+    font-weight: bold;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.btn-pdf {
+    display: flex; /* Mejor que inline-flex para listas */
+    align-items: center;
+    gap: 12px;
+    background-color: white;
+    color: #333;
+    border: 1px solid #ddd;
+    padding: 12px 15px;
+    border-radius: 6px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    margin-bottom: 8px; /* Separación entre botones */
+    width: 100%;
+    max-width: 400px; /* Que no ocupen todo el ancho si no quieres */
+}
+
+.btn-pdf:hover {
+    border-color: var(--brand-red);
+    color: var(--brand-red);
+    background-color: #fff5f5;
+    transform: translateX(5px); /* Pequeño movimiento elegante */
+}
+
+.btn-pdf i {
+    color: var(--brand-red);
+    font-size: 1.2rem;
+}

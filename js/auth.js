@@ -1,7 +1,6 @@
 // js/auth.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    // REFERENCIAS DOM
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
     const btnShowRegister = document.getElementById('btn-show-register');
@@ -10,13 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerView = document.getElementById('register-view');
     const errorMsg = document.getElementById('login-error-msg');
 
-    // TOGGLE VISTAS
+    // Navegación entre formularios
     if (btnShowRegister) {
         btnShowRegister.onclick = (e) => {
             e.preventDefault();
             loginView.style.display = 'none';
             registerView.style.display = 'block';
-            errorMsg.style.display = 'none';
+            if(errorMsg) errorMsg.style.display = 'none';
         };
     }
 
@@ -25,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             registerView.style.display = 'none';
             loginView.style.display = 'block';
-            errorMsg.style.display = 'none';
+            if(errorMsg) errorMsg.style.display = 'none';
         };
     }
 
@@ -46,28 +45,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
 
                 if (data.jwt) {
-                    // Login correcto
                     localStorage.setItem('jwt', data.jwt);
                     localStorage.setItem('user', JSON.stringify(data.user));
-                    
-                    // Ocultar login y lanzar app
                     document.getElementById('login-overlay').style.display = 'none';
                     document.getElementById('app-container').style.display = 'block';
-                    
-                    // Iniciar lógica dashboard
                     if (window.iniciarApp) window.iniciarApp();
-                    else window.location.reload(); // Fallback por si acaso
+                    else window.location.reload();
                 } else {
                     mostrarError("DNI o contrasenya incorrectes.");
                 }
             } catch (error) {
                 console.error(error);
-                mostrarError("Error de connexió amb el servidor.");
+                mostrarError("Error de connexió.");
             }
         };
     }
 
-    // REGISTRO (Aquí estaba el problema, ahora solucionado)
+    // --- REGISTRO CON ESTRATEGIA "DOBLE SALTO" ---
     if (registerForm) {
         registerForm.onsubmit = async (e) => {
             e.preventDefault();
@@ -75,74 +69,80 @@ document.addEventListener('DOMContentLoaded', () => {
             const pass = document.getElementById('reg-pass').value;
             const passConf = document.getElementById('reg-pass-conf').value;
 
-            if (pass !== passConf) {
-                alert("Les contrasenyes no coincideixen.");
-                return;
-            }
+            if (pass !== passConf) { alert("Les contrasenyes no coincideixen."); return; }
+            if (pass.length < 6) { alert("Mínim 6 caràcters."); return; }
 
-            if (pass.length < 6) {
-                alert("La contrasenya ha de tenir almenys 6 caràcters.");
-                return;
-            }
-
-            // CAMBIO CLAVE: Primero buscamos los datos del afiliado para rellenar nombre/apellidos
             try {
-                // 1. Buscar en Afiliados
-                // NOTA: Esto requiere que el rol "Public" tenga permiso 'find' en Afiliado en Strapi
+                // PASO 0: Buscar datos del afiliado
                 const resAfiliado = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${dni}`);
                 const jsonAfiliado = await resAfiliado.json();
 
                 if (!jsonAfiliado.data || jsonAfiliado.data.length === 0) {
-                    alert("Aquest DNI no consta com a afiliado actiu.");
+                    alert("Aquest DNI no consta com a afiliat actiu.");
                     return;
                 }
+                const datosAfiliado = jsonAfiliado.data[0];
 
-                const datosAfiliado = jsonAfiliado.data[0]; // Cogemos los datos reales (Miguel...)
-
-                // 2. Registrar Usuario con los datos recuperados
-                const payload = {
+                // PASO 1: REGISTRO LIMPIO (Solo datos estándar)
+                const registerPayload = {
                     username: dni,
-                    email: datosAfiliado.email || `${dni}@sicap.cat`, // Usamos su email real o uno falso si no tiene
-                    password: pass,
-                    // AQUÍ ES DONDE ARREGLAMOS EL ERROR "INVALID PARAMETERS":
-                    nombre: datosAfiliado.nombre,
-                    apellidos: datosAfiliado.apellidos,
-                    es_professor: false // Por defecto nadie es profe al registrarse
+                    email: datosAfiliado.email || `${dni}@sicap.cat`,
+                    password: pass
                 };
 
                 const resReg = await fetch(`${STRAPI_URL}/api/auth/local/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(registerPayload)
                 });
 
                 const dataReg = await resReg.json();
 
                 if (dataReg.jwt) {
+                    // ¡Usuario creado! Ahora tenemos el JWT.
+                    // PASO 2: ACTUALIZAR PERFIL (Añadir Nombre y Apellidos)
+                    const userId = dataReg.user.id;
+                    const token = dataReg.jwt;
+
+                    const updatePayload = {
+                        nombre: datosAfiliado.nombre,
+                        apellidos: datosAfiliado.apellidos
+                        // No enviamos es_professor, se queda false por defecto en DB
+                    };
+
+                    await fetch(`${STRAPI_URL}/api/users/${userId}`, {
+                        method: 'PUT',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}` // Usamos su nuevo token
+                        },
+                        body: JSON.stringify(updatePayload)
+                    });
+
                     alert("Compte activat correctament! Ja pots entrar.");
-                    window.location.reload(); // Recargar para ir al login limpio
+                    window.location.reload(); 
                 } else {
                     console.error(dataReg);
-                    // Mensaje de error amigable
                     if(dataReg.error && dataReg.error.message === 'Email or Username are already taken') {
-                        alert("Aquest usuari ja està registrat. Prova a fer Login.");
+                        alert("Aquest usuari ja existeix.");
                     } else {
-                        alert("Error al registrar: " + (dataReg.error ? dataReg.error.message : "Error desconegut"));
+                        alert("Error: " + (dataReg.error?.message || "Error desconegut"));
                     }
                 }
 
             } catch (error) {
                 console.error(error);
-                alert("Error de connexió. Revisa la teva internet.");
+                alert("Error de connexió.");
             }
         };
     }
 
     function mostrarError(msg) {
-        errorMsg.innerText = msg;
-        errorMsg.style.display = 'block';
-        // Efecto vibración
-        loginView.classList.add('shake');
-        setTimeout(() => loginView.classList.remove('shake'), 500);
+        if(errorMsg) {
+            errorMsg.innerText = msg;
+            errorMsg.style.display = 'block';
+        } else {
+            alert(msg);
+        }
     }
 });

@@ -49,9 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
         respuestasTemp: {},
         testStartTime: 0,
         testEnCurso: false,
-        godMode: false // Modo Dios (Profesor) desactivado por defecto
+        godMode: false 
     };
 
+    // Si no hay slug, no hacemos nada (el index.html gestiona el login/dashboard)
     if (!SLUG) return; 
 
     if (!USER || !TOKEN) {
@@ -59,6 +60,18 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'index.html';
         return;
     }
+
+    // --- FIX VISUAL: OCULTAR LOGIN Y MOSTRAR CURSO INMEDIATAMENTE ---
+    const loginOverlay = document.getElementById('login-overlay');
+    const appContainer = document.getElementById('app-container');
+    const dashboardView = document.getElementById('dashboard-view');
+    const examView = document.getElementById('exam-view');
+
+    if (loginOverlay) loginOverlay.style.display = 'none';
+    if (appContainer) appContainer.style.display = 'block';
+    if (dashboardView) dashboardView.style.display = 'none';
+    if (examView) examView.style.display = 'flex';
+    // -----------------------------------------------------------------
 
     // INICIAR
     init();
@@ -139,19 +152,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. LÓGICA DE BLOQUEOS (CORE)
     // ------------------------------------------------------------------------
     function estaBloqueado(indexModulo) {
-        // Si el modo Dios está activo, nada está bloqueado
         if (state.godMode) return false;
 
-        if (indexModulo === 0) return false; // El primero siempre abierto
+        if (indexModulo === 0) return false; 
         
-        // El módulo N está bloqueado si el N-1 no está aprobado
         const moduloAnterior = state.progreso.modulos[indexModulo - 1];
-        if (!moduloAnterior) return false; // Protección
+        if (!moduloAnterior) return false; 
         return !moduloAnterior.aprobado;
     }
 
     function puedeHacerExamenFinal() {
-        if (state.godMode) return true; // Modo Dios puede hacer el examen final siempre
+        if (state.godMode) return true; 
         if (!state.progreso.modulos) return false;
         return state.progreso.modulos.every(m => m.aprobado === true);
     }
@@ -187,7 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusColor = modProgreso && modProgreso.aprobado ? 'color:green;' : '';
             const check = modProgreso && modProgreso.aprobado ? '<i class="fa-solid fa-check"></i>' : '';
             
-            // Indicador visual si está forzado por Modo Dios
             const forcedIcon = (state.godMode && isLocked) ? '<span style="font-size:0.7em; color:orange; margin-left:5px;">(Vist)</span>' : '';
 
             html += `
@@ -198,7 +208,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="sidebar-sub-menu">
             `;
 
-            // Sub-items
             html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
             
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
@@ -212,7 +221,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // 2. BLOQUE FINAL
-        // El bloqueo del examen final es especial: o todos aprobados, o modo dios.
         const finalIsLocked = !puedeHacerExamenFinal(); 
         
         html += `
@@ -226,7 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderSubLink(modIdx, viewName, label, locked) {
-        // Si está bloqueado Y NO estamos en modo Dios, se muestra bloqueado
         const reallyLocked = locked && !state.godMode;
 
         let isActive = false;
@@ -235,7 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const lockedClass = reallyLocked ? 'locked' : '';
         const activeClass = isActive ? 'active' : '';
-        // Si está bloqueado realmente, no hay clic. Si no, cambiamos vista.
         const clickFn = reallyLocked ? '' : `window.cambiarVista(${modIdx}, '${viewName}')`;
 
         return `<div class="sidebar-subitem ${lockedClass} ${activeClass}" onclick="${clickFn}">
@@ -243,10 +249,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
     }
 
-    // Función global para el switch
     window.toggleGodMode = function(checkbox) {
         state.godMode = checkbox.checked;
-        renderSidebar(); // Repintar candados
+        renderSidebar();
     }
 
     window.cambiarVista = function(idx, view) {
@@ -260,20 +265,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // RENDERIZADO CONTENIDO PRINCIPAL
+    // 6. RENDERIZADO CONTENIDO PRINCIPAL
     // ------------------------------------------------------------------------
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
-        gridRight.innerHTML = ''; // Limpiar grid lateral
+        gridRight.innerHTML = ''; 
 
-        // EXAMEN FINAL
         if (state.currentView === 'examen_final') {
             renderExamenFinal(container);
             return;
         }
 
-        // MÓDULOS
         const mod = state.curso.moduls[state.currentModuleIndex];
         
         if (state.currentView === 'teoria') {
@@ -296,13 +299,13 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
         }
 
-        // MATERIAL PDF (Lógica híbrida Cloudinary/Local)
         if (mod.material_pdf) {
             const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
             if(archivos.length > 0) {
                 html += `<div class="materials-section"><span class="materials-title">Material Descarregable</span>`;
                 archivos.forEach(a => {
                     let pdfUrl = a.url;
+                    // Lógica para Cloudinary vs Local
                     if (!pdfUrl.startsWith('http')) {
                         try {
                             const dominioBase = new URL(STRAPI_URL).origin;
@@ -317,9 +320,6 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
-    // ------------------------------------------------------------------------
-    // FLASHCARDS
-    // ------------------------------------------------------------------------
     function renderFlashcards(container, cards) {
         if (!cards || cards.length === 0) {
             container.innerHTML = '<p>No hi ha targetes disponibles per aquest mòdul.</p>'; return;
@@ -367,9 +367,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('fc-current').innerText = newIndex + 1;
     }
 
-    // ------------------------------------------------------------------------
-    // TESTS (Evaluación)
-    // ------------------------------------------------------------------------
     function renderTestIntro(container, mod, modIdx) {
         const progreso = state.progreso.modulos[modIdx] || { aprobado: false, intentos: 0, nota: 0 };
         
@@ -383,7 +380,6 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
         }
 
-        // Si ha agotado intentos Y NO es profesor (modo dios)
         if (progreso.intentos >= 2 && !state.godMode) {
              container.innerHTML = `
                 <div class="dashboard-card" style="border-top:5px solid red; text-align:center;">
@@ -398,13 +394,11 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="dashboard-card" style="text-align:center; padding: 40px;">
                 <h2>📝 Test d'Avaluació: ${mod.titol}</h2>
                 <p style="font-size:1.1rem; margin-top:10px;">Estàs a punt de començar l'avaluació d'aquest mòdul.</p>
-                
                 <div style="display:inline-block; text-align:left; background:#f8f9fa; padding:20px; border-radius:8px; margin:20px 0;">
                     <p><i class="fa-solid fa-circle-check" style="color:green"></i> <strong>Aprovat:</strong> 70% d'encerts o més.</p>
                     <p><i class="fa-solid fa-clock"></i> <strong>Temps:</strong> El temps quedarà registrat.</p>
                     <p><i class="fa-solid fa-rotate-right"></i> <strong>Intent:</strong> ${progreso.intentos + 1} de 2.</p>
                 </div>
-
                 <br>
                 <button class="btn-primary" style="max-width:300px; font-size:1.2rem;" onclick="iniciarTest()">
                     COMENÇAR EL TEST
@@ -437,7 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
             gridRight.appendChild(div);
         });
 
-        // Preguntas
         let html = `<h3>Test en Curs...</h3>`;
         mod.preguntes.forEach((preg, idx) => {
             const qId = `q-${idx}`;
@@ -506,7 +499,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Actualizar Estado
         if (!state.progreso.modulos) state.progreso.modulos = [];
-        // Aseguramos que existe el objeto
         if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false };
 
         const p = state.progreso;
@@ -538,7 +530,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderExamenFinal(container) {
-        container.innerHTML = '<div class="dashboard-card"><h3>Examen Final en construcción...</h3><p>Quan tinguis preguntes globals les implementarem aquí.</p></div>';
+        container.innerHTML = '<div class="dashboard-card"><h3>Examen Final en construcción...</h3><p>Aquí implementarem les preguntes aleatòries properament.</p></div>';
     }
 
     // ------------------------------------------------------------------------

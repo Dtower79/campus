@@ -618,10 +618,140 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('quiz-grid').innerHTML = '';
     }
 
+    // ------------------------------------------------------------------------
+    // DIPLOMA (Versión Ajustada a Márgenes)
+    // ------------------------------------------------------------------------
     window.imprimirDiploma = function(nota) {
-        const nombreCurso = state.curso.titol; const fechaHoy = new Date().toLocaleDateString('ca-ES'); const alumno = USER;
+        const nombreCurso = state.curso.titol;
+        const fechaHoy = new Date().toLocaleDateString('ca-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+        const alumno = USER;
+        const nombreAlumno = `${alumno.nombre} ${alumno.apellidos || ''}`.toUpperCase();
+
         const ventana = window.open('', '_blank');
-        ventana.document.write(`<html><head><title>Diploma</title><style>body{font-family:'Georgia',serif;text-align:center;padding:40px;}.marco{border:10px double #004B87;padding:50px;height:85vh;display:flex;flex-direction:column;justify-content:center;align-items:center;}h1{color:#004B87;font-size:3rem;}h2{font-size:2.2rem;}p{font-size:1.2rem;}.firmas{margin-top:60px;display:flex;justify-content:space-around;width:100%;}.firma{border-top:1px solid #000;width:250px;padding-top:10px;}</style></head><body><div class="marco"><img src="img/logo-sicap.png" style="max-width:180px;"><h1>CERTIFICAT D'APROFITAMENT</h1><p>SICAP certifica que</p><h3>${alumno.nombre} ${alumno.apellidos || ''}</h3><p>ha superat el curs:</p><h2>${nombreCurso}</h2><p>Nota: ${nota} | Data: ${fechaHoy}</p><div class="firmas"><div class="firma">Secretari General</div><div class="firma">Secretari de Formació</div></div></div><script>window.onload=function(){window.print();}</script></body></html>`);
+        ventana.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Diploma Oficial - SICAP</title>
+                <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+                <style>
+                    /* RESET TOTAL DE MÁRGENES DEL NAVEGADOR */
+                    @page { size: A4 landscape; margin: 0; }
+                    
+                    body { 
+                        margin: 0; padding: 0; 
+                        width: 100vw; height: 100vh; 
+                        display: flex; justify-content: center; align-items: center;
+                        background: white; 
+                        font-family: 'Roboto', sans-serif;
+                        -webkit-print-color-adjust: exact; 
+                        print-color-adjust: exact;
+                    }
+
+                    .page {
+                        /* Usamos el 95% para dejar un margen de seguridad blanco */
+                        width: 95%; height: 95%;
+                        position: relative;
+                        border: 1px solid #fff; /* Invisible, solo para estructura */
+                        display: flex; flex-direction: column; align-items: center; justify-content: center;
+                        text-align: center;
+                    }
+
+                    /* El borde decorativo ahora es relativo al contenedor seguro */
+                    .border-deco {
+                        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                        border: 3px solid #004B87;
+                        outline: 5px double #E30613;
+                        outline-offset: -10px; /* Hacia adentro */
+                        z-index: 0;
+                    }
+
+                    .content-layer { z-index: 10; position: relative; width: 80%; }
+
+                    .logo { width: 180px; margin-bottom: 20px; }
+                    
+                    h1 { 
+                        font-family: 'Playfair Display', serif; 
+                        font-size: 36pt; 
+                        color: #004B87; 
+                        margin: 0 0 10px 0; 
+                        text-transform: uppercase; 
+                        letter-spacing: 2px; 
+                    }
+                    
+                    .subtitle { font-size: 14pt; color: #666; margin: 0; }
+                    
+                    .student { 
+                        font-size: 24pt; font-weight: bold; 
+                        margin: 20px auto; 
+                        border-bottom: 2px solid #333; 
+                        display: inline-block;
+                        padding: 0 40px;
+                        min-width: 400px;
+                    }
+                    
+                    .dni { font-size: 11pt; color: #555; margin-bottom: 20px; }
+                    
+                    .course-intro { font-size: 14pt; color: #333; }
+                    
+                    .course-name { 
+                        font-size: 20pt; font-weight: bold; color: #E30613; 
+                        margin: 10px 0 30px 0; 
+                    }
+                    
+                    .meta { font-size: 11pt; color: #444; margin-bottom: 40px; }
+                    
+                    .signatures { 
+                        display: flex; justify-content: space-between; 
+                        margin-top: 20px; padding: 0 50px;
+                    }
+                    .sig-box { text-align: center; width: 220px; }
+                    .sig-line { border-top: 1px solid #333; margin-bottom: 5px; }
+                    .sig-role { font-size: 9pt; font-weight: bold; color: #004B87; text-transform: uppercase; }
+
+                </style>
+            </head>
+            <body>
+                <div class="page">
+                    <div class="border-deco"></div>
+                    
+                    <div class="content-layer">
+                        <img src="img/logo-sicap.png" class="logo" alt="SICAP">
+                        
+                        <h1>Certificat d'Aprofitament</h1>
+                        <p class="subtitle">El Sindicat Català de Presons (SICAP) certifica que</p>
+                        
+                        <div class="student">${nombreAlumno}</div>
+                        <div class="dni">amb DNI/NIF: <strong>${alumno.username}</strong></div>
+                        
+                        <p class="course-intro">Ha superat satisfactòriament l'acció formativa:</p>
+                        <div class="course-name">${nombreCurso}</div>
+                        
+                        <p class="meta">
+                            Nota Final: <strong>${nota}</strong> &nbsp;|&nbsp; 
+                            Data d'expedició: <strong>${fechaHoy}</strong>
+                        </p>
+                        
+                        <div class="signatures">
+                            <div class="sig-box">
+                                <div style="height:40px;"></div>
+                                <div class="sig-line"></div>
+                                <div class="sig-role">Secretari General</div>
+                            </div>
+                            <div class="sig-box">
+                                <div style="height:40px;"></div>
+                                <div class="sig-line"></div>
+                                <div class="sig-role">Secretari de Formació</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() { setTimeout(() => window.print(), 500); }
+                </script>
+            </body>
+            </html>
+        `);
         ventana.document.close();
     };
 });

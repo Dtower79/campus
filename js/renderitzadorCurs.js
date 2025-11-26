@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let state = {
         matriculaId: null, curso: null, progreso: {},
         currentModuleIndex: 0, currentView: 'teoria', 
-        respuestasTemp: {}, testStartTime: 0, testEnCurso: false
+        respuestasTemp: {}, testStartTime: 0, testEnCurso: false, godMode: false
     };
 
     if (!SLUG) return;
@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function estaBloqueado(indexModulo) {
+        if (state.godMode) return false;
         if (indexModulo === 0) return false;
         const moduloAnterior = state.progreso.modulos[indexModulo - 1];
         if (!moduloAnterior) return false; 
@@ -84,7 +85,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const tituloEl = document.getElementById('curs-titol');
         if(tituloEl) tituloEl.innerText = state.curso.titol;
 
-        let html = '';
+        // --- BOTÓN DE MODO PROFESOR ---
+        let html = `
+            <div style="margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid #eee; text-align:center;">
+                <label style="font-size:0.85rem; cursor:pointer; user-select:none; display:flex; align-items:center; justify-content:center; gap:10px;">
+                    <input type="checkbox" ${state.godMode ? 'checked' : ''} onchange="toggleGodMode(this)">
+                    <span>🕵️ Mode Professor (Veure tot)</span>
+                </label>
+            </div>
+        `;
+        
+        // --- RENDERIZADO DE MÓDULOS ---
         state.curso.moduls.forEach((mod, idx) => {
             const isLocked = estaBloqueado(idx);
             const lockIcon = isLocked ? '<i class="fa-solid fa-lock"></i>' : '<i class="fa-regular fa-folder-open"></i>';
@@ -93,8 +104,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusColor = modProgreso && modProgreso.aprobado ? 'color:green;' : '';
             const check = modProgreso && modProgreso.aprobado ? '<i class="fa-solid fa-check"></i>' : '';
 
+            // Si estamos en GodMode, pintamos un ojo 👁️ para indicar que está forzado
+            const forcedIcon = (state.godMode && isLocked) ? '<span style="font-size:0.7em; color:orange;">(Forçat)</span>' : '';
+
             html += `<div class="sidebar-module-group">
-                    <span class="sidebar-module-title" style="${statusColor}">${lockIcon} ${mod.titol} ${check}</span>
+                    <span class="sidebar-module-title" style="${statusColor}">
+                        ${lockIcon} ${mod.titol} ${check} ${forcedIcon}
+                    </span>
                     <div class="sidebar-sub-menu">`;
             
             html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
@@ -106,12 +122,18 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `</div></div>`;
         });
 
-        const finalLocked = !puedeHacerExamenFinal();
+        const finalLocked = !puedeHacerExamenFinal() && !state.godMode; // También desbloquea el final
         html += `<div class="sidebar-module-group" style="margin-top:20px; border-top:2px solid var(--brand-blue);">
                 <span class="sidebar-module-title">🎓 Avaluació Final</span>
                 ${renderSubLink(999, 'examen_final', '🏆 Examen Final i Diploma', finalLocked)}
             </div>`;
         indexContainer.innerHTML = html;
+    }
+
+    // Función global para el switch
+    window.toggleGodMode = function(checkbox) {
+        state.godMode = checkbox.checked;
+        renderSidebar(); // Repintar candados
     }
 
     function renderSubLink(modIdx, viewName, label, locked) {

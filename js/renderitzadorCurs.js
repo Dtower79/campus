@@ -1,27 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // ------------------------------------------------------------------------
-    // CONFIGURACIÓN Y ESTADO
-    // ------------------------------------------------------------------------
     const PARAMS = new URLSearchParams(window.location.search);
     const SLUG = PARAMS.get('slug');
     const USER = JSON.parse(localStorage.getItem('user'));
     const TOKEN = localStorage.getItem('jwt');
 
     let state = {
-        matriculaId: null,
-        curso: null,
-        progreso: {},
-        currentModuleIndex: 0,
-        currentView: 'teoria', 
-        respuestasTemp: {},
-        testStartTime: 0,
-        testEnCurso: false
+        matriculaId: null, curso: null, progreso: {},
+        currentModuleIndex: 0, currentView: 'teoria', 
+        respuestasTemp: {}, testStartTime: 0, testEnCurso: false
     };
 
     if (!SLUG) return;
-    if (!USER || !TOKEN) {
-        alert("Sessió caducada."); window.location.href = 'index.html'; return;
-    }
+    if (!USER || !TOKEN) { alert("Sessió caducada."); window.location.href = 'index.html'; return; }
 
     init();
 
@@ -80,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function estaBloqueado(indexModulo) {
         if (indexModulo === 0) return false;
         const moduloAnterior = state.progreso.modulos[indexModulo - 1];
-        // Protección por si el JSON es antiguo
         if (!moduloAnterior) return false; 
         return !moduloAnterior.aprobado;
     }
@@ -90,9 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return state.progreso.modulos.every(m => m.aprobado === true);
     }
 
-    // ------------------------------------------------------------------------
-    // RENDER SIDEBAR
-    // ------------------------------------------------------------------------
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
         const tituloEl = document.getElementById('curs-titol');
@@ -140,37 +126,25 @@ document.addEventListener('DOMContentLoaded', () => {
         state.currentModuleIndex = idx;
         state.currentView = view;
         state.respuestasTemp = {}; 
-        state.testEnCurso = false; // Reset al cambiar de vista
+        state.testEnCurso = false; 
         renderSidebar();
         renderMainContent();
         window.scrollTo(0,0);
     }
 
-    // ------------------------------------------------------------------------
-    // MAIN CONTENT
-    // ------------------------------------------------------------------------
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
         gridRight.innerHTML = ''; 
 
-        if (state.currentView === 'examen_final') {
-            renderExamenFinal(container);
-            return;
-        }
+        if (state.currentView === 'examen_final') { renderExamenFinal(container); return; }
 
         const mod = state.curso.moduls[state.currentModuleIndex];
-        
-        if (state.currentView === 'teoria') {
-            renderTeoria(container, mod);
-        } else if (state.currentView === 'flashcards') {
-            renderFlashcards(container, mod.targetes_memoria);
-        } else if (state.currentView === 'test') {
-            if (state.testEnCurso) {
-                renderTestQuestions(container, mod, state.currentModuleIndex);
-            } else {
-                renderTestIntro(container, mod, state.currentModuleIndex);
-            }
+        if (state.currentView === 'teoria') renderTeoria(container, mod);
+        else if (state.currentView === 'flashcards') renderFlashcards(container, mod.targetes_memoria);
+        else if (state.currentView === 'test') {
+            if (state.testEnCurso) renderTestQuestions(container, mod, state.currentModuleIndex);
+            else renderTestIntro(container, mod, state.currentModuleIndex);
         }
     }
 
@@ -178,26 +152,20 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = `<h2>${mod.titol}</h2>`;
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
         
-        // --- LÓGICA PDF HÍBRIDA (CLOUDINARY + LOCAL) ---
         if (mod.material_pdf) {
             const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
             if(archivos.length > 0) {
                 html += `<div class="materials-section"><span class="materials-title">Material Descarregable</span>`;
                 archivos.forEach(a => {
+                    // --- LÓGICA ROBUSTA PARA URL PDF ---
                     let pdfUrl = a.url;
-                    
-                    // Si NO empieza por http (es decir, no es Cloudinary ni S3), es local
+                    // Si NO es Cloudinary (no empieza por http), es ruta relativa de Koyeb
                     if (!pdfUrl.startsWith('http')) {
                         try {
-                            // Extraemos solo el dominio (ej: https://app.koyeb.com)
-                            // Esto elimina cualquier /api que sobre
-                            const dominioBase = new URL(STRAPI_URL).origin;
+                            const dominioBase = new URL(STRAPI_URL).origin; // Saca https://...koyeb.app (sin /api)
                             pdfUrl = `${dominioBase}${pdfUrl}`;
-                        } catch (e) {
-                            console.warn("URL Base invàlida, usant relativa");
-                        }
+                        } catch (e) { pdfUrl = a.url; }
                     }
-
                     html += `<a href="${pdfUrl}" target="_blank" class="btn-pdf"><i class="fa-solid fa-file-pdf"></i> ${a.name}</a>`;
                 });
                 html += `</div>`;
@@ -233,10 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('fc-current').innerText = newIndex + 1;
     }
 
-    // ------------------------------------------------------------------------
-    // TEST LÓGICA
-    // ------------------------------------------------------------------------
-    
     function renderTestIntro(container, mod, modIdx) {
         const progreso = state.progreso.modulos[modIdx] || { aprobado: false, intentos: 0, nota: 0 };
         
@@ -248,7 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
              </div>`;
              return;
         }
-
         if (progreso.intentos >= 2) {
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;">
                 <h2 style="color:red">Bloquejat ⛔</h2>
@@ -257,43 +220,26 @@ document.addEventListener('DOMContentLoaded', () => {
              </div>`;
              return;
         }
-
-        container.innerHTML = `
-            <div class="dashboard-card" style="text-align:center; padding: 40px;">
+        container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;">
                 <h2>📝 Test d'Avaluació: ${mod.titol}</h2>
-                <p style="font-size:1.1rem; margin-top:10px;">Estàs a punt de començar l'avaluació d'aquest mòdul.</p>
                 <div style="display:inline-block; text-align:left; background:#f8f9fa; padding:20px; border-radius:8px; margin:20px 0;">
-                    <p><i class="fa-solid fa-circle-check" style="color:green"></i> <strong>Aprovat:</strong> 70% d'encerts o més.</p>
-                    <p><i class="fa-solid fa-clock"></i> <strong>Temps:</strong> El temps quedarà registrat.</p>
+                    <p><i class="fa-solid fa-circle-check" style="color:green"></i> <strong>Aprovat:</strong> 70% d'encerts.</p>
                     <p><i class="fa-solid fa-rotate-right"></i> <strong>Intent:</strong> ${progreso.intentos + 1} de 2.</p>
-                </div>
-                <br>
-                <button class="btn-primary" style="max-width:300px; font-size:1.2rem;" onclick="iniciarTest()">
-                    COMENÇAR EL TEST
-                </button>
-            </div>
-        `;
+                </div><br>
+                <button class="btn-primary" style="max-width:300px; font-size:1.2rem;" onclick="iniciarTest()">COMENÇAR EL TEST</button>
+            </div>`;
     }
 
-    window.iniciarTest = function() {
-        state.testEnCurso = true;
-        state.testStartTime = Date.now();
-        renderMainContent(); 
-    }
+    window.iniciarTest = function() { state.testEnCurso = true; state.testStartTime = Date.now(); renderMainContent(); }
 
     function renderTestQuestions(container, mod, modIdx) {
         const gridRight = document.getElementById('quiz-grid');
         gridRight.innerHTML = '';
-
-        if (!mod.preguntes || mod.preguntes.length === 0) {
-            container.innerHTML = '<p>No hi ha preguntes.</p>'; return;
-        }
+        if (!mod.preguntes || mod.preguntes.length === 0) { container.innerHTML = '<p>No hi ha preguntes.</p>'; return; }
 
         mod.preguntes.forEach((p, i) => {
             const div = document.createElement('div');
-            div.className = 'grid-item';
-            div.id = `grid-q-${i}`;
-            div.innerText = i + 1;
+            div.className = 'grid-item'; div.id = `grid-q-${i}`; div.innerText = i + 1;
             div.onclick = () => document.getElementById(`card-q-${i}`).scrollIntoView({behavior:'smooth', block:'center'});
             gridRight.appendChild(div);
         });
@@ -301,22 +247,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = `<h3>Test en Curs...</h3>`;
         mod.preguntes.forEach((preg, idx) => {
             const qId = `q-${idx}`;
-            html += `<div class="question-card" id="card-${qId}">
-                    <div class="q-header">Pregunta ${idx + 1}</div>
-                    <div class="q-text">${preg.text}</div>
-                    <div class="options-list">`;
+            html += `<div class="question-card" id="card-${qId}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
             preg.opcions.forEach((opt, oIdx) => {
-                html += `<div class="option-item" onclick="selectTestOption('${qId}', ${oIdx})">
-                        <input type="radio" name="${qId}" value="${oIdx}">
-                        <span>${opt.text}</span></div>`;
+                html += `<div class="option-item" onclick="selectTestOption('${qId}', ${oIdx})"><input type="radio" name="${qId}" value="${oIdx}"><span>${opt.text}</span></div>`;
             });
             html += `</div></div>`;
         });
-
-        html += `<div style="text-align:center; margin-top:30px; padding-bottom:50px;">
-                <button class="btn-primary" onclick="entregarTest(${modIdx})">FINALITZAR I ENTREGAR</button>
-            </div>`;
-        
+        html += `<div style="text-align:center; margin-top:30px; padding-bottom:50px;"><button class="btn-primary" onclick="entregarTest(${modIdx})">FINALITZAR I ENTREGAR</button></div>`;
         container.innerHTML = html;
         window.currentQuestions = mod.preguntes;
     }
@@ -335,9 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.entregarTest = async function(modIdx) {
         if (!confirm("Estàs segur? Aquest intent comptarà.")) return;
-        
-        const endTime = Date.now();
-        const durationMs = endTime - state.testStartTime;
+        const durationMs = Date.now() - state.testStartTime;
         const minutes = Math.floor(durationMs / 60000);
         const seconds = ((durationMs % 60000) / 1000).toFixed(0);
         const tiempoTexto = `${minutes} min ${seconds} s`;
@@ -354,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2));
         const aprobado = nota >= 7.0;
 
-        // Actualizar estado en memoria y Strapi
         if (!state.progreso.modulos) state.progreso.modulos = [];
         if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false };
 
@@ -364,30 +298,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (aprobado) p.modulos[modIdx].aprobado = true;
 
         await guardarProgreso(p);
-
-        state.testEnCurso = false; 
-        state.respuestasTemp = {}; 
+        state.testEnCurso = false; state.respuestasTemp = {}; 
 
         const container = document.getElementById('moduls-container');
         const color = aprobado ? 'green' : 'red';
-        const titulo = aprobado ? 'Test Superat!' : 'No Superat';
-        
-        container.innerHTML = `
-            <div class="dashboard-card" style="border-top:5px solid ${color}; text-align:center;">
-                <h2 style="color:${color}">${titulo}</h2>
-                <div style="font-size:4rem; font-weight:bold; margin:20px 0;">${nota}</div>
-                <p>Temps emprat: <strong>${tiempoTexto}</strong></p>
-                <p>${aprobado ? 'Enhorabona! Pots passar al següent mòdul.' : 'Hauràs de tornar-ho a intentar.'}</p>
-                <button class="btn-primary" onclick="location.reload()">Continuar</button>
-            </div>
-        `;
+        container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid ${color}; text-align:center;">
+            <h2 style="color:${color}">${aprobado ? 'Test Superat!' : 'No Superat'}</h2>
+            <div style="font-size:4rem; font-weight:bold; margin:20px 0;">${nota}</div>
+            <p>Temps emprat: <strong>${tiempoTexto}</strong></p>
+            <button class="btn-primary" onclick="location.reload()">Continuar</button>
+        </div>`;
         document.getElementById('quiz-grid').innerHTML = '';
         renderSidebar(); 
     }
 
-    // ------------------------------------------------------------------------
-    // UTILIDADES
-    // ------------------------------------------------------------------------
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;

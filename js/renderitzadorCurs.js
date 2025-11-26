@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
-    // CONFIGURACIÓN
+    // CONFIGURACIÓN Y ESTADO
     // ------------------------------------------------------------------------
     const PARAMS = new URLSearchParams(window.location.search);
     const SLUG = PARAMS.get('slug');
@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
         currentModuleIndex: 0,
         currentView: 'teoria', 
         respuestasTemp: {},
-        testStartTime: 0 // Para calcular duración
+        testStartTime: 0,
+        testEnCurso: false
     };
 
     if (!SLUG) return;
@@ -79,10 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function estaBloqueado(indexModulo) {
         if (indexModulo === 0) return false;
         const moduloAnterior = state.progreso.modulos[indexModulo - 1];
+        // Protección por si el JSON es antiguo
+        if (!moduloAnterior) return false; 
         return !moduloAnterior.aprobado;
     }
 
     function puedeHacerExamenFinal() {
+        if (!state.progreso.modulos) return false;
         return state.progreso.modulos.every(m => m.aprobado === true);
     }
 
@@ -98,8 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
         state.curso.moduls.forEach((mod, idx) => {
             const isLocked = estaBloqueado(idx);
             const lockIcon = isLocked ? '<i class="fa-solid fa-lock"></i>' : '<i class="fa-regular fa-folder-open"></i>';
-            const statusColor = state.progreso.modulos && state.progreso.modulos[idx].aprobado ? 'color:green;' : '';
-            const check = state.progreso.modulos && state.progreso.modulos[idx].aprobado ? '<i class="fa-solid fa-check"></i>' : '';
+            
+            const modProgreso = state.progreso.modulos ? state.progreso.modulos[idx] : null;
+            const statusColor = modProgreso && modProgreso.aprobado ? 'color:green;' : '';
+            const check = modProgreso && modProgreso.aprobado ? '<i class="fa-solid fa-check"></i>' : '';
 
             html += `<div class="sidebar-module-group">
                     <span class="sidebar-module-title" style="${statusColor}">${lockIcon} ${mod.titol} ${check}</span>
@@ -109,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
                 html += renderSubLink(idx, 'flashcards', '🔄 Targetes de Repàs', isLocked);
             }
-            const intentos = state.progreso.modulos[idx].intentos || 0;
+            const intentos = modProgreso ? modProgreso.intentos : 0;
             html += renderSubLink(idx, 'test', `📝 Test Avaluació (${intentos}/2)`, isLocked);
             html += `</div></div>`;
         });
@@ -134,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.currentModuleIndex = idx;
         state.currentView = view;
         state.respuestasTemp = {}; 
+        state.testEnCurso = false; // Reset al cambiar de vista
         renderSidebar();
         renderMainContent();
         window.scrollTo(0,0);
@@ -145,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
-        gridRight.innerHTML = ''; // Limpiar grid siempre al renderizar
+        gridRight.innerHTML = ''; 
 
         if (state.currentView === 'examen_final') {
             renderExamenFinal(container);
@@ -159,7 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (state.currentView === 'flashcards') {
             renderFlashcards(container, mod.targetes_memoria);
         } else if (state.currentView === 'test') {
-            // Decidir si mostrar intro o el test
             if (state.testEnCurso) {
                 renderTestQuestions(container, mod, state.currentModuleIndex);
             } else {
@@ -171,22 +177,29 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTeoria(container, mod) {
         let html = `<h2>${mod.titol}</h2>`;
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
+        
+        // --- LÓGICA PDF HÍBRIDA (CLOUDINARY + LOCAL) ---
         if (mod.material_pdf) {
             const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
             if(archivos.length > 0) {
                 html += `<div class="materials-section"><span class="materials-title">Material Descarregable</span>`;
                 archivos.forEach(a => {
-                    let url = a.url;
-    
-                    if (!url.startsWith('http')) {
-                        // CRÍTICO: Si STRAPI_URL acaba en '/api', lo quitamos.
-                        // Los archivos están en "dominio.com/uploads", NO en "dominio.com/api/uploads"
-                        const baseSinApi = STRAPI_URL.replace(/\/api\/?$/, ''); 
-                        url = `${baseSinApi}${url}`;
+                    let pdfUrl = a.url;
+                    
+                    // Si NO empieza por http (es decir, no es Cloudinary ni S3), es local
+                    if (!pdfUrl.startsWith('http')) {
+                        try {
+                            // Extraemos solo el dominio (ej: https://app.koyeb.com)
+                            // Esto elimina cualquier /api que sobre
+                            const dominioBase = new URL(STRAPI_URL).origin;
+                            pdfUrl = `${dominioBase}${pdfUrl}`;
+                        } catch (e) {
+                            console.warn("URL Base invàlida, usant relativa");
+                        }
                     }
 
-                    html += `<a href="${url}" target="_blank" class="btn-pdf"><i class="fa-solid fa-file-pdf"></i> ${a.name}</a>`;
-                });         
+                    html += `<a href="${pdfUrl}" target="_blank" class="btn-pdf"><i class="fa-solid fa-file-pdf"></i> ${a.name}</a>`;
+                });
                 html += `</div>`;
             }
         }
@@ -221,12 +234,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // TEST LÓGICA (INTRO -> PREGUNTAS -> RESULTADO)
+    // TEST LÓGICA
     // ------------------------------------------------------------------------
     
-    // 1. PANTALLA DE INTRODUCCIÓN
     function renderTestIntro(container, mod, modIdx) {
-        const progreso = state.progreso.modulos[modIdx];
+        const progreso = state.progreso.modulos[modIdx] || { aprobado: false, intentos: 0, nota: 0 };
         
         if (progreso.aprobado) {
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;">
@@ -250,13 +262,11 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="dashboard-card" style="text-align:center; padding: 40px;">
                 <h2>📝 Test d'Avaluació: ${mod.titol}</h2>
                 <p style="font-size:1.1rem; margin-top:10px;">Estàs a punt de començar l'avaluació d'aquest mòdul.</p>
-                
                 <div style="display:inline-block; text-align:left; background:#f8f9fa; padding:20px; border-radius:8px; margin:20px 0;">
                     <p><i class="fa-solid fa-circle-check" style="color:green"></i> <strong>Aprovat:</strong> 70% d'encerts o més.</p>
                     <p><i class="fa-solid fa-clock"></i> <strong>Temps:</strong> El temps quedarà registrat.</p>
                     <p><i class="fa-solid fa-rotate-right"></i> <strong>Intent:</strong> ${progreso.intentos + 1} de 2.</p>
                 </div>
-
                 <br>
                 <button class="btn-primary" style="max-width:300px; font-size:1.2rem;" onclick="iniciarTest()">
                     COMENÇAR EL TEST
@@ -265,23 +275,20 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    // 2. INICIAR EL TEST (ACTIVA MODO PREGUNTAS)
     window.iniciarTest = function() {
         state.testEnCurso = true;
         state.testStartTime = Date.now();
-        renderMainContent(); // Vuelve a llamar a render, pero ahora entrará en renderTestQuestions
+        renderMainContent(); 
     }
 
-    // 3. RENDERIZAR PREGUNTAS Y GRID
     function renderTestQuestions(container, mod, modIdx) {
         const gridRight = document.getElementById('quiz-grid');
-        gridRight.innerHTML = ''; // Limpiar por seguridad
+        gridRight.innerHTML = '';
 
         if (!mod.preguntes || mod.preguntes.length === 0) {
             container.innerHTML = '<p>No hi ha preguntes.</p>'; return;
         }
 
-        // Generar Grid Derecho
         mod.preguntes.forEach((p, i) => {
             const div = document.createElement('div');
             div.className = 'grid-item';
@@ -291,7 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
             gridRight.appendChild(div);
         });
 
-        // Generar Preguntas
         let html = `<h3>Test en Curs...</h3>`;
         mod.preguntes.forEach((preg, idx) => {
             const qId = `q-${idx}`;
@@ -317,13 +323,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.selectTestOption = function(qId, valIdx) {
         state.respuestasTemp[qId] = valIdx;
-        // Visual Select
         const card = document.getElementById(`card-${qId}`);
         card.querySelectorAll('.option-item').forEach((el, idx) => {
             if (idx === valIdx) { el.classList.add('selected'); el.querySelector('input').checked = true; } 
             else { el.classList.remove('selected'); el.querySelector('input').checked = false; }
         });
-        // Visual Grid
         const gridIdx = qId.split('-')[1];
         const gridItem = document.getElementById(`grid-q-${gridIdx}`);
         if(gridItem) gridItem.classList.add('answered');
@@ -332,7 +336,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.entregarTest = async function(modIdx) {
         if (!confirm("Estàs segur? Aquest intent comptarà.")) return;
         
-        // CÁLCULO DE TIEMPO
         const endTime = Date.now();
         const durationMs = endTime - state.testStartTime;
         const minutes = Math.floor(durationMs / 60000);
@@ -351,7 +354,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2));
         const aprobado = nota >= 7.0;
 
-        // ACTUALIZAR ESTADO
+        // Actualizar estado en memoria y Strapi
+        if (!state.progreso.modulos) state.progreso.modulos = [];
+        if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false };
+
         const p = state.progreso;
         p.modulos[modIdx].intentos += 1;
         p.modulos[modIdx].nota = Math.max(p.modulos[modIdx].nota, nota);
@@ -359,10 +365,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         await guardarProgreso(p);
 
-        state.testEnCurso = false; // Salimos del modo test
-        state.respuestasTemp = {}; // Limpiamos
+        state.testEnCurso = false; 
+        state.respuestasTemp = {}; 
 
-        // PANTALLA DE RESULTADO
         const container = document.getElementById('moduls-container');
         const color = aprobado ? 'green' : 'red';
         const titulo = aprobado ? 'Test Superat!' : 'No Superat';
@@ -377,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         document.getElementById('quiz-grid').innerHTML = '';
-        renderSidebar(); // Actualizar candados
+        renderSidebar(); 
     }
 
     // ------------------------------------------------------------------------
@@ -402,7 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderExamenFinal(container) {
-        // ... (Tu código de examen final existente o el simulador)
-        container.innerHTML = '<h3>Examen Final en construcción...</h3>';
+        container.innerHTML = '<div class="dashboard-card"><h3>Examen Final en construcción...</h3></div>';
     }
 });

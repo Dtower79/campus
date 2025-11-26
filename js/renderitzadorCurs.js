@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
-        
         if (Array.isArray(content)) {
             return content.map(block => {
                 if (block.type === 'paragraph' && block.children) {
@@ -49,10 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
         respuestasTemp: {},
         testStartTime: 0,
         testEnCurso: false,
-        godMode: false 
+        godMode: false,
+        preguntasExamenFinal: [] 
     };
 
-    // Si no hay slug, no hacemos nada (el index.html gestiona el login/dashboard)
     if (!SLUG) return; 
 
     if (!USER || !TOKEN) {
@@ -104,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `populate[curs][populate][moduls][populate][preguntes][populate][opcions]=true`, 
             `populate[curs][populate][moduls][populate][material_pdf]=true`,
             `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
+            `populate[curs][populate][examen_final][populate][opcions]=true`, // <--- ESTA LÍNEA ES CRÍTICA
             `populate[curs][populate][imatge]=true`
         ].join('&');
 
@@ -367,6 +367,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('fc-current').innerText = newIndex + 1;
     }
 
+    // ------------------------------------------------------------------------
+    // TESTS MODULO
+    // ------------------------------------------------------------------------
     function renderTestIntro(container, mod, modIdx) {
         const progreso = state.progreso.modulos[modIdx] || { aprobado: false, intentos: 0, nota: 0 };
         
@@ -394,11 +397,13 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="dashboard-card" style="text-align:center; padding: 40px;">
                 <h2>📝 Test d'Avaluació: ${mod.titol}</h2>
                 <p style="font-size:1.1rem; margin-top:10px;">Estàs a punt de començar l'avaluació d'aquest mòdul.</p>
+                
                 <div style="display:inline-block; text-align:left; background:#f8f9fa; padding:20px; border-radius:8px; margin:20px 0;">
                     <p><i class="fa-solid fa-circle-check" style="color:green"></i> <strong>Aprovat:</strong> 70% d'encerts o més.</p>
                     <p><i class="fa-solid fa-clock"></i> <strong>Temps:</strong> El temps quedarà registrat.</p>
                     <p><i class="fa-solid fa-rotate-right"></i> <strong>Intent:</strong> ${progreso.intentos + 1} de 2.</p>
                 </div>
+
                 <br>
                 <button class="btn-primary" style="max-width:300px; font-size:1.2rem;" onclick="iniciarTest()">
                     COMENÇAR EL TEST
@@ -499,6 +504,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Actualizar Estado
         if (!state.progreso.modulos) state.progreso.modulos = [];
+        // Aseguramos que existe el objeto
         if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false };
 
         const p = state.progreso;
@@ -529,17 +535,91 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSidebar(); 
     }
 
+    // ------------------------------------------------------------------------
+    // 7. EXAMEN FINAL (NUEVA LÓGICA)
+    // ------------------------------------------------------------------------
     function renderExamenFinal(container) {
-        container.innerHTML = '<div class="dashboard-card"><h3>Examen Final en construcción...</h3><p>Aquí implementarem les preguntes aleatòries properament.</p></div>';
+        if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
+        const finalData = state.progreso.examen_final;
+
+        if (finalData.aprobado) {
+             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h1 style="color:green;">🎉 ENHORABONA!</h1><p>Curs Completat.</p><div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div><button class="btn-primary" onclick="imprimirDiploma('${finalData.nota}')">Descarregar Diploma</button></div>`;
+             return;
+        }
+        if (finalData.intentos >= 2 && !state.godMode) {
+             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Has esgotat els 2 intents.</p><button class="btn-primary" onclick="window.location.href='mailto:sicap@sicap.cat'">Contactar Secretaria</button></div>`;
+             return;
+        }
+        if (state.testEnCurso) {
+            renderFinalQuestions(container);
+        } else {
+            container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2 style="color:var(--brand-blue);">🏆 Examen Final</h2><p>Preguntes específiques més difícils.</p><div style="background:#f8f9fa; padding:20px; margin:20px 0;"><p>70% per aprovar. Intent ${finalData.intentos + 1} de 2.</p></div><button class="btn-primary" style="max-width:350px; font-size:1.3rem;" onclick="iniciarExamenFinal()">COMENÇAR EXAMEN FINAL</button></div>`;
+        }
     }
 
-    // ------------------------------------------------------------------------
-    // DIPLOMA
-    // ------------------------------------------------------------------------
+    window.iniciarExamenFinal = function() {
+        // USAMOS LAS PREGUNTAS DEL CAMPO 'EXAMEN_FINAL'
+        if (!state.curso.examen_final || state.curso.examen_final.length === 0) {
+            alert("Error: No s'han carregat preguntes per l'examen final. Revisa Strapi.");
+            return;
+        }
+        // BARAJAR (SHUFFLE)
+        state.preguntasExamenFinal = [...state.curso.examen_final].sort(() => 0.5 - Math.random());
+        
+        state.testEnCurso = true;
+        state.testStartTime = Date.now();
+        state.respuestasTemp = {};
+        renderMainContent();
+    }
+
+    function renderFinalQuestions(container) {
+        const gridRight = document.getElementById('quiz-grid'); gridRight.innerHTML = '';
+        state.preguntasExamenFinal.forEach((p, i) => { const div = document.createElement('div'); div.className = 'grid-item'; div.id = `grid-final-q-${i}`; div.innerText = i + 1; div.onclick = () => document.getElementById(`card-final-${i}`).scrollIntoView({behavior:'smooth', block:'center'}); gridRight.appendChild(div); });
+
+        let html = `<h3 style="color:var(--brand-red);">Examen Final en Curs...</h3>`;
+        state.preguntasExamenFinal.forEach((preg, idx) => {
+            const qId = `final-${idx}`;
+            html += `<div class="question-card" id="card-final-${idx}"><div class="q-header" style="background:#333; color:white;">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            preg.opcions.forEach((opt, oIdx) => { html += `<div class="option-item" onclick="selectFinalOption('${qId}', ${oIdx})"><input type="radio" name="${qId}" value="${oIdx}"><span>${opt.text}</span></div>`; });
+            html += `</div></div>`;
+        });
+        html += `<div style="text-align:center; margin-top:40px; padding-bottom:60px;"><button class="btn-primary" onclick="entregarExamenFinal()">ENTREGAR EXAMEN</button></div>`;
+        container.innerHTML = html;
+    }
+
+    window.selectFinalOption = function(qId, valIdx) {
+        state.respuestasTemp[qId] = valIdx;
+        const idx = qId.split('-')[1]; const card = document.getElementById(`card-final-${idx}`);
+        card.querySelectorAll('.option-item').forEach((el, i) => { if (i === valIdx) { el.classList.add('selected'); el.querySelector('input').checked = true; } else { el.classList.remove('selected'); el.querySelector('input').checked = false; } });
+        document.getElementById(`grid-final-q-${idx}`).classList.add('answered');
+    }
+
+    window.entregarExamenFinal = async function() {
+        if (!confirm("Segur que vols entregar?")) return;
+        const preguntas = state.preguntasExamenFinal; let aciertos = 0;
+        preguntas.forEach((preg, idx) => { const qId = `final-${idx}`; const userRes = state.respuestasTemp[qId]; const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta); if (userRes === correctaIdx) aciertos++; });
+        
+        const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2));
+        const aprobado = nota >= 7.0;
+
+        state.progreso.examen_final.intentos += 1;
+        state.progreso.examen_final.nota = Math.max(state.progreso.examen_final.nota, nota);
+        if (aprobado) state.progreso.examen_final.aprobado = true;
+
+        const payload = { data: { progres_detallat: state.progreso } };
+        if (aprobado) { payload.data.estat = 'completat'; payload.data.nota_final = nota; }
+
+        await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload)
+        });
+
+        state.testEnCurso = false;
+        renderExamenFinal(document.getElementById('moduls-container'));
+        document.getElementById('quiz-grid').innerHTML = '';
+    }
+
     window.imprimirDiploma = function(nota) {
-        const nombreCurso = state.curso.titol;
-        const fechaHoy = new Date().toLocaleDateString('ca-ES');
-        const alumno = USER;
+        const nombreCurso = state.curso.titol; const fechaHoy = new Date().toLocaleDateString('ca-ES'); const alumno = USER;
         const ventana = window.open('', '_blank');
         ventana.document.write(`<html><head><title>Diploma</title><style>body{font-family:'Georgia',serif;text-align:center;padding:40px;}.marco{border:10px double #004B87;padding:50px;height:85vh;display:flex;flex-direction:column;justify-content:center;align-items:center;}h1{color:#004B87;font-size:3rem;}h2{font-size:2.2rem;}p{font-size:1.2rem;}.firmas{margin-top:60px;display:flex;justify-content:space-around;width:100%;}.firma{border-top:1px solid #000;width:250px;padding-top:10px;}</style></head><body><div class="marco"><img src="img/logo-sicap.png" style="max-width:180px;"><h1>CERTIFICAT D'APROFITAMENT</h1><p>SICAP certifica que</p><h3>${alumno.nombre} ${alumno.apellidos || ''}</h3><p>ha superat el curs:</p><h2>${nombreCurso}</h2><p>Nota: ${nota} | Data: ${fechaHoy}</p><div class="firmas"><div class="firma">Secretari General</div><div class="firma">Secretari de Formació</div></div></div><script>window.onload=function(){window.print();}</script></body></html>`);
         ventana.document.close();

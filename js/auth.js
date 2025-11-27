@@ -25,6 +25,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if(errorMsg) errorMsg.style.display = 'none';
         };
     }
+    
+    // AUTO-FORMATO DNI (Punto 2)
+    const inputsDNI = [document.getElementById('login-dni'), document.getElementById('reg-dni')];
+    inputsDNI.forEach(input => {
+        if(input) {
+            input.addEventListener('input', (e) => {
+                // Elimina espacios y pone mayúsculas en tiempo real
+                e.target.value = e.target.value.replace(/\s/g, '').toUpperCase();
+            });
+        }
+    });
 
     // LOGIN
     if (loginForm) {

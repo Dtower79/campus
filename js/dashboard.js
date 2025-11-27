@@ -6,11 +6,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// NUEVO: Función para mostrar Modal
+window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
+    const modal = document.getElementById('custom-modal');
+    document.getElementById('modal-title').innerText = titulo;
+    document.getElementById('modal-msg').innerText = mensaje;
+    
+    // Botones
+    const btnConfirm = document.getElementById('modal-btn-confirm');
+    const btnCancel = document.getElementById('modal-btn-cancel');
+
+    // Limpiar eventos anteriores para evitar duplicados
+    const newConfirm = btnConfirm.cloneNode(true);
+    const newCancel = btnCancel.cloneNode(true);
+    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+    btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
+    newConfirm.onclick = () => {
+        modal.style.display = 'none';
+        onConfirm();
+    };
+    newCancel.onclick = () => {
+        modal.style.display = 'none';
+    };
+
+    modal.style.display = 'flex';
+};
+
+// MODIFICADO: Logout con Modal (Punto 10)
 window.logoutApp = function() {
-    if(confirm("Segur que vols tancar la sessió?")) {
-        localStorage.clear();
-        window.location.href = 'index.html';
-    }
+    window.mostrarModalConfirmacion(
+        "Tancar Sessió", 
+        "Estàs segur que vols sortir del campus?", 
+        () => {
+            localStorage.clear(); // Ojo: en Bloque 2 guardaremos estado del test aquí
+            window.location.href = 'index.html';
+        }
+    );
+};
+
+// NUEVO: Navegación sin recarga (Punto 23)
+window.tornarAlDashboard = function() {
+    // Ocultar vista examen
+    document.getElementById('exam-view').style.display = 'none';
+    // Mostrar dashboard
+    document.getElementById('dashboard-view').style.display = 'block';
+    // Limpiar URL param (visual)
+    window.history.pushState({}, document.title, window.location.pathname);
+    // Recargar lista de cursos por si hubo progreso
+    if(window.loadUserCourses) window.loadUserCourses();
+    window.scrollTo(0,0);
 };
 
 window.appIniciada = false;

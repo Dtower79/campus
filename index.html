@@ -201,7 +201,9 @@
                 <div class="sidebar-header"><h3>Índex del Curs</h3></div>
                 <div id="course-index"></div>
                 <div style="margin-top:20px;">
-                    <a href="index.html" class="btn-small"><i class="fa-solid fa-arrow-left"></i> Tornar als Cursos</a>
+                    <a href="#" onclick="window.tornarAlDashboard(); return false;" class="btn-small">
+                        <i class="fa-solid fa-arrow-left"></i> Tornar als Cursos
+                    </a>
                 </div>
             </aside>
             <main class="main-content">
@@ -218,6 +220,19 @@
                 <div id="quiz-grid" class="grid-container"></div>
                 <div id="final-score-card" style="display: none;"></div>
             </aside>
+        </div>
+    </div>
+    
+    <!-- MODAL GENÉRICO (Confirmación) -->
+    <div id="custom-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-icon"><i class="fa-solid fa-circle-question"></i></div>
+            <h3 id="modal-title">Confirmació</h3>
+            <p id="modal-msg">Estàs segur?</p>
+            <div class="modal-actions">
+                <button id="modal-btn-cancel" class="btn-secondary">Cancel·lar</button>
+                <button id="modal-btn-confirm" class="btn-primary">Confirmar</button>
+            </div>
         </div>
     </div>
 

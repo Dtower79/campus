@@ -320,41 +320,39 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
+    // js/renderitzadorCurs.js
+
     function renderFlashcards(container, cards) {
         if (!cards || cards.length === 0) {
             container.innerHTML = '<p>No hi ha targetes disponibles per aquest mòdul.</p>'; return;
         }
 
-        let html = `<h3>Targetes de Repàs</h3><div class="flashcards-wrapper">`;
+        let html = `<h3>Targetes de Repàs</h3>`;
+        
+        // Lógica: Si hay muchas (>12), podríamos paginar, pero CSS Grid es mejor para "PC Grid".
+        // El requisito dice "PC mostrar Grid (2 filas de 3)". CSS Grid responsive hace esto automáticamente.
+        
+        html += `<div class="flashcards-grid-view">`;
         
         cards.forEach((card, idx) => {
-            const active = idx === 0 ? 'active' : '';
             html += `
-                <div class="flashcard-slide ${active}" id="fc-${idx}">
-                    <div class="flashcard" onclick="this.classList.toggle('flipped')">
-                        <div class="flashcard-inner">
-                            <div class="flashcard-front">
-                                <h4>${card.pregunta}</h4>
-                                <small><i class="fa-solid fa-rotate"></i> Clica per girar</small>
-                            </div>
-                            <div class="flashcard-back">
-                                <p>${card.resposta}</p>
-                            </div>
+                <div class="flashcard" onclick="this.classList.toggle('flipped')">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <h4 style="font-size:1.2rem; margin-bottom:10px;">Pregunta ${idx + 1}</h4>
+                            <div style="font-weight:500;">${card.pregunta}</div>
+                            <small style="margin-top:auto;"><i class="fa-solid fa-rotate"></i> Girar</small>
+                        </div>
+                        <div class="flashcard-back">
+                            <p>${card.resposta}</p>
                         </div>
                     </div>
                 </div>
             `;
         });
 
-        html += `
-            <button class="carousel-btn carousel-prev" onclick="moveCarousel(-1)"><i class="fa-solid fa-chevron-left"></i></button>
-            <button class="carousel-btn carousel-next" onclick="moveCarousel(1)"><i class="fa-solid fa-chevron-right"></i></button>
-            <div class="carousel-counter"><span id="fc-current">1</span> / ${cards.length}</div>
-        </div>`;
-
+        html += `</div>`;
         container.innerHTML = html;
-        window.currentFcIndex = 0;
-        window.totalFc = cards.length;
     }
 
     window.moveCarousel = function(dir) {

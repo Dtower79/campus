@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 1. SISTEMA DE MODALES (DISEÑO PRO)
+// 1. SISTEMA DE MODALES
 // ==========================================
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
@@ -16,9 +16,8 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    // Resetear estilos y textos
     titleEl.innerText = titulo;
-    titleEl.style.color = ""; 
+    titleEl.style.color = "var(--brand-blue)"; 
     msgEl.innerText = mensaje;
     
     btnConfirm.innerText = "Confirmar";
@@ -26,7 +25,6 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     btnConfirm.style.background = ""; 
     btnCancel.style.display = "block"; 
 
-    // Clonar para limpiar eventos
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
@@ -98,7 +96,7 @@ window.appIniciada = false;
 window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
-    console.log("🚀 Iniciando SICAP App (Dashboard Fix)...");
+    console.log("🚀 Iniciando SICAP App (Fix Redirect & Desc)...");
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
     setTimeout(() => { setupDirectClicks(); }, 100);
 
@@ -236,29 +234,63 @@ window.showView = function(viewName) {
     if(viewName === 'grades') loadGrades();
 };
 
+// --- MEJORA: PARSEADOR DE TEXTO STRAPI AVANZADO (LISTAS Y TEXTO) ---
 function parseStrapiText(content) {
     if (!content) return '';
     if (typeof content === 'string') return content;
+
+    // Si es array (Bloques de Strapi)
     if (Array.isArray(content)) {
         return content.map(block => {
-            if (block.children && Array.isArray(block.children)) {
-                return block.children.map(child => child.text).join('');
+            
+            // 1. Párrafos normales
+            if (block.type === 'paragraph' || !block.type) {
+                return block.children?.map(c => c.text).join('') || '';
             }
+            
+            // 2. Listas (Bullets) - Aquí es donde fallaba antes
+            if (block.type === 'list') {
+                return block.children?.map(item => {
+                    // 'item' es un list-item, que tiene sus propios children
+                    const itemText = item.children?.map(c => c.text).join('') || '';
+                    return '• ' + itemText; // Añadimos viñeta manual
+                }).join('\n'); // Salto de línea entre items de la lista
+            }
+
+            // 3. Encabezados (por si acaso)
+            if (block.type === 'heading') {
+                return (block.children?.map(c => c.text).join('') || '') + '\n';
+            }
+
             return '';
-        }).join(' ');
+        })
+        .filter(text => text.trim() !== '') // Eliminar bloques vacíos
+        .join('\n\n'); // Separar bloques con doble salto
     }
+    
     return '';
 }
 
 function generarHtmlDescripcion(rawText, idUnico) {
     const textoLimpio = parseStrapiText(rawText);
+    
     if (!textoLimpio) return '';
+    
     const MAX_CHARS = 100;
+    
+    // Convertimos saltos de línea (\n) a <br> para que se vea bien en HTML
+    const textoHtmlCompleto = textoLimpio.replace(/\n/g, '<br>');
+
     if (textoLimpio.length <= MAX_CHARS) {
-        return `<div class="course-desc-container"><p class="course-desc">${textoLimpio}</p></div>`;
+        return `<div class="course-desc-container"><p class="course-desc">${textoHtmlCompleto}</p></div>`;
     }
-    const safeFullText = textoLimpio.replace(/"/g, '&quot;');
+    
+    // Guardamos el texto completo (HTML) en el atributo data-full
+    const safeFullText = encodeURIComponent(textoHtmlCompleto);
+    
+    // Texto corto (sin cortar palabras si es posible, pero simple por ahora)
     const textoCorto = textoLimpio.substring(0, MAX_CHARS) + '...';
+    
     return `
         <div class="course-desc-container">
             <p class="course-desc short" id="desc-p-${idUnico}" data-full="${safeFullText}">${textoCorto}</p>
@@ -270,13 +302,21 @@ function generarHtmlDescripcion(rawText, idUnico) {
 window.toggleDesc = function(id) {
     const p = document.getElementById(`desc-p-${id}`);
     const btn = document.getElementById(`desc-btn-${id}`);
+    
     if (btn.innerText === 'Mostrar més') {
-        p.innerText = p.getAttribute('data-full'); 
+        // Mostrar completo (decodificando el HTML)
+        p.innerHTML = decodeURIComponent(p.getAttribute('data-full'));
         p.classList.remove('short');
         btn.innerText = 'Mostrar menys';
     } else {
-        const full = p.getAttribute('data-full');
-        p.innerText = full.substring(0, 100) + '...';
+        // Mostrar corto (texto plano + ...)
+        // Recalculamos el corto desde el full text (quitando etiquetas BR para contar chars)
+        const fullHtml = decodeURIComponent(p.getAttribute('data-full'));
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = fullHtml;
+        const plainText = tempDiv.textContent || tempDiv.innerText || "";
+        
+        p.innerText = plainText.substring(0, 100) + '...';
         p.classList.add('short');
         btn.innerText = 'Mostrar més';
     }
@@ -338,7 +378,6 @@ async function renderCoursesLogic(viewMode) {
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES');
 
-            // --- BADGE OVERLAY ---
             let badgeOverlay = '';
             if (esFuturo) {
                 badgeOverlay = `<span class="course-badge" style="background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
@@ -348,7 +387,6 @@ async function renderCoursesLogic(viewMode) {
                 badgeOverlay = `<span class="course-badge">${curs.etiqueta}</span>`;
             }
 
-            // --- ETIQUETAS CUERPO ---
             let tagsHtml = '<div class="course-tags">';
             
             if (!esFuturo) {
@@ -415,7 +453,7 @@ window.alertFechaFutura = function(titol, fecha) {
 };
 
 // ==========================================
-// 3. MATRÍCULA REAL (CORREGIDA)
+// 3. MATRÍCULA REAL (CORREGIDA REDIRECCIÓN)
 // ==========================================
 window.solicitarMatricula = function(courseId, courseTitle) {
     window.mostrarModalConfirmacion(
@@ -453,14 +491,15 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                 });
 
                 if (res.ok) {
-                    window.location.reload();
+                    // CIERRA MODAL Y REDIRIGE AL DASHBOARD SIN RECARGAR LA PÁGINA
+                    document.getElementById('custom-modal').style.display = 'none';
+                    window.showView('dashboard'); // <-- AQUÍ ESTÁ EL CAMBIO CLAVE
                 } else {
                     const err = await res.json();
                     document.getElementById('custom-modal').style.display = 'none';
                     setTimeout(() => {
                         window.mostrarModalError(
-                            "Error al matricular: " + (err.error?.message || "Dades incorrectes (400)"),
-                            () => { window.showView('home'); } 
+                            "Error al matricular: " + (err.error?.message || "Dades incorrectes (400)")
                         );
                     }, 200);
                 }
@@ -468,18 +507,14 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                 console.error(e);
                 document.getElementById('custom-modal').style.display = 'none';
                 setTimeout(() => {
-                    window.mostrarModalError(
-                        "Error de connexió amb el servidor.",
-                        () => { window.showView('home'); } 
-                    );
+                    window.mostrarModalError("Error de connexió amb el servidor.");
                 }, 200);
             }
         }
     );
 };
 
-// --- ALIAS CRÍTICOS PARA LA NAVEGACIÓN ---
-// ESTAS DOS LÍNEAS SON LAS QUE FALTABAN Y CAUSABAN EL ERROR EN CONSOLA
+// --- ALIAS CRÍTICOS ---
 window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
 window.loadCatalog = async function() { await renderCoursesLogic('home'); };
 

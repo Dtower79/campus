@@ -7,8 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 1. SISTEMA DE MODALES (DISEÑO PRO)
+// 1. SISTEMA DE MODALES
 // ==========================================
+
+// Modal de Confirmación (Dos botones)
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -16,17 +18,17 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    // Resetear estilos y textos
+    // Resetear estados
     titleEl.innerText = titulo;
-    titleEl.style.color = ""; // Reset color por si hubo error antes
+    titleEl.style.color = "var(--brand-blue)"; 
     msgEl.innerText = mensaje;
     
     btnConfirm.innerText = "Confirmar";
     btnConfirm.disabled = false;
-    btnConfirm.style.background = ""; // Reset color
-    btnCancel.style.display = "block"; // Asegurar que se ve
+    btnConfirm.style.background = "var(--brand-blue)";
+    btnCancel.style.display = "block"; // Mostrar cancelar
 
-    // Clonar para limpiar eventos
+    // Clonar para limpiar eventos previos
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
@@ -43,25 +45,34 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     modal.style.display = 'flex';
 };
 
-// HELPER: Modal de Error Bonito (Dentro de dashboard.js)
-window.mostrarModalError = function(mensaje) {
+// Modal de Error/Info (Un botón) - AHORA CON REDIRECCIÓN
+window.mostrarModalError = function(mensaje, onCloseAction) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
     titleEl.innerText = "Atenció";
-    titleEl.style.color = "var(--brand-red)"; // Título rojo explícito en error
+    titleEl.style.color = "var(--brand-red)"; 
     document.getElementById('modal-msg').innerText = mensaje;
 
-    btnCancel.style.display = 'none'; 
+    btnCancel.style.display = 'none'; // Ocultar cancelar
     btnConfirm.innerText = "Entesos";
-    btnConfirm.style.background = "var(--brand-red)"; // Botón rojo en error
+    btnConfirm.style.background = "var(--brand-red)"; 
+    btnConfirm.disabled = false;
     
+    // Clonar evento
     const newConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     
-    newConfirm.onclick = () => modal.style.display = 'none';
+    // Al hacer click en Entesos
+    newConfirm.onclick = () => {
+        modal.style.display = 'none';
+        if (onCloseAction) {
+            onCloseAction(); // Ejecutar redirección si existe
+        }
+    };
+
     modal.style.display = 'flex';
 };
 
@@ -92,7 +103,7 @@ window.appIniciada = false;
 window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
-    console.log("🚀 Iniciando SICAP App (Bloque 2 Final)...");
+    console.log("🚀 Iniciando SICAP App (Final Fixes)...");
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
     setTimeout(() => { setupDirectClicks(); }, 100);
 
@@ -332,6 +343,7 @@ async function renderCoursesLogic(viewMode) {
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES');
 
+            // --- BADGE OVERLAY (Sobre la imagen) ---
             let badgeOverlay = '';
             if (esFuturo) {
                 badgeOverlay = `<span class="course-badge" style="background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
@@ -341,13 +353,20 @@ async function renderCoursesLogic(viewMode) {
                 badgeOverlay = `<span class="course-badge">${curs.etiqueta}</span>`;
             }
 
-            let dateBodyInfo = '';
+            // --- ETIQUETAS CUERPO (NUEVO DISEÑO UNIFICADO) ---
+            let tagsHtml = '<div class="course-tags">';
+            
+            // 1. Etiqueta Fecha (Solo si ya ha empezado)
             if (!esFuturo) {
-                dateBodyInfo = `<div class="badge-date"><i class="fa-solid fa-check"></i> Iniciat: ${dateStr}</div>`;
+                tagsHtml += `<span class="tag tag-date"><i class="fa-solid fa-check"></i> Iniciat: ${dateStr}</span>`;
             }
+
+            // 2. Etiqueta Matriculado (Solo en catálogo si ya lo tienes)
             if (curs._matricula && viewMode === 'home') {
-                dateBodyInfo += ` <span class="badge-role" style="background:#e3f2fd; color:#0d47a1; margin-left:5px;">Ja matriculat</span>`;
+                tagsHtml += `<span class="tag tag-status"><i class="fa-solid fa-user-check"></i> Ja matriculat</span>`;
             }
+            
+            tagsHtml += '</div>';
 
             const descHtml = generarHtmlDescripcion(curs.descripcio || curs.resum, index);
             const horasHtml = `<div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'Durada no especificada'}</div>`;
@@ -384,7 +403,7 @@ async function renderCoursesLogic(viewMode) {
                         <h3 class="course-title">${curs.titol}</h3>
                         ${horasHtml}
                         ${descHtml}
-                        ${dateBodyInfo}
+                        ${tagsHtml}
                         ${progressHtml}
                         ${actionHtml}
                     </div>
@@ -397,9 +416,6 @@ async function renderCoursesLogic(viewMode) {
         list.innerHTML = '<p style="color:red;">Error de connexió al carregar cursos.</p>'; 
     }
 }
-
-async function loadUserCourses() { await renderCoursesLogic('dashboard'); }
-async function loadCatalog() { await renderCoursesLogic('home'); }
 
 window.alertFechaFutura = function(titol, fecha) {
     window.mostrarModalError(`El curs "${titol}" estarà disponible el ${fecha}. Encara no hi pots accedir.`);
@@ -421,15 +437,17 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                 const user = JSON.parse(localStorage.getItem('user'));
                 const token = localStorage.getItem('jwt');
                 
-                // Payload corregido para Strapi v5
+                const now = new Date().toISOString();
+
+                // PAYLOAD CORREGIDO: 'actiu' en lugar de 'iniciat'
                 const payload = {
                     data: {
                         curs: courseId,
-                        users_permissions_user: Number(user.id), // Aseguramos que sea número
+                        users_permissions_user: Number(user.id),
                         progres: 0,
-                        estat: 'iniciat', // OJO: Si tu Strapi usa 'Iniciat', cambia esto
-                        data_inici: new Date().toISOString(),
-                        progres_detallat: {} // Objeto vacío para el progreso
+                        estat: 'actiu', 
+                        data_inici: now,
+                        progres_detallat: {}
                     }
                 };
 
@@ -446,13 +464,15 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                     window.location.reload();
                 } else {
                     const err = await res.json();
-                    console.error("Error Strapi:", err); // Para depurar en consola
                     
-                    // Cerramos modal de confirmación y mostramos error
+                    // CERRAR MODAL CONFIRMACIÓN
                     document.getElementById('custom-modal').style.display = 'none';
+                    
+                    // MOSTRAR ERROR Y REDIRIGIR AL INICIO AL DARLE A ENTESOS
                     setTimeout(() => {
                         window.mostrarModalError(
-                            "Error al matricular: " + (err.error?.message || "Dades incorrectes (400)")
+                            "Error al matricular: " + (err.error?.message || "Dades incorrectes (400)"),
+                            () => { window.showView('home'); } // Acción al cerrar: Ir al inicio
                         );
                     }, 200);
                 }
@@ -460,7 +480,10 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                 console.error(e);
                 document.getElementById('custom-modal').style.display = 'none';
                 setTimeout(() => {
-                    window.mostrarModalError("Error de connexió amb el servidor.");
+                    window.mostrarModalError(
+                        "Error de connexió amb el servidor.",
+                        () => { window.showView('home'); } // Acción al cerrar
+                    );
                 }, 200);
             }
         }

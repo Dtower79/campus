@@ -347,3 +347,70 @@ ul { list-style: none; padding: 0; margin: 0; }
     .sidebar-left, .sidebar-right, .main-header, .btn-primary { display: none !important; }
     .main-content { width: 100% !important; margin: 0 !important; padding: 0 !important; }
 }
+
+/* ==========================================================================
+   ... (MANTÉN TODO EL CSS ANTERIOR DE MODALES, ETC.) ...
+   ========================================================================== */
+
+/* --- NUEVO: SISTEMA DE ETIQUETAS UNIFICADO (Tags) --- */
+
+/* Contenedor para alinear etiquetas y separarlas */
+.course-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px; /* Separación constante entre etiquetas */
+    margin-bottom: 15px; /* Separación con la barra de progreso */
+    align-items: center;
+}
+
+/* Estilo Base de Etiqueta */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px; /* Redondeado idéntico para todas */
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Etiqueta de Fecha (Gris/Neutra) */
+.tag-date {
+    background-color: #f1f3f5;
+    color: #495057;
+    border: 1px solid #dee2e6;
+}
+
+/* Etiqueta de Estado (Azul Suave) */
+.tag-status {
+    background-color: #e7f5ff;
+    color: #004085;
+    border: 1px solid #b8daff;
+}
+
+/* Etiqueta de Futuro (Amarilla) */
+.tag-future {
+    background-color: #fff9db;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+/* AJUSTES DARK MODE */
+[data-theme="dark"] .tag-date {
+    background-color: #2c2c2c;
+    color: #e0e0e0;
+    border-color: #444;
+}
+[data-theme="dark"] .tag-status {
+    background-color: #0d2b4e; /* Azul oscuro */
+    color: #90caf9;
+    border-color: #1565c0;
+}
+[data-theme="dark"] .tag-future {
+    background-color: #3e320a; /* Amarillo oscuro */
+    color: #ffd700;
+    border-color: #665c20;
+}

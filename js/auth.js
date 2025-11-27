@@ -6,12 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginView = document.getElementById('login-view');
     const registerView = document.getElementById('register-view');
     const errorMsg = document.getElementById('login-error-msg');
+    const forgotLink = document.getElementById('forgot-pass');
 
-    // --- FUNCIÓN INTERNA PARA MOSTRAR MODAL BONITO (Evita alertas feas) ---
+    // --- SISTEMA DE MODALES INTERNO (Para que funcione siempre en Login) ---
     function lanzarModal(titulo, mensaje, esError = true) {
         const modal = document.getElementById('custom-modal');
         if (!modal) {
-            alert(mensaje); // Fallback por si acaso
+            alert(mensaje); // Fallback si no carga el HTML
             return;
         }
         
@@ -20,18 +21,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnConfirm = document.getElementById('modal-btn-confirm');
         const btnCancel = document.getElementById('modal-btn-cancel');
 
-        // Configurar colores
+        // Resetear visualización
         titleEl.innerText = titulo;
         titleEl.style.color = esError ? "var(--brand-red)" : "var(--brand-blue)"; 
         msgEl.innerText = mensaje;
 
-        // Configurar botones
         btnCancel.style.display = 'none'; 
         btnConfirm.innerText = "Entesos";
         btnConfirm.style.background = esError ? "var(--brand-red)" : "var(--brand-blue)"; 
         btnConfirm.disabled = false;
         
-        // Limpiar eventos anteriores del botón
+        // Clonar botón para eliminar eventos antiguos
         const newConfirm = btnConfirm.cloneNode(true);
         btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
         
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.style.display = 'flex';
     }
 
-    // NAVEGACIÓN
+    // --- NAVEGACIÓN ENTRE VISTAS ---
     if (btnShowRegister) {
         btnShowRegister.onclick = (e) => {
             e.preventDefault();
@@ -61,7 +61,21 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // DNI FORMATO
+    // --- LÓGICA "HE OBLIDAT LA CONTRASENYA" ---
+    if(forgotLink) {
+        forgotLink.onclick = (e) => {
+            e.preventDefault();
+            const dniVal = document.getElementById('login-dni').value.trim();
+            
+            if(!dniVal) {
+                lanzarModal("Falta informació", "Per recuperar la contrasenya, primer escriu el teu DNI al camp d'usuari.", true);
+            } else {
+                lanzarModal("Sol·licitud Enviada", `S'han enviat les instruccions de recuperació al correu associat al DNI ${dniVal}.`, false);
+            }
+        }
+    }
+
+    // --- AUTO-FORMATO DNI ---
     const inputsDNI = [document.getElementById('login-dni'), document.getElementById('reg-dni')];
     inputsDNI.forEach(input => {
         if(input) {
@@ -71,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // LOGIN
+    // --- LOGIN ---
     if (loginForm) {
         loginForm.onsubmit = async (e) => {
             e.preventDefault();
@@ -90,10 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.jwt) {
                     localStorage.setItem('jwt', data.jwt);
                     localStorage.setItem('user', JSON.stringify(data.user));
-                    document.getElementById('login-overlay').style.display = 'none';
-                    document.getElementById('app-container').style.display = 'block';
-                    if (window.iniciarApp) window.iniciarApp();
-                    else window.location.reload();
+                    // Redirección limpia
+                    window.location.href = 'index.html'; 
                 } else {
                     lanzarModal("Error d'Accés", "DNI o contrasenya incorrectes.", true);
                 }
@@ -104,13 +116,20 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // REGISTRO
+    // --- REGISTRO ---
     if (registerForm) {
         registerForm.onsubmit = async (e) => {
             e.preventDefault();
             
             const btnSubmit = registerForm.querySelector('button[type="submit"]');
             const originalText = btnSubmit.innerText;
+            
+            // Función para resetear el botón
+            const resetBtn = () => {
+                btnSubmit.innerText = originalText;
+                btnSubmit.disabled = false;
+            };
+
             btnSubmit.innerText = "Validant...";
             btnSubmit.disabled = true;
 
@@ -118,18 +137,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const pass = document.getElementById('reg-pass').value;
             const passConf = document.getElementById('reg-pass-conf').value;
 
-            const resetBtn = () => {
-                btnSubmit.innerText = originalText;
-                btnSubmit.disabled = false;
-            };
-
+            // VALIDACIONES LOCALES
             if (pass !== passConf) { 
                 lanzarModal("Atenció", "Les contrasenyes no coincideixen.", true);
-                resetBtn(); return; 
+                resetBtn(); 
+                return; // Importante: Parar ejecución
             }
             if (pass.length < 6) { 
                 lanzarModal("Atenció", "La contrasenya ha de tenir mínim 6 caràcters.", true);
-                resetBtn(); return; 
+                resetBtn(); 
+                return; 
             }
 
             try {
@@ -200,21 +217,3 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="text-align: center; padding: 20px 0; animation: fadeIn 0.5s;">
                 <i class="fa-solid fa-circle-check" style="font-size: 4rem; color: #28a745; margin-bottom: 20px;"></i>
                 <h3 style="color: var(--brand-blue); margin-bottom: 10px;">Compte Activat!</h3>
-                <p style="color: #666; margin-bottom: 20px;">El teu registre s'ha completat correctament.<br>Ja pots accedir al campus.</p>
-                <button id="btn-success-login" class="btn-login" style="background-color: var(--brand-blue) !important;">
-                    <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sessió
-                </button>
-            </div>
-        `;
-        document.getElementById('btn-success-login').onclick = () => window.location.reload();
-    }
-
-    function mostrarError(msg) {
-        if(errorMsg) {
-            errorMsg.innerText = msg;
-            errorMsg.style.display = 'block';
-        } else {
-            lanzarModal("Error", msg, true);
-        }
-    }
-});

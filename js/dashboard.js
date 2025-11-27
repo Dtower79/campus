@@ -1,17 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Solo iniciamos la APP si hay token.
+    // La lógica de login/registro/recuperar contraseña ahora está aislada en auth.js
     if (localStorage.getItem('jwt')) {
         if (!window.appIniciada) {
             window.iniciarApp();
-        }
-    }
-    
-    // PUNTO 1: Gestión "He oblidat la contrasenya" (Modal Bonito)
-    const forgotLink = document.getElementById('forgot-pass');
-    if(forgotLink) {
-        forgotLink.onclick = (e) => {
-            e.preventDefault();
-            // Usamos la función del modal en lugar del alert feo
-            window.mostrarModalError("S'ha enviat un correu de recuperació a la teva adreça d'afiliació.");
         }
     }
 });

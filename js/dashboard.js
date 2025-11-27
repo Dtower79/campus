@@ -43,6 +43,7 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     modal.style.display = 'flex';
 };
 
+// HELPER: Modal de Error Bonito (Dentro de dashboard.js)
 window.mostrarModalError = function(mensaje) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -50,14 +51,13 @@ window.mostrarModalError = function(mensaje) {
     const btnCancel = document.getElementById('modal-btn-cancel');
 
     titleEl.innerText = "Atenció";
-    titleEl.style.color = "var(--brand-red)"; // Título rojo
+    titleEl.style.color = "var(--brand-red)"; // Título rojo explícito en error
     document.getElementById('modal-msg').innerText = mensaje;
 
-    btnCancel.style.display = 'none'; // Ocultar cancelar
+    btnCancel.style.display = 'none'; 
     btnConfirm.innerText = "Entesos";
-    btnConfirm.style.background = "var(--brand-red)"; // Botón rojo
+    btnConfirm.style.background = "var(--brand-red)"; // Botón rojo en error
     
-    // Clonar evento
     const newConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     

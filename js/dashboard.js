@@ -5,16 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // PUNTO 1: Gestión "He oblidat la contrasenya" (Antes del login)
+    // PUNTO 1: Gestión "He oblidat la contrasenya" (Modal Bonito)
     const forgotLink = document.getElementById('forgot-pass');
     if(forgotLink) {
         forgotLink.onclick = (e) => {
             e.preventDefault();
-            // Usamos un alert simple o inyectamos HTML si queremos ser muy puristas, 
-            // pero como dashboard.js carga el modal system, podemos intentar usarlo si está disponible,
-            // si no, un alert informativo es standard para mocks.
-            alert("S'ha enviat un correu de recuperació a la teva adreça d'afiliació."); 
-            // En un entorno real con Strapi: axios.post('/api/auth/forgot-password', { email: ... })
+            // Usamos la función del modal en lugar del alert feo
+            window.mostrarModalError("S'ha enviat un correu de recuperació a la teva adreça d'afiliació.");
         }
     }
 });
@@ -26,18 +23,16 @@ let inactivityTimer;
 const TIMEOUT_LIMIT = 15 * 60 * 1000; // 15 minutos
 
 function resetInactivityTimer() {
-    if(!localStorage.getItem('jwt')) return; // Si no hay sesión, no hacemos nada
+    if(!localStorage.getItem('jwt')) return; 
     
     clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
-        // Acción al expirar el tiempo
         localStorage.clear();
-        alert("Sessió tancada per inactivitat (15 min)."); // Alert nativo aquí es más seguro para forzar el bloqueo
+        alert("Sessió tancada per inactivitat (15 min)."); // El alert aquí es necesario para bloquear el navegador hasta que el usuario acepte
         window.location.href = 'index.html';
     }, TIMEOUT_LIMIT);
 }
 
-// Escuchar eventos de actividad
 ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
     document.addEventListener(evt, resetInactivityTimer);
 });
@@ -48,7 +43,7 @@ function resetInactivityTimer() {
 // ==========================================
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
-    if(!modal) return; // Seguridad si estamos en login
+    if(!modal) return; 
     const titleEl = document.getElementById('modal-title');
     const msgEl = document.getElementById('modal-msg');
     const btnConfirm = document.getElementById('modal-btn-confirm');
@@ -81,19 +76,20 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
 
 window.mostrarModalError = function(mensaje, onCloseAction) {
     const modal = document.getElementById('custom-modal');
-    if(!modal) { alert(mensaje); return; } // Fallback si el modal no existe en DOM
+    // Fallback si se llama antes de cargar el DOM (raro, pero posible)
+    if(!modal) { console.warn("Modal no cargado:", mensaje); return; }
 
     const titleEl = document.getElementById('modal-title');
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    titleEl.innerText = "Atenció";
-    titleEl.style.color = "var(--brand-red)"; 
+    titleEl.innerText = "Atenció"; // O "Recuperació" si es el caso, pero genérico funciona bien
+    titleEl.style.color = "var(--brand-blue)"; // Azul por defecto, rojo si es error crítico
     document.getElementById('modal-msg').innerText = mensaje;
 
     btnCancel.style.display = 'none'; 
     btnConfirm.innerText = "Entesos";
-    btnConfirm.style.background = "var(--brand-red)"; 
+    btnConfirm.style.background = "var(--brand-blue)"; // Azul corporativo
     btnConfirm.disabled = false;
     
     const newConfirm = btnConfirm.cloneNode(true);
@@ -140,7 +136,7 @@ window.iniciarApp = function() {
     window.appIniciada = true;
     console.log("🚀 Iniciando SICAP App...");
     
-    resetInactivityTimer(); // INICIAR TIMER DE INACTIVIDAD (PUNTO 9)
+    resetInactivityTimer();
     
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
     
@@ -178,7 +174,7 @@ function setupDirectClicks() {
         }
     };
 
-    // MENSAJERIA (PUNTO 6)
+    // MENSAJERIA
     const btnMsg = document.getElementById('btn-messages');
     if (btnMsg) btnMsg.onclick = (e) => { 
         e.stopPropagation(); 

@@ -26,12 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // MODIFICADO BLOQUE 1: AUTO-FORMATO DNI
+    // PUNTO 2: DNI FORMATO (Sin espacios y mayúsculas)
     const inputsDNI = [document.getElementById('login-dni'), document.getElementById('reg-dni')];
     inputsDNI.forEach(input => {
         if(input) {
             input.addEventListener('input', (e) => {
-                // Elimina espacios y pone mayúsculas en tiempo real
                 e.target.value = e.target.value.replace(/\s/g, '').toUpperCase();
             });
         }
@@ -61,21 +60,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (window.iniciarApp) window.iniciarApp();
                     else window.location.reload();
                 } else {
+                    // PUNTO 2: Mensaje bonito en lugar de alert o texto feo
                     mostrarError("DNI o contrasenya incorrectes.");
                 }
             } catch (error) {
                 console.error(error);
-                mostrarError("Error de connexió.");
+                mostrarError("Error de connexió amb el servidor.");
             }
         };
     }
 
-    // REGISTRO "DOBLE SALTO"
+    // REGISTRO
     if (registerForm) {
         registerForm.onsubmit = async (e) => {
             e.preventDefault();
             
-            // Feedback visual de carga
             const btnSubmit = registerForm.querySelector('button[type="submit"]');
             const originalText = btnSubmit.innerText;
             btnSubmit.innerText = "Validant...";
@@ -90,8 +89,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnSubmit.disabled = false;
             };
 
-            if (pass !== passConf) { alert("Les contrasenyes no coincideixen."); resetBtn(); return; }
-            if (pass.length < 6) { alert("Mínim 6 caràcters."); resetBtn(); return; }
+            // PUNTO 2: Validaciones con Modal
+            if (pass !== passConf) { 
+                // Usamos la función global definida en dashboard.js si está cargada, o fallback
+                window.mostrarModalError ? window.mostrarModalError("Les contrasenyes no coincideixen.") : alert("Les contrasenyes no coincideixen.");
+                resetBtn(); return; 
+            }
+            if (pass.length < 6) { 
+                window.mostrarModalError ? window.mostrarModalError("La contrasenya ha de tenir mínim 6 caràcters.") : alert("Mínim 6 caràcters.");
+                resetBtn(); return; 
+            }
 
             try {
                 // 1. Buscar Afiliado
@@ -99,7 +106,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const jsonAfiliado = await resAfiliado.json();
 
                 if (!jsonAfiliado.data || jsonAfiliado.data.length === 0) {
-                    alert("Aquest DNI no consta com a afiliat actiu.");
+                    // PUNTO 2: MENSAJE "NO AFILIADO" BONITO
+                    if(window.mostrarModalError) {
+                        window.mostrarModalError("Aquest DNI no consta com a afiliat actiu al SICAP. Contacta amb secretaria.");
+                    } else {
+                        alert("Aquest DNI no consta com a afiliat actiu.");
+                    }
                     resetBtn();
                     return;
                 }
@@ -121,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dataReg = await resReg.json();
 
                 if (dataReg.jwt) {
-                    // 3. Actualizar Perfil
+                    // 3. Actualizar Perfil (Nombre real)
                     const userId = dataReg.user.id;
                     const token = dataReg.jwt;
 
@@ -141,17 +153,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 } else {
                     resetBtn();
-                    console.error(dataReg);
                     if(dataReg.error && dataReg.error.message === 'Email or Username are already taken') {
-                        alert("Aquest usuari ja està registrat. Prova a fer Login.");
+                        if(window.mostrarModalError) window.mostrarModalError("Aquest usuari ja està registrat. Prova a fer Login.");
+                        else alert("Usuari ja registrat.");
                     } else {
-                        alert("Error: " + (dataReg.error?.message || "Error desconegut"));
+                        if(window.mostrarModalError) window.mostrarModalError("Error: " + (dataReg.error?.message || "Error desconegut"));
+                        else alert("Error de registre.");
                     }
                 }
 
             } catch (error) {
                 console.error(error);
-                alert("Error de connexió.");
+                if(window.mostrarModalError) window.mostrarModalError("Error de connexió.");
+                else alert("Error de connexió.");
                 resetBtn();
             }
         };

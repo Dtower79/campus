@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
-        // Si es un objeto simple (no array) que contiene texto
         if (content.type === 'paragraph' || content.type === 'text') {
              return content.children?.map(c => c.text).join('') || '';
         }
@@ -31,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return '';
             }).join('');
         }
-        return JSON.stringify(content); // Fallback por si acaso
+        return JSON.stringify(content);
     }
 
     // ------------------------------------------------------------------------
@@ -63,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Configuración inicial de vistas
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.getElementById('dashboard-view').style.display = 'none';
@@ -89,7 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        // Carga profunda de datos incluyendo explicaciones
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
@@ -253,10 +250,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
-        // Reset grid structure (por si venimos de examen final)
         const gridRight = document.getElementById('quiz-grid');
-        gridRight.innerHTML = '';
-        gridRight.className = 'grid-container'; // Reset class standard
+        gridRight.innerHTML = ''; 
+        gridRight.className = 'grid-container'; 
         
         detenerCronometro(); 
 
@@ -365,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTestQuestions(container, mod, modIdx) {
         const gridRight = document.getElementById('quiz-grid');
         gridRight.innerHTML = ''; 
-        gridRight.className = 'grid-container'; // Standard Grid
+        gridRight.className = 'grid-container'; 
         
         if (!mod.preguntes || mod.preguntes.length === 0) { container.innerHTML = '<p>No hi ha preguntes.</p>'; return; }
 
@@ -418,7 +414,6 @@ document.addEventListener('DOMContentLoaded', () => {
             else { el.classList.remove('selected'); el.querySelector('input').checked = false; }
         });
 
-        // Update Grid
         const gridIdx = qId.split('-')[1]; 
         let gridItemId = `grid-q-${gridIdx}`;
         if(storageKeyType === 'examen_final') gridItemId = `grid-final-q-${gridIdx}`;
@@ -468,7 +463,6 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     }
 
-    // PUNTO 2 & 5: REVISIÓN CON EXPLICACIÓN Y GRID NAVEGABLE
     function mostrarFeedback(preguntas, respuestasUsuario, nota, aprobado, modIdx, esFinal) {
         const container = document.getElementById('moduls-container');
         const color = aprobado ? 'green' : 'red';
@@ -481,7 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="font-size:4rem; font-weight:bold; margin:10px 0;">${nota}</div>
                 <p>${msg}</p>
                 <div class="btn-centered-container">
-                    <button class="btn-primary" onclick="${esFinal ? 'renderExamenFinal(document.getElementById(\'moduls-container\'))' : 'renderSidebar(); renderMainContent();'}">Continuar</button>
+                    <button class="btn-primary" onclick="window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')">Continuar</button>
                 </div>
             </div>
             <h3>Revisió de Respostes:</h3>
@@ -490,7 +484,6 @@ document.addEventListener('DOMContentLoaded', () => {
         preguntas.forEach((preg, idx) => {
             const qId = esFinal ? `final-${idx}` : `q-${idx}`;
             const userRes = respuestasUsuario[qId];
-            // Aseguramos que el ID coincida para el scroll
             const cardId = esFinal ? `card-final-${idx}` : `card-q-${idx}`;
             
             html += `<div class="question-card review-mode" id="${cardId}">
@@ -512,7 +505,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             });
 
-            // FIX OBJECT OBJECT: Usar el parser
             if (preg.explicacio) {
                 html += `<div class="explanation-box">
                     <strong><i class="fa-solid fa-circle-info"></i> Explicació:</strong><br>
@@ -526,13 +518,10 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
         window.scrollTo(0,0);
         
-        // RESTAURAR GRID DERECHA PARA NAVEGACIÓN
         const gridRight = document.getElementById('quiz-grid');
-        // Si venimos del examen, limpiamos la estructura del cronometro
-        gridRight.className = ''; // Quitar clases grid
+        gridRight.className = ''; 
         gridRight.innerHTML = '';
         
-        // Crear contenedor interno solo numeros
         const gridInner = document.createElement('div');
         gridInner.id = 'grid-inner-numbers';
         gridRight.appendChild(gridInner);
@@ -546,14 +535,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const userRes = respuestasUsuario[qId];
             const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta);
             
-            // Colores Semáforo
             if (userRes == correctaIdx) {
                 div.style.backgroundColor = '#d4edda'; div.style.color = '#155724'; div.style.borderColor = '#c3e6cb';
             } else {
                 div.style.backgroundColor = '#f8d7da'; div.style.color = '#721c24'; div.style.borderColor = '#f5c6cb';
             }
 
-            // Scroll funcional
             div.onclick = () => {
                 const targetId = esFinal ? `card-final-${i}` : `card-q-${i}`;
                 const el = document.getElementById(targetId);
@@ -649,9 +636,8 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime); 
         }
 
-        // PUNTO 1 & 6: DISEÑO GRID + TIMER SEPARADO
         const gridRight = document.getElementById('quiz-grid');
-        gridRight.className = ''; // Quitar clase grid standard
+        gridRight.className = ''; 
         gridRight.innerHTML = `
             <div id="exam-timer-container">
                 <div id="exam-timer" class="timer-box">30:00</div>
@@ -798,7 +784,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 9. DIPLOMA (IGUAL)
+    // 9. DIPLOMA
     // ------------------------------------------------------------------------
     window.imprimirDiploma = function(nota) {
         const nombreCurso = state.curso.titol;

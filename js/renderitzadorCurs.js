@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
+        // Si es un objeto simple (no array) que contiene texto
+        if (content.type === 'paragraph' || content.type === 'text') {
+             return content.children?.map(c => c.text).join('') || '';
+        }
         if (Array.isArray(content)) {
             return content.map(block => {
                 if (block.type === 'paragraph' && block.children) {
@@ -27,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return '';
             }).join('');
         }
-        return '';
+        return JSON.stringify(content); // Fallback por si acaso
     }
 
     // ------------------------------------------------------------------------
@@ -85,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
+        // Carga profunda de datos incluyendo explicaciones
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
@@ -248,8 +253,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
+        // Reset grid structure (por si venimos de examen final)
         const gridRight = document.getElementById('quiz-grid');
-        gridRight.innerHTML = ''; 
+        gridRight.innerHTML = '';
+        gridRight.className = 'grid-container'; // Reset class standard
+        
         detenerCronometro(); 
 
         document.body.classList.remove('exam-active');
@@ -357,10 +365,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTestQuestions(container, mod, modIdx) {
         const gridRight = document.getElementById('quiz-grid');
         gridRight.innerHTML = ''; 
+        gridRight.className = 'grid-container'; // Standard Grid
         
         if (!mod.preguntes || mod.preguntes.length === 0) { container.innerHTML = '<p>No hi ha preguntes.</p>'; return; }
 
-        // Grid (Columna Derecha)
         mod.preguntes.forEach((p, i) => {
             const div = document.createElement('div');
             div.className = 'grid-item';
@@ -393,7 +401,6 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `</div></div>`;
         });
 
-        // Botón Centrado
         html += `<div class="btn-centered-container">
                 <button class="btn-primary" onclick="entregarTest(${modIdx})">FINALITZAR I ENTREGAR</button>
             </div>`;
@@ -411,6 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else { el.classList.remove('selected'); el.querySelector('input').checked = false; }
         });
 
+        // Update Grid
         const gridIdx = qId.split('-')[1]; 
         let gridItemId = `grid-q-${gridIdx}`;
         if(storageKeyType === 'examen_final') gridItemId = `grid-final-q-${gridIdx}`;
@@ -421,16 +429,13 @@ document.addEventListener('DOMContentLoaded', () => {
         guardarRespuestaLocal(storageKeyType, qId, valIdx);
     }
 
-    // PUNTO 4: ELIMINAR POPUP DE CONFIRMACIÓN Y USAR MODAL
     window.entregarTest = function(modIdx) {
         window.mostrarModalConfirmacion(
             "Entregar Test",
             "Estàs segur que vols finalitzar i entregar el test?",
             async () => {
-                // Cerrar modal
                 document.getElementById('custom-modal').style.display = 'none';
                 
-                // Lógica de corrección
                 const preguntas = window.currentQuestions;
                 let aciertos = 0;
                 
@@ -458,12 +463,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.testEnCurso = false;
                 document.body.classList.remove('exam-active');
 
-                // PUNTO 5: REVISIÓN CON EXPLICACIÓN
                 mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, modIdx, false);
             }
         );
     }
 
+    // PUNTO 2 & 5: REVISIÓN CON EXPLICACIÓN Y GRID NAVEGABLE
     function mostrarFeedback(preguntas, respuestasUsuario, nota, aprobado, modIdx, esFinal) {
         const container = document.getElementById('moduls-container');
         const color = aprobado ? 'green' : 'red';
@@ -485,8 +490,10 @@ document.addEventListener('DOMContentLoaded', () => {
         preguntas.forEach((preg, idx) => {
             const qId = esFinal ? `final-${idx}` : `q-${idx}`;
             const userRes = respuestasUsuario[qId];
+            // Aseguramos que el ID coincida para el scroll
+            const cardId = esFinal ? `card-final-${idx}` : `card-q-${idx}`;
             
-            html += `<div class="question-card review-mode">
+            html += `<div class="question-card review-mode" id="${cardId}">
                     <div class="q-header">Pregunta ${idx + 1}</div>
                     <div class="q-text">${preg.text}</div>
                     <div class="options-list">`;
@@ -505,11 +512,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             });
 
-            // PUNTO 5: MOSTRAR EXPLICACIÓN (Si existe)
+            // FIX OBJECT OBJECT: Usar el parser
             if (preg.explicacio) {
                 html += `<div class="explanation-box">
                     <strong><i class="fa-solid fa-circle-info"></i> Explicació:</strong><br>
-                    ${preg.explicacio}
+                    ${parseStrapiRichText(preg.explicacio)}
                 </div>`;
             }
 
@@ -519,41 +526,40 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
         window.scrollTo(0,0);
         
-        // PUNTO 5 (PArte 2): RESTAURAR GRID DE LA DERECHA (Coloreado)
+        // RESTAURAR GRID DERECHA PARA NAVEGACIÓN
         const gridRight = document.getElementById('quiz-grid');
-        // Si es examen final, limpiar el timer primero
-        if (esFinal) gridRight.innerHTML = '<div id="grid-inner" class="grid-container" style="margin-top:0"></div>';
-        else gridRight.innerHTML = ''; // Para tests modulares, el grid es directo
-
-        const targetGrid = esFinal ? document.getElementById('grid-inner') : gridRight;
+        // Si venimos del examen, limpiamos la estructura del cronometro
+        gridRight.className = ''; // Quitar clases grid
+        gridRight.innerHTML = '';
         
+        // Crear contenedor interno solo numeros
+        const gridInner = document.createElement('div');
+        gridInner.id = 'grid-inner-numbers';
+        gridRight.appendChild(gridInner);
+
         preguntas.forEach((preg, i) => {
             const div = document.createElement('div');
-            div.className = 'grid-item answered'; // Marcamos como respondidas
+            div.className = 'grid-item answered';
+            div.innerText = i + 1;
             
-            // Colorear grid segun acierto/fallo
             const qId = esFinal ? `final-${i}` : `q-${i}`;
             const userRes = respuestasUsuario[qId];
             const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta);
             
+            // Colores Semáforo
             if (userRes == correctaIdx) {
-                div.style.backgroundColor = '#d4edda';
-                div.style.color = '#155724';
-                div.style.borderColor = '#c3e6cb';
+                div.style.backgroundColor = '#d4edda'; div.style.color = '#155724'; div.style.borderColor = '#c3e6cb';
             } else {
-                div.style.backgroundColor = '#f8d7da';
-                div.style.color = '#721c24';
-                div.style.borderColor = '#f5c6cb';
+                div.style.backgroundColor = '#f8d7da'; div.style.color = '#721c24'; div.style.borderColor = '#f5c6cb';
             }
 
-            div.innerText = i + 1;
+            // Scroll funcional
             div.onclick = () => {
-                // En modo revisión, los IDs de las cards pueden ser los mismos, scroll funciona
-                const cardId = esFinal ? `card-final-${i}` : `card-q-${i}`;
-                const el = document.getElementById(cardId);
+                const targetId = esFinal ? `card-final-${i}` : `card-q-${i}`;
+                const el = document.getElementById(targetId);
                 if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
             };
-            targetGrid.appendChild(div);
+            gridInner.appendChild(div);
         });
     }
 
@@ -643,17 +649,18 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime); 
         }
 
-        // PUNTO 6: ESTRUCTURA HTML SEPARADA PARA CRONÓMETRO Y GRID
+        // PUNTO 1 & 6: DISEÑO GRID + TIMER SEPARADO
         const gridRight = document.getElementById('quiz-grid');
+        gridRight.className = ''; // Quitar clase grid standard
         gridRight.innerHTML = `
             <div id="exam-timer-container">
                 <div id="exam-timer" class="timer-box">30:00</div>
             </div>
-            <div id="grid-inner" class="grid-container"></div>
+            <div id="grid-inner-numbers"></div>
         `;
         iniciarCronometro();
 
-        const gridInner = document.getElementById('grid-inner');
+        const gridInner = document.getElementById('grid-inner-numbers');
         state.preguntasExamenFinal.forEach((p, i) => {
             const div = document.createElement('div');
             div.className = 'grid-item';
@@ -689,7 +696,6 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `</div></div>`;
         });
 
-        // Botón Centrado
         html += `<div class="btn-centered-container">
                 <button class="btn-primary" onclick="entregarExamenFinal()">ENTREGAR EXAMEN FINAL</button>
             </div>`;
@@ -737,7 +743,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 8. ENTREGA EXAMEN FINAL (MODIFICADO SIN POPUP)
+    // 8. ENTREGA EXAMEN FINAL
     // ------------------------------------------------------------------------
     window.entregarExamenFinal = function(forzado = false) {
         const doDelivery = async () => {

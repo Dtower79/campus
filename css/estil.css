@@ -652,3 +652,36 @@ ul { list-style: none; padding: 0; margin: 0; }
     color: #e0e0e0;
     border-left-color: #64b5f6;
 }
+
+/* ARREGLO FINAL CRONÓMETRO Y GRID (Punto 1) */
+#quiz-grid {
+    /* Por defecto es grid, pero JS lo puede cambiar a block */
+    width: 100%;
+}
+
+/* Contenedor específico para los números (cajas) */
+#grid-inner-numbers {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-top: 15px;
+}
+
+/* Cronómetro ocupando todo el ancho */
+#exam-timer-container {
+    width: 100%;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.timer-box {
+    width: 100%;
+    display: block;
+    text-align: center;
+    font-size: 1.8rem;
+    padding: 15px 0;
+    background: var(--brand-blue);
+    color: white;
+    border-radius: 8px;
+    font-weight: bold;
+}

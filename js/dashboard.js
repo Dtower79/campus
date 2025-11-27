@@ -9,7 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
 // MODAL GENÉRICO
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
-    document.getElementById('modal-title').innerText = titulo;
+    // Asegurar que el título es negro por defecto (por si viene de un error rojo)
+    const titleEl = document.getElementById('modal-title');
+    titleEl.innerText = titulo;
+    titleEl.style.color = "var(--brand-blue)"; // Color por defecto
+
     document.getElementById('modal-msg').innerText = mensaje;
     
     const btnConfirm = document.getElementById('modal-btn-confirm');
@@ -18,6 +22,7 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     // Resetear botones
     btnConfirm.innerText = "Confirmar";
     btnConfirm.disabled = false;
+    btnConfirm.style.background = "var(--brand-blue)"; // Color por defecto
     btnCancel.style.display = "inline-block";
 
     // Clonar para limpiar eventos previos
@@ -27,7 +32,6 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     btnCancel.parentNode.replaceChild(newCancel, btnCancel);
 
     newConfirm.onclick = () => {
-        // No cerramos inmediatamente si hay callback (para mostrar "Cargando...")
         if(onConfirm) {
             onConfirm();
         } else {
@@ -40,6 +44,36 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
 
     modal.style.display = 'flex';
 };
+
+// HELPER: Modal de Error Bonito
+window.mostrarModalError = function(mensaje) {
+    const modal = document.getElementById('custom-modal');
+    const titleEl = document.getElementById('modal-title');
+    
+    titleEl.innerText = "Error";
+    titleEl.style.color = "var(--brand-red)"; // Título en rojo
+    
+    document.getElementById('modal-msg').innerText = mensaje;
+    
+    const btnConfirm = document.getElementById('modal-btn-confirm');
+    const btnCancel = document.getElementById('modal-btn-cancel');
+
+    // Configurar para modo "Solo Aceptar"
+    btnCancel.style.display = 'none';
+    btnConfirm.innerText = "Entesos";
+    btnConfirm.style.background = "var(--brand-red)"; // Botón rojo
+    btnConfirm.disabled = false;
+
+    // Clonar para limpiar eventos
+    const newConfirm = btnConfirm.cloneNode(true);
+    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+
+    newConfirm.onclick = () => {
+        modal.style.display = 'none';
+    };
+
+    modal.style.display = 'flex';
+}
 
 window.logoutApp = function() {
     window.mostrarModalConfirmacion(
@@ -66,7 +100,7 @@ window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
 
-    console.log("🚀 Iniciando SICAP App (Fix Comillas & RichText)...");
+    console.log("🚀 Iniciando SICAP App (Final Fixes)...");
 
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
 
@@ -212,30 +246,24 @@ window.showView = function(viewName) {
     if(viewName === 'grades') loadGrades();
 };
 
-// --- NUEVO: PARSEADOR DE TEXTO STRAPI PARA DESCRIPCIONES ---
+// HELPER: Parsear Texto Rich Text
 function parseStrapiText(content) {
     if (!content) return '';
-    
-    // Si ya es string, devolver
     if (typeof content === 'string') return content;
-    
-    // Si es array (Rich Text / Blocks de Strapi v5)
     if (Array.isArray(content)) {
         return content.map(block => {
-            // Extraer texto de párrafos o listas
             if (block.children && Array.isArray(block.children)) {
                 return block.children.map(child => child.text).join('');
             }
             return '';
-        }).join(' '); // Unir bloques con espacio
+        }).join(' ');
     }
-    
-    return ''; // Fallback
+    return '';
 }
 
 // GENERAR HTML DESCRIPCIÓN
 function generarHtmlDescripcion(rawText, idUnico) {
-    const textoLimpio = parseStrapiText(rawText); // Limpiamos el [object Object]
+    const textoLimpio = parseStrapiText(rawText);
     
     if (!textoLimpio) return '';
     
@@ -244,7 +272,6 @@ function generarHtmlDescripcion(rawText, idUnico) {
         return `<div class="course-desc-container"><p class="course-desc">${textoLimpio}</p></div>`;
     }
     
-    // Escapar comillas para el atributo data-full
     const safeFullText = textoLimpio.replace(/"/g, '&quot;');
     const textoCorto = textoLimpio.substring(0, MAX_CHARS) + '...';
     
@@ -261,7 +288,7 @@ window.toggleDesc = function(id) {
     const btn = document.getElementById(`desc-btn-${id}`);
     
     if (btn.innerText === 'Mostrar més') {
-        p.innerText = p.getAttribute('data-full'); // Ya sale decodificado
+        p.innerText = p.getAttribute('data-full'); 
         p.classList.remove('short');
         btn.innerText = 'Mostrar menys';
     } else {
@@ -315,7 +342,6 @@ async function renderCoursesLogic(viewMode) {
 
         cursosAMostrar.forEach((curs, index) => {
             const cursId = curs.documentId || curs.id;
-            // IMPORTANTE: Escapar comillas simples del título para el onclick
             const safeTitle = curs.titol.replace(/'/g, "\\'"); 
 
             let imgUrl = 'img/logo-sicap.png';
@@ -346,7 +372,6 @@ async function renderCoursesLogic(viewMode) {
                 dateBodyInfo += ` <span class="badge-role" style="background:#e3f2fd; color:#0d47a1; margin-left:5px;">Ja matriculat</span>`;
             }
 
-            // Usamos la nueva función para limpiar el rich text
             const descHtml = generarHtmlDescripcion(curs.descripcio || curs.resum, index);
             const horasHtml = `<div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'Durada no especificada'}</div>`;
 
@@ -370,7 +395,6 @@ async function renderCoursesLogic(viewMode) {
 
             } else {
                 progressHtml = ``; 
-                // USAMOS safeTitle AQUÍ PARA EVITAR EL ERROR DE COMILLAS
                 actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${safeTitle}')">Matricular-me</button>`;
             }
 
@@ -410,9 +434,8 @@ window.alertFechaFutura = function(titol, fecha) {
     document.getElementById('modal-btn-confirm').innerText = "Entesos";
 };
 
+// MATRÍCULA REAL (Con manejo de errores BONITO)
 window.solicitarMatricula = function(courseId, courseTitle) {
-    console.log("Intentando matricular en:", courseTitle); // Debug
-    
     window.mostrarModalConfirmacion(
         "Confirmar Matriculació", 
         `Vols inscriure't al curs "${courseTitle}"?`,
@@ -451,15 +474,23 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                     window.location.reload();
                 } else {
                     const err = await res.json();
-                    alert("Error al matricular: " + (err.error?.message || "Error desconegut"));
-                    btnConf.innerText = "Confirmar";
-                    btnConf.disabled = false;
+                    
+                    // AQUÍ ESTÁ EL CAMBIO CLAVE: CERRAR CONFIRMACIÓN Y MOSTRAR ERROR BONITO
+                    document.getElementById('custom-modal').style.display = 'none';
+                    
+                    // Pequeño timeout para que la transición sea suave
+                    setTimeout(() => {
+                        window.mostrarModalError(
+                            "No s'ha pogut realitzar la matrícula. Error: " + (err.error?.message || "Permisos insuficients")
+                        );
+                    }, 200);
                 }
             } catch (e) {
                 console.error(e);
-                alert("Error de connexió.");
-                btnConf.innerText = "Confirmar";
-                btnConf.disabled = false;
+                document.getElementById('custom-modal').style.display = 'none';
+                setTimeout(() => {
+                    window.mostrarModalError("Error de connexió amb el servidor.");
+                }, 200);
             }
         }
     );

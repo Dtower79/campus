@@ -584,3 +584,71 @@ ul { list-style: none; padding: 0; margin: 0; }
 .animate-ping {
     animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
+
+/* --- ARREGLO BOTONES CENTRADOS (Punto 2) --- */
+.btn-centered-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+    width: 100%;
+}
+.btn-centered-container .btn-primary {
+    width: auto;
+    min-width: 300px;
+}
+
+/* --- ARREGLO CRONÓMETRO Y GRID (Punto 6) --- */
+#exam-timer-container {
+    margin-bottom: 20px;
+}
+.timer-box {
+    width: 100%;
+    display: block;
+    margin-bottom: 15px; /* Separación con el grid */
+}
+/* Aseguramos que el grid tenga su propio espacio */
+#grid-inner {
+    margin-top: 15px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+}
+
+/* --- ARREGLO MODO OSCURO SIDEBAR IZQUIERDA (Punto 7) --- */
+[data-theme="dark"] .sidebar-module-title {
+    background-color: #333;
+    color: #e0e0e0;
+}
+[data-theme="dark"] .sidebar-subitem {
+    color: #aaa;
+    border-left: 3px solid transparent;
+}
+[data-theme="dark"] .sidebar-subitem:hover {
+    background-color: rgba(255,255,255,0.05);
+    color: #fff;
+}
+[data-theme="dark"] .sidebar-subitem.active {
+    background-color: rgba(66, 165, 245, 0.15); /* Azul muy suave */
+    color: #64b5f6;
+    border-left-color: #64b5f6;
+    font-weight: bold;
+}
+[data-theme="dark"] .sidebar-subitem.locked {
+    color: #555;
+}
+
+/* --- EXPLICACIÓN EN REVISIÓN (Punto 5) --- */
+.explanation-box {
+    background-color: #e8f0fe;
+    border-left: 4px solid var(--brand-blue);
+    padding: 15px;
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: #333;
+    border-radius: 0 4px 4px 0;
+}
+[data-theme="dark"] .explanation-box {
+    background-color: #1e2a38;
+    color: #e0e0e0;
+    border-left-color: #64b5f6;
+}

@@ -7,10 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 1. SISTEMA DE MODALES
+// 1. SISTEMA DE MODALES (DISEÑO PRO)
 // ==========================================
-
-// Modal de Confirmación (Dos botones)
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -18,17 +16,17 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    // Resetear estados
+    // Resetear estilos y textos
     titleEl.innerText = titulo;
-    titleEl.style.color = "var(--brand-blue)"; 
+    titleEl.style.color = ""; 
     msgEl.innerText = mensaje;
     
     btnConfirm.innerText = "Confirmar";
     btnConfirm.disabled = false;
-    btnConfirm.style.background = "var(--brand-blue)";
-    btnCancel.style.display = "block"; // Mostrar cancelar
+    btnConfirm.style.background = ""; 
+    btnCancel.style.display = "block"; 
 
-    // Clonar para limpiar eventos previos
+    // Clonar para limpiar eventos
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
@@ -45,7 +43,6 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     modal.style.display = 'flex';
 };
 
-// Modal de Error/Info (Un botón) - AHORA CON REDIRECCIÓN
 window.mostrarModalError = function(mensaje, onCloseAction) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -56,20 +53,18 @@ window.mostrarModalError = function(mensaje, onCloseAction) {
     titleEl.style.color = "var(--brand-red)"; 
     document.getElementById('modal-msg').innerText = mensaje;
 
-    btnCancel.style.display = 'none'; // Ocultar cancelar
+    btnCancel.style.display = 'none'; 
     btnConfirm.innerText = "Entesos";
     btnConfirm.style.background = "var(--brand-red)"; 
     btnConfirm.disabled = false;
     
-    // Clonar evento
     const newConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     
-    // Al hacer click en Entesos
     newConfirm.onclick = () => {
         modal.style.display = 'none';
         if (onCloseAction) {
-            onCloseAction(); // Ejecutar redirección si existe
+            onCloseAction(); 
         }
     };
 
@@ -103,7 +98,7 @@ window.appIniciada = false;
 window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
-    console.log("🚀 Iniciando SICAP App (Final Fixes)...");
+    console.log("🚀 Iniciando SICAP App (Dashboard Fix)...");
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
     setTimeout(() => { setupDirectClicks(); }, 100);
 
@@ -343,7 +338,7 @@ async function renderCoursesLogic(viewMode) {
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES');
 
-            // --- BADGE OVERLAY (Sobre la imagen) ---
+            // --- BADGE OVERLAY ---
             let badgeOverlay = '';
             if (esFuturo) {
                 badgeOverlay = `<span class="course-badge" style="background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
@@ -353,15 +348,13 @@ async function renderCoursesLogic(viewMode) {
                 badgeOverlay = `<span class="course-badge">${curs.etiqueta}</span>`;
             }
 
-            // --- ETIQUETAS CUERPO (NUEVO DISEÑO UNIFICADO) ---
+            // --- ETIQUETAS CUERPO ---
             let tagsHtml = '<div class="course-tags">';
             
-            // 1. Etiqueta Fecha (Solo si ya ha empezado)
             if (!esFuturo) {
                 tagsHtml += `<span class="tag tag-date"><i class="fa-solid fa-check"></i> Iniciat: ${dateStr}</span>`;
             }
 
-            // 2. Etiqueta Matriculado (Solo en catálogo si ya lo tienes)
             if (curs._matricula && viewMode === 'home') {
                 tagsHtml += `<span class="tag tag-status"><i class="fa-solid fa-user-check"></i> Ja matriculat</span>`;
             }
@@ -439,7 +432,6 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                 
                 const now = new Date().toISOString();
 
-                // PAYLOAD CORREGIDO: 'actiu' en lugar de 'iniciat'
                 const payload = {
                     data: {
                         curs: courseId,
@@ -464,15 +456,11 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                     window.location.reload();
                 } else {
                     const err = await res.json();
-                    
-                    // CERRAR MODAL CONFIRMACIÓN
                     document.getElementById('custom-modal').style.display = 'none';
-                    
-                    // MOSTRAR ERROR Y REDIRIGIR AL INICIO AL DARLE A ENTESOS
                     setTimeout(() => {
                         window.mostrarModalError(
                             "Error al matricular: " + (err.error?.message || "Dades incorrectes (400)"),
-                            () => { window.showView('home'); } // Acción al cerrar: Ir al inicio
+                            () => { window.showView('home'); } 
                         );
                     }, 200);
                 }
@@ -482,13 +470,18 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                 setTimeout(() => {
                     window.mostrarModalError(
                         "Error de connexió amb el servidor.",
-                        () => { window.showView('home'); } // Acción al cerrar
+                        () => { window.showView('home'); } 
                     );
                 }, 200);
             }
         }
     );
 };
+
+// --- ALIAS CRÍTICOS PARA LA NAVEGACIÓN ---
+// ESTAS DOS LÍNEAS SON LAS QUE FALTABAN Y CAUSABAN EL ERROR EN CONSOLA
+window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
+window.loadCatalog = async function() { await renderCoursesLogic('home'); };
 
 async function loadFullProfile() {
     console.log("📥 Cargando perfil...");

@@ -1,9 +1,23 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Solo iniciamos la APP si hay token.
-    // La lógica de login/registro/recuperar contraseña ahora está aislada en auth.js
+    // CORRECCIÓN CRÍTICA: Si hay sesión, ocultar login INMEDIATAMENTE
     if (localStorage.getItem('jwt')) {
+        const overlay = document.getElementById('login-overlay');
+        const app = document.getElementById('app-container');
+        
+        if (overlay) overlay.style.display = 'none';
+        if (app) app.style.display = 'block';
+
         if (!window.appIniciada) {
             window.iniciarApp();
+        }
+    }
+    
+    // Gestión "He oblidat la contrasenya" (Modal Bonito)
+    const forgotLink = document.getElementById('forgot-pass');
+    if(forgotLink) {
+        forgotLink.onclick = (e) => {
+            e.preventDefault();
+            window.mostrarModalError("S'ha enviat un correu de recuperació a la teva adreça d'afiliació.");
         }
     }
 });
@@ -20,7 +34,7 @@ function resetInactivityTimer() {
     clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
         localStorage.clear();
-        alert("Sessió tancada per inactivitat (15 min)."); // El alert aquí es necesario para bloquear el navegador hasta que el usuario acepte
+        alert("Sessió tancada per inactivitat (15 min)."); 
         window.location.href = 'index.html';
     }, TIMEOUT_LIMIT);
 }
@@ -68,20 +82,19 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
 
 window.mostrarModalError = function(mensaje, onCloseAction) {
     const modal = document.getElementById('custom-modal');
-    // Fallback si se llama antes de cargar el DOM (raro, pero posible)
     if(!modal) { console.warn("Modal no cargado:", mensaje); return; }
 
     const titleEl = document.getElementById('modal-title');
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    titleEl.innerText = "Atenció"; // O "Recuperació" si es el caso, pero genérico funciona bien
-    titleEl.style.color = "var(--brand-blue)"; // Azul por defecto, rojo si es error crítico
+    titleEl.innerText = "Atenció";
+    titleEl.style.color = "var(--brand-blue)"; 
     document.getElementById('modal-msg').innerText = mensaje;
 
     btnCancel.style.display = 'none'; 
     btnConfirm.innerText = "Entesos";
-    btnConfirm.style.background = "var(--brand-blue)"; // Azul corporativo
+    btnConfirm.style.background = "var(--brand-blue)"; 
     btnConfirm.disabled = false;
     
     const newConfirm = btnConfirm.cloneNode(true);

@@ -6,21 +6,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// NUEVO BLOQUE 1: Función para mostrar Modal Genérico
+// MODAL GENÉRICO
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = titulo;
     document.getElementById('modal-msg').innerText = mensaje;
     
-    // Botones
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    // Restaurar estado inicial de botones
     btnConfirm.innerText = "Confirmar";
     btnCancel.style.display = "inline-block";
 
-    // Limpiar eventos anteriores
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
@@ -37,7 +34,7 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     modal.style.display = 'flex';
 };
 
-// MODIFICADO BLOQUE 1: Logout con Modal
+// LOGOUT
 window.logoutApp = function() {
     window.mostrarModalConfirmacion(
         "Tancar Sessió", 
@@ -49,7 +46,7 @@ window.logoutApp = function() {
     );
 };
 
-// NUEVO BLOQUE 1: Navegación sin recarga
+// NAVEGACIÓN
 window.tornarAlDashboard = function() {
     document.getElementById('exam-view').style.display = 'none';
     document.getElementById('dashboard-view').style.display = 'block';
@@ -64,7 +61,7 @@ window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
 
-    console.log("🚀 Iniciando SICAP App (Bloque 1+2 Refinado)...");
+    console.log("🚀 Iniciando SICAP App (Bloque 2 Corregido)...");
 
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
 
@@ -85,7 +82,7 @@ function setupDirectClicks() {
     const btnBell = document.getElementById('btn-notifs');
     if (btnBell) btnBell.onclick = (e) => { 
         e.stopPropagation(); 
-        window.mostrarModalConfirmacion("Novetats", "No tens noves notificacions al fòrum o cursos nous.", () => {});
+        window.mostrarModalConfirmacion("Novetats", "No tens noves notificacions.", () => {});
         document.getElementById('modal-btn-cancel').style.display = 'none';
         document.getElementById('modal-btn-confirm').innerText = "D'acord";
     };
@@ -211,28 +208,35 @@ window.showView = function(viewName) {
 };
 
 // HELPER: Generar HTML descripción con "Mostrar més"
-function generarHtmlDescripcion(resum, idUnico) {
-    if (!resum) return '';
-    const MAX_CHARS = 100;
-    if (resum.length <= MAX_CHARS) {
-        return `<div class="course-desc-container"><p class="course-desc">${resum}</p></div>`;
+// CORRECCIÓN PUNTO 1: Usamos 'descripcio' en lugar de 'resum' si viene del CMS
+function generarHtmlDescripcion(texto, idUnico) {
+    if (!texto) return '';
+    const MAX_CHARS = 90; // Cortar antes para que no ocupe mucho
+    if (texto.length <= MAX_CHARS) {
+        return `<div class="course-desc-container"><p class="course-desc">${texto}</p></div>`;
     }
+    // Cortamos texto
+    const textoCorto = texto.substring(0, MAX_CHARS) + '...';
+    
     return `
         <div class="course-desc-container">
-            <p class="course-desc short" id="desc-${idUnico}">${resum}</p>
-            <span class="read-more-link" onclick="toggleDesc('${idUnico}')">Mostrar més</span>
+            <p class="course-desc short" id="desc-p-${idUnico}" data-full="${encodeURIComponent(texto)}">${textoCorto}</p>
+            <span class="read-more-link" id="desc-btn-${idUnico}" onclick="toggleDesc('${idUnico}')">Mostrar més</span>
         </div>
     `;
 }
 
-// HELPER: Toggle descripción
 window.toggleDesc = function(id) {
-    const p = document.getElementById(`desc-${id}`);
-    const btn = p.nextElementSibling;
-    if (p.classList.contains('short')) {
+    const p = document.getElementById(`desc-p-${id}`);
+    const btn = document.getElementById(`desc-btn-${id}`);
+    
+    if (btn.innerText === 'Mostrar més') {
+        p.innerText = decodeURIComponent(p.getAttribute('data-full'));
         p.classList.remove('short');
         btn.innerText = 'Mostrar menys';
     } else {
+        const fullText = decodeURIComponent(p.getAttribute('data-full'));
+        p.innerText = fullText.substring(0, 90) + '...';
         p.classList.add('short');
         btn.innerText = 'Mostrar més';
     }
@@ -267,7 +271,7 @@ async function renderCoursesLogic(viewMode) {
             });
         }
 
-        // ORDENACIÓN POR FECHA (Descendente)
+        // Ordenar por fecha (más reciente primero)
         cursosAMostrar.sort((a, b) => {
             const dateA = new Date(a.fecha_inicio || a.publishedAt);
             const dateB = new Date(b.fecha_inicio || b.publishedAt);
@@ -281,39 +285,51 @@ async function renderCoursesLogic(viewMode) {
         }
 
         cursosAMostrar.forEach((curs, index) => {
-            const cursId = curs.documentId || curs.id || index;
+            const cursId = curs.documentId || curs.id;
             let imgUrl = 'img/logo-sicap.png';
             if(curs.imatge) { 
                 const img = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge; 
                 if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url; 
             }
 
+            // Lógica Fechas
             const hoy = new Date();
-            // Lógica fecha_inicio (si no existe, usa publishedAt)
             const fechaInicio = curs.fecha_inicio ? new Date(curs.fecha_inicio) : new Date(curs.publishedAt);
-            const esFuturo = fechaInicio && fechaInicio > hoy;
-            
-            let dateBadge = '';
-            if (fechaInicio) {
-                const dateStr = fechaInicio.toLocaleDateString('ca-ES');
-                if (esFuturo) {
-                    dateBadge = `<div class="badge-date badge-future"><i class="fa-regular fa-calendar"></i> Properament: ${dateStr}</div>`;
-                } else {
-                    dateBadge = `<div class="badge-date"><i class="fa-solid fa-check"></i> Iniciat: ${dateStr}</div>`;
-                }
+            const esFuturo = fechaInicio > hoy;
+            const dateStr = fechaInicio.toLocaleDateString('ca-ES');
+
+            // CORRECCIÓN PUNTO 2: Badge sobre la imagen
+            let badgeOverlay = '';
+            if (esFuturo) {
+                // Amarillo si es futuro
+                badgeOverlay = `<span class="course-badge" style="background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+                    <i class="fa-regular fa-calendar"></i> Properament: ${dateStr}
+                </span>`;
+            } else if (curs.etiqueta) {
+                // Azul original si ya empezó
+                badgeOverlay = `<span class="course-badge">${curs.etiqueta}</span>`;
             }
 
-            // HORAS: Ahora visibles SIEMPRE
-            const horasHtml = `<div class="course-hours">
-                <i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'Durada no especificada'}
-            </div>`;
+            // Etiqueta de fecha en el cuerpo (informativa)
+            let dateBodyInfo = '';
+            if (esFuturo) {
+                // Si es futuro, ya sale arriba, abajo no hace falta repetir o ponemos gris
+            } else {
+                dateBodyInfo = `<div class="badge-date"><i class="fa-solid fa-check"></i> Iniciat: ${dateStr}</div>`;
+            }
+            if (curs._matricula && viewMode === 'home') {
+                dateBodyInfo += ` <span class="badge-role" style="background:#e3f2fd; color:#0d47a1; margin-left:5px;">Ja matriculat</span>`;
+            }
 
-            // DESCRIPCIÓN: Ahora visible con "Mostrar més"
-            const descHtml = generarHtmlDescripcion(curs.resum, cursId);
+            // Horas y Descripción
+            // CORRECCIÓN PUNTO 1: Leemos 'descripcio' del objeto Strapi
+            const descText = curs.descripcio || curs.resum || ''; 
+            const descHtml = generarHtmlDescripcion(descText, index);
+            const horasHtml = `<div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'Durada no especificada'}</div>`;
 
+            let actionHtml = '';
             let progressHtml = '';
-            let btnAction = '';
-            
+
             if (curs._matricula) {
                 // MATRICULADO
                 const mat = curs._matricula;
@@ -325,29 +341,29 @@ async function renderCoursesLogic(viewMode) {
                     </div>`;
 
                 if (esFuturo) {
-                    btnAction = `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alertFechaFutura('${curs.titol}', '${fechaInicio.toLocaleDateString('ca-ES')}')">Accedir</button>`;
+                    actionHtml = `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alertFechaFutura('${curs.titol}', '${dateStr}')">Accedir</button>`;
                 } else {
-                    btnAction = `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
+                    actionHtml = `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
                 }
-                if(viewMode === 'home') dateBadge += ` <span class="badge-role" style="background:#e3f2fd; color:#0d47a1;">Ja matriculat</span>`;
+
             } else {
                 // NO MATRICULADO
-                progressHtml = ``; 
-                btnAction = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${curs.titol}')">Matricular-me</button>`;
+                // CORRECCIÓN PUNTO 3: Botón real de matrícula
+                actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${curs.titol}')">Matricular-me</button>`;
             }
 
             const card = `
                 <div class="course-card-item">
                     <div class="card-image-header" style="background-image: url('${imgUrl}');">
-                        ${curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : ''}
+                        ${badgeOverlay}
                     </div>
                     <div class="card-body">
                         <h3 class="course-title">${curs.titol}</h3>
                         ${horasHtml}
-                        ${dateBadge}
                         ${descHtml}
+                        ${dateBodyInfo}
                         ${progressHtml}
-                        ${btnAction}
+                        ${actionHtml}
                     </div>
                 </div>`;
             list.innerHTML += card;
@@ -363,13 +379,69 @@ async function loadUserCourses() { await renderCoursesLogic('dashboard'); }
 async function loadCatalog() { await renderCoursesLogic('home'); }
 
 window.alertFechaFutura = function(titol, fecha) {
-    window.mostrarModalConfirmacion("Curs no iniciat", `El curs "${titol}" estarà disponible el ${fecha}.`, () => {});
+    window.mostrarModalConfirmacion(
+        "Curs no iniciat", 
+        `El curs "${titol}" estarà disponible el ${fecha}. Encara no hi pots accedir.`, 
+        () => {}
+    );
     document.getElementById('modal-btn-cancel').style.display = 'none';
     document.getElementById('modal-btn-confirm').innerText = "Entesos";
 };
 
-window.solicitarMatricula = function(id, titol) {
-    window.mostrarModalConfirmacion("Inscripció", `Vols inscriure't al curs "${titol}"?`, () => { alert("Sol·licitud enviada (Simulació). Contacta amb administració."); });
+// CORRECCIÓN PUNTO 3: MATRÍCULA REAL (POST a API)
+// CORRECCIÓN FINAL: Añadir data_inici al payload
+window.solicitarMatricula = function(courseId, courseTitle) {
+    window.mostrarModalConfirmacion(
+        "Confirmar Matriculació", 
+        `Vols inscriure't al curs "${courseTitle}"?`,
+        async () => {
+            const btnConf = document.getElementById('modal-btn-confirm');
+            btnConf.innerText = "Processant...";
+            btnConf.disabled = true;
+
+            try {
+                const user = JSON.parse(localStorage.getItem('user'));
+                const token = localStorage.getItem('jwt');
+                
+                // Fecha ISO para Strapi (YYYY-MM-DDTHH:mm:ss.sssZ)
+                const now = new Date().toISOString();
+
+                const payload = {
+                    data: {
+                        curs: courseId,
+                        users_permissions_user: user.id,
+                        progres: 0,
+                        estat: 'iniciat',
+                        data_inici: now, // <--- AÑADIDO: Fecha de inicio real
+                        progres_detallat: {}
+                    }
+                };
+
+                const res = await fetch(`${STRAPI_URL}/api/matriculas`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    const err = await res.json();
+                    alert("Error al matricular: " + (err.error?.message || "Error desconegut"));
+                    btnConf.innerText = "Confirmar";
+                    btnConf.disabled = false;
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error de connexió.");
+                btnConf.innerText = "Confirmar";
+                btnConf.disabled = false;
+            }
+        }
+    );
 };
 
 async function loadFullProfile() {
@@ -378,6 +450,9 @@ async function loadFullProfile() {
     const token = localStorage.getItem('jwt');
     const emailIn = document.getElementById('prof-email');
     if(emailIn) emailIn.value = user.email || '-';
+
+    const mailBtn = document.querySelector('.profile-data-form button');
+    if(mailBtn) { mailBtn.onclick = () => window.location.href = 'mailto:sicap@sicap.cat'; }
 
     try {
         const res = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': `Bearer ${token}` } });

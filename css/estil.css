@@ -414,3 +414,173 @@ ul { list-style: none; padding: 0; margin: 0; }
     color: #ffd700;
     border-color: #665c20;
 }
+
+/* ==========================================================================
+   6. MEJORAS BLOQUE 3 (EVALUACIÓN & UI)
+   ========================================================================== */
+
+/* Cronómetro en Sidebar */
+.timer-box {
+    background-color: var(--brand-blue);
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border: 2px solid #003865;
+}
+.timer-box.warning { background-color: #ff9800; border-color: #f57c00; }
+.timer-box.danger { background-color: #E30613; border-color: #b71c1c; animation: pulse 1s infinite; }
+
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+
+/* Limpieza visual de preguntas */
+.question-card {
+    border-bottom: none; /* Elimina líneas divisorias excesivas */
+    margin-bottom: 30px;
+    padding: 20px;
+    background: var(--bg-card); /* Tarjeta contenida */
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    border: 1px solid var(--border-color);
+}
+
+/* Modo Revisión (Feedback) */
+.review-mode .option-item { pointer-events: none; opacity: 0.7; }
+.review-mode .option-item.selected { opacity: 1; border-width: 2px; }
+.review-mode .option-item.correct-answer { 
+    background-color: #d4edda !important; 
+    border-color: #28a745 !important; 
+    color: #155724 !important;
+    opacity: 1; 
+}
+.review-mode .option-item.user-wrong { 
+    background-color: #f8d7da !important; 
+    border-color: #dc3545 !important; 
+    color: #721c24 !important; 
+    opacity: 1;
+}
+
+/* Ajustes Dark Mode Examen */
+[data-theme="dark"] .question-card {
+    background-color: #252525;
+    border-color: #333;
+}
+[data-theme="dark"] .option-item {
+    background-color: #2c2c2c;
+    border-color: #444;
+    color: #e0e0e0;
+}
+[data-theme="dark"] .option-item:hover {
+    background-color: #333;
+}
+[data-theme="dark"] .q-header {
+    color: #aaa;
+}
+
+/* Ocultar elementos en modo examen */
+.exam-active .sidebar-left { pointer-events: none; opacity: 0.5; filter: grayscale(1); }
+.exam-active .main-header { pointer-events: none; }
+
+/* ==========================================================================
+   6. MEJORAS BLOQUE 3 (EVALUACIÓN & UI)
+   ========================================================================== */
+
+/* Puntos 12 y 19: Cronómetro y Sidebar */
+.timer-box {
+    background-color: var(--brand-blue);
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border: 2px solid #003865;
+    font-family: monospace; /* Para que los números no bailen */
+}
+.timer-box.warning { background-color: #ff9800; border-color: #f57c00; }
+.timer-box.danger { background-color: #E30613; border-color: #b71c1c; animation: pulse 1s infinite; }
+
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+
+/* Punto 17: Limpieza visual de preguntas (Quitar líneas) */
+.question-card {
+    border-bottom: none; /* Adiós línea horizontal sobrante */
+    margin-bottom: 25px;
+    padding: 25px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+}
+
+/* Punto 20: Encabezados de pregunta en azul corporativo */
+.q-header {
+    background-color: var(--brand-blue);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 4px;
+    display: inline-block;
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+/* Puntos 18 y 22: Modo Revisión (Feedback Visual) */
+.review-mode .option-item { pointer-events: none; opacity: 0.8; } /* Bloquear clicks */
+
+/* Acierto (Verde) */
+.review-mode .option-item.correct-answer { 
+    background-color: #d4edda !important; 
+    border-color: #28a745 !important; 
+    color: #155724 !important;
+    opacity: 1; 
+    font-weight: bold;
+}
+.review-mode .option-item.correct-answer::after {
+    content: ' ✓ Correcta'; float: right;
+}
+
+/* Fallo del usuario (Rojo) */
+.review-mode .option-item.user-wrong { 
+    background-color: #f8d7da !important; 
+    border-color: #dc3545 !important; 
+    color: #721c24 !important; 
+    opacity: 1;
+}
+.review-mode .option-item.user-wrong::after {
+    content: ' ✗ La teva resposta'; float: right;
+}
+
+/* Puntos 16 y 13: Ajustes Dark Mode Examen */
+[data-theme="dark"] .question-card {
+    background-color: #252525;
+    border: 1px solid #333;
+}
+[data-theme="dark"] .q-header {
+    background-color: #1565c0; /* Azul un poco más claro para contraste */
+}
+[data-theme="dark"] .q-text {
+    color: #e0e0e0; /* Texto claro */
+}
+[data-theme="dark"] .option-item {
+    background-color: #2c2c2c;
+    border-color: #444;
+    color: #e0e0e0;
+}
+[data-theme="dark"] .option-item:hover {
+    background-color: #333;
+}
+
+/* Animación Bonus Notificación */
+@keyframes ping {
+    75%, 100% { transform: scale(2); opacity: 0; }
+}
+.animate-ping {
+    animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}

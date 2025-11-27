@@ -64,7 +64,7 @@ window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
 
-    console.log("🚀 Iniciando SICAP App (Bloque 1+2)...");
+    console.log("🚀 Iniciando SICAP App (Bloque 1+2 Refinado)...");
 
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
 
@@ -82,15 +82,10 @@ window.iniciarApp = function() {
 };
 
 function setupDirectClicks() {
-    // MODIFICADO BLOQUE 2: Notificaciones bonitas
     const btnBell = document.getElementById('btn-notifs');
     if (btnBell) btnBell.onclick = (e) => { 
         e.stopPropagation(); 
-        window.mostrarModalConfirmacion(
-            "Novetats", 
-            "No tens noves notificacions al fòrum o cursos nous.", 
-            () => {} 
-        );
+        window.mostrarModalConfirmacion("Novetats", "No tens noves notificacions al fòrum o cursos nous.", () => {});
         document.getElementById('modal-btn-cancel').style.display = 'none';
         document.getElementById('modal-btn-confirm').innerText = "D'acord";
     };
@@ -98,11 +93,7 @@ function setupDirectClicks() {
     const btnMsg = document.getElementById('btn-messages');
     if (btnMsg) btnMsg.onclick = (e) => { 
         e.stopPropagation(); 
-        window.mostrarModalConfirmacion(
-            "Missatgeria", 
-            "El sistema de missatgeria estarà disponible properament.", 
-            () => {}
-        );
+        window.mostrarModalConfirmacion("Missatgeria", "El sistema de missatgeria estarà disponible properament.", () => {});
         document.getElementById('modal-btn-cancel').style.display = 'none';
         document.getElementById('modal-btn-confirm').innerText = "Entesos";
     };
@@ -219,7 +210,34 @@ window.showView = function(viewName) {
     if(viewName === 'grades') loadGrades();
 };
 
-// MODIFICADO BLOQUE 2: Lógica unificada de cursos y fechas
+// HELPER: Generar HTML descripción con "Mostrar més"
+function generarHtmlDescripcion(resum, idUnico) {
+    if (!resum) return '';
+    const MAX_CHARS = 100;
+    if (resum.length <= MAX_CHARS) {
+        return `<div class="course-desc-container"><p class="course-desc">${resum}</p></div>`;
+    }
+    return `
+        <div class="course-desc-container">
+            <p class="course-desc short" id="desc-${idUnico}">${resum}</p>
+            <span class="read-more-link" onclick="toggleDesc('${idUnico}')">Mostrar més</span>
+        </div>
+    `;
+}
+
+// HELPER: Toggle descripción
+window.toggleDesc = function(id) {
+    const p = document.getElementById(`desc-${id}`);
+    const btn = p.nextElementSibling;
+    if (p.classList.contains('short')) {
+        p.classList.remove('short');
+        btn.innerText = 'Mostrar menys';
+    } else {
+        p.classList.add('short');
+        btn.innerText = 'Mostrar més';
+    }
+};
+
 async function renderCoursesLogic(viewMode) {
     const listId = viewMode === 'dashboard' ? 'courses-list' : 'catalog-list';
     const list = document.getElementById(listId);
@@ -262,7 +280,8 @@ async function renderCoursesLogic(viewMode) {
             return;
         }
 
-        cursosAMostrar.forEach(curs => {
+        cursosAMostrar.forEach((curs, index) => {
+            const cursId = curs.documentId || curs.id || index;
             let imgUrl = 'img/logo-sicap.png';
             if(curs.imatge) { 
                 const img = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge; 
@@ -270,7 +289,8 @@ async function renderCoursesLogic(viewMode) {
             }
 
             const hoy = new Date();
-            const fechaInicio = curs.fecha_inicio ? new Date(curs.fecha_inicio) : null;
+            // Lógica fecha_inicio (si no existe, usa publishedAt)
+            const fechaInicio = curs.fecha_inicio ? new Date(curs.fecha_inicio) : new Date(curs.publishedAt);
             const esFuturo = fechaInicio && fechaInicio > hoy;
             
             let dateBadge = '';
@@ -284,9 +304,12 @@ async function renderCoursesLogic(viewMode) {
             }
 
             // HORAS: Ahora visibles SIEMPRE
-            const horasHtml = `<div style="margin-bottom:10px; color:#666; font-size:0.9rem; font-weight:500;">
+            const horasHtml = `<div class="course-hours">
                 <i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'Durada no especificada'}
             </div>`;
+
+            // DESCRIPCIÓN: Ahora visible con "Mostrar més"
+            const descHtml = generarHtmlDescripcion(curs.resum, cursId);
 
             let progressHtml = '';
             let btnAction = '';
@@ -304,15 +327,13 @@ async function renderCoursesLogic(viewMode) {
                 if (esFuturo) {
                     btnAction = `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alertFechaFutura('${curs.titol}', '${fechaInicio.toLocaleDateString('ca-ES')}')">Accedir</button>`;
                 } else {
-                    btnAction = `<a href="index.html?slug=${curs.slug}" class="btn-primary" style="margin-top:auto; text-align:center;">Accedir</a>`;
+                    btnAction = `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
                 }
                 if(viewMode === 'home') dateBadge += ` <span class="badge-role" style="background:#e3f2fd; color:#0d47a1;">Ja matriculat</span>`;
             } else {
                 // NO MATRICULADO
-                progressHtml = `<div style="margin-top:auto;"></div>`; // Espaciador para empujar
-                
-                // Botón Matricular (Azul Corporativo)
-                btnAction = `<button class="btn-enroll" onclick="window.solicitarMatricula('${curs.documentId || curs.id}', '${curs.titol}')">Matricular-me</button>`;
+                progressHtml = ``; 
+                btnAction = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${curs.titol}')">Matricular-me</button>`;
             }
 
             const card = `
@@ -322,8 +343,9 @@ async function renderCoursesLogic(viewMode) {
                     </div>
                     <div class="card-body">
                         <h3 class="course-title">${curs.titol}</h3>
-                        ${dateBadge}
                         ${horasHtml}
+                        ${dateBadge}
+                        ${descHtml}
                         ${progressHtml}
                         ${btnAction}
                     </div>
@@ -341,62 +363,35 @@ async function loadUserCourses() { await renderCoursesLogic('dashboard'); }
 async function loadCatalog() { await renderCoursesLogic('home'); }
 
 window.alertFechaFutura = function(titol, fecha) {
-    window.mostrarModalConfirmacion(
-        "Curs no iniciat", 
-        `El curs "${titol}" estarà disponible el ${fecha}.`, 
-        () => {}
-    );
+    window.mostrarModalConfirmacion("Curs no iniciat", `El curs "${titol}" estarà disponible el ${fecha}.`, () => {});
     document.getElementById('modal-btn-cancel').style.display = 'none';
     document.getElementById('modal-btn-confirm').innerText = "Entesos";
 };
 
 window.solicitarMatricula = function(id, titol) {
-    window.mostrarModalConfirmacion(
-        "Inscripció", 
-        `Vols inscriure't al curs "${titol}"?`,
-        () => { alert("Sol·licitud enviada (Simulació). Contacta amb administració."); }
-    );
+    window.mostrarModalConfirmacion("Inscripció", `Vols inscriure't al curs "${titol}"?`, () => { alert("Sol·licitud enviada (Simulació). Contacta amb administració."); });
 };
 
-// MODIFICADO BLOQUE 2: Estadísticas de perfil
 async function loadFullProfile() {
-    console.log("📥 Cargando perfil i estadístiques...");
+    console.log("📥 Cargando perfil...");
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
-    
     const emailIn = document.getElementById('prof-email');
     if(emailIn) emailIn.value = user.email || '-';
 
-    const mailBtn = document.querySelector('.profile-data-form button');
-    if(mailBtn) { mailBtn.onclick = () => window.location.href = 'mailto:sicap@sicap.cat'; }
-
     try {
-        const res = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { 
-            headers: { 'Authorization': `Bearer ${token}` } 
-        });
+        const res = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
-        
         if(json.data && json.data.length > 0) {
             const afi = json.data[0];
             const getVal = (key) => afi[key] || afi[key.charAt(0).toLowerCase() + key.slice(1)] || '-';
-            const map = {
-                'prof-movil': 'TelefonoMobil', 'prof-prov': 'Provincia', 'prof-pob': 'Poblacion',
-                'prof-centre': 'CentroTrabajo', 'prof-cat': 'CategoriaProfesional',
-                'prof-dir': 'Direccion', 'prof-iban': 'IBAN'
-            };
-            for (const [domId, apiField] of Object.entries(map)) { 
-                const el = document.getElementById(domId); 
-                if(el) el.value = getVal(apiField);
-            }
+            const map = { 'prof-movil': 'TelefonoMobil', 'prof-prov': 'Provincia', 'prof-pob': 'Poblacion', 'prof-centre': 'CentroTrabajo', 'prof-cat': 'CategoriaProfesional', 'prof-dir': 'Direccion', 'prof-iban': 'IBAN' };
+            for (const [domId, apiField] of Object.entries(map)) { const el = document.getElementById(domId); if(el) el.value = getVal(apiField); }
         }
 
-        // CÁLCULO ESTADÍSTICAS
-        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`, { 
-            headers: { 'Authorization': `Bearer ${token}` } 
-        });
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`, { headers: { 'Authorization': `Bearer ${token}` } });
         const jsonMat = await resMat.json();
         const matriculas = jsonMat.data || [];
-
         let iniciados = matriculas.length;
         let acabados = 0;
         let horasTotales = 0;
@@ -416,59 +411,31 @@ async function loadFullProfile() {
         document.getElementById('stat-started').innerText = iniciados;
         document.getElementById('stat-finished').innerText = acabados;
         document.getElementById('stat-hours').innerText = horasTotales + 'h';
-
-    } catch(e) { 
-        console.error("❌ Error cargando perfil:", e); 
-    }
+    } catch(e) { console.error("Error perfil:", e); }
 }
 
 async function loadGrades() {
     const tbody = document.getElementById('grades-table-body');
     const token = localStorage.getItem('jwt');
     const user = JSON.parse(localStorage.getItem('user'));
-    
     if(!tbody || !token) return;
-    
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;"><div class="loader"></div></td></tr>';
 
     try {
         const query = `filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`;
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
-
         tbody.innerHTML = ''; 
-
-        if(!json.data || json.data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">No tens cursos matriculats.</td></tr>';
-            return;
-        }
-
+        if(!json.data || json.data.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">No tens cursos matriculats.</td></tr>'; return; }
         json.data.forEach(mat => {
             const curs = mat.curs;
             if(!curs) return;
-
             const isCompleted = mat.estat === 'completat' || mat.progres === 100;
-            const statusHtml = isCompleted 
-                ? '<span style="color:#10b981; font-weight:bold;">Completat</span>' 
-                : '<span style="color:var(--brand-blue);">En Curs</span>';
+            const statusHtml = isCompleted ? '<span style="color:#10b981; font-weight:bold;">Completat</span>' : '<span style="color:var(--brand-blue);">En Curs</span>';
             const nota = mat.nota_final !== undefined && mat.nota_final !== null ? mat.nota_final : '-';
-            const diplomaHtml = isCompleted 
-                ? `<button class="btn-small" onclick="alert('Descàrrega de diploma properament')"><i class="fa-solid fa-download"></i> PDF</button>` 
-                : '<small style="color:#999;">Pendent</small>';
-
-            const row = `
-                <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 15px;"><strong>${curs.titol}</strong></td>
-                    <td style="padding: 15px;">${statusHtml}</td>
-                    <td style="padding: 15px;">${nota}</td>
-                    <td style="padding: 15px;">${diplomaHtml}</td>
-                </tr>
-            `;
+            const diplomaHtml = isCompleted ? `<button class="btn-small" onclick="alert('Descàrrega de diploma properament')"><i class="fa-solid fa-download"></i> PDF</button>` : '<small style="color:#999;">Pendent</small>';
+            const row = `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 15px;"><strong>${curs.titol}</strong></td><td style="padding: 15px;">${statusHtml}</td><td style="padding: 15px;">${nota}</td><td style="padding: 15px;">${diplomaHtml}</td></tr>`;
             tbody.innerHTML += row;
         });
-
-    } catch(e) {
-        console.error(e);
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Error carregant qualificacions.</td></tr>';
-    }
+    } catch(e) { console.error(e); tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Error carregant qualificacions.</td></tr>'; }
 }

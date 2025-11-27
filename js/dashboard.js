@@ -6,37 +6,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// MODAL GENÉRICO
+// ==========================================
+// 1. SISTEMA DE MODALES (DISEÑO PRO)
+// ==========================================
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
-    // Asegurar que el título es negro por defecto (por si viene de un error rojo)
     const titleEl = document.getElementById('modal-title');
-    titleEl.innerText = titulo;
-    titleEl.style.color = "var(--brand-blue)"; // Color por defecto
-
-    document.getElementById('modal-msg').innerText = mensaje;
-    
+    const msgEl = document.getElementById('modal-msg');
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    // Resetear botones
+    // Resetear estilos y textos
+    titleEl.innerText = titulo;
+    titleEl.style.color = ""; // Reset color por si hubo error antes
+    msgEl.innerText = mensaje;
+    
     btnConfirm.innerText = "Confirmar";
     btnConfirm.disabled = false;
-    btnConfirm.style.background = "var(--brand-blue)"; // Color por defecto
-    btnCancel.style.display = "inline-block";
+    btnConfirm.style.background = ""; // Reset color
+    btnCancel.style.display = "block"; // Asegurar que se ve
 
-    // Clonar para limpiar eventos previos
+    // Clonar para limpiar eventos
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     btnCancel.parentNode.replaceChild(newCancel, btnCancel);
 
     newConfirm.onclick = () => {
-        if(onConfirm) {
-            onConfirm();
-        } else {
-            modal.style.display = 'none';
-        }
+        if(onConfirm) onConfirm();
+        else modal.style.display = 'none';
     };
     newCancel.onclick = () => {
         modal.style.display = 'none';
@@ -45,36 +43,31 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     modal.style.display = 'flex';
 };
 
-// HELPER: Modal de Error Bonito
 window.mostrarModalError = function(mensaje) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
-    
-    titleEl.innerText = "Error";
-    titleEl.style.color = "var(--brand-red)"; // Título en rojo
-    
-    document.getElementById('modal-msg').innerText = mensaje;
-    
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    // Configurar para modo "Solo Aceptar"
-    btnCancel.style.display = 'none';
+    titleEl.innerText = "Atenció";
+    titleEl.style.color = "var(--brand-red)"; // Título rojo
+    document.getElementById('modal-msg').innerText = mensaje;
+
+    btnCancel.style.display = 'none'; // Ocultar cancelar
     btnConfirm.innerText = "Entesos";
     btnConfirm.style.background = "var(--brand-red)"; // Botón rojo
-    btnConfirm.disabled = false;
-
-    // Clonar para limpiar eventos
+    
+    // Clonar evento
     const newConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
-
-    newConfirm.onclick = () => {
-        modal.style.display = 'none';
-    };
-
+    
+    newConfirm.onclick = () => modal.style.display = 'none';
     modal.style.display = 'flex';
-}
+};
 
+// ==========================================
+// 2. FUNCIONES PRINCIPALES
+// ==========================================
 window.logoutApp = function() {
     window.mostrarModalConfirmacion(
         "Tancar Sessió", 
@@ -99,14 +92,9 @@ window.appIniciada = false;
 window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
-
-    console.log("🚀 Iniciando SICAP App (Final Fixes)...");
-
+    console.log("🚀 Iniciando SICAP App (Bloque 2 Final)...");
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
-
-    setTimeout(() => {
-        setupDirectClicks();
-    }, 100);
+    setTimeout(() => { setupDirectClicks(); }, 100);
 
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.get('slug')) {
@@ -121,17 +109,13 @@ function setupDirectClicks() {
     const btnBell = document.getElementById('btn-notifs');
     if (btnBell) btnBell.onclick = (e) => { 
         e.stopPropagation(); 
-        window.mostrarModalConfirmacion("Novetats", "No tens noves notificacions.", () => { document.getElementById('custom-modal').style.display = 'none'; });
-        document.getElementById('modal-btn-cancel').style.display = 'none';
-        document.getElementById('modal-btn-confirm').innerText = "D'acord";
+        window.mostrarModalError("No tens noves notificacions.");
     };
 
     const btnMsg = document.getElementById('btn-messages');
     if (btnMsg) btnMsg.onclick = (e) => { 
         e.stopPropagation(); 
-        window.mostrarModalConfirmacion("Missatgeria", "El sistema de missatgeria estarà disponible properament.", () => { document.getElementById('custom-modal').style.display = 'none'; });
-        document.getElementById('modal-btn-cancel').style.display = 'none';
-        document.getElementById('modal-btn-confirm').innerText = "Entesos";
+        window.mostrarModalError("El sistema de missatgeria estarà disponible properament.");
     };
 
     const btnMobile = document.getElementById('mobile-menu-btn');
@@ -246,7 +230,6 @@ window.showView = function(viewName) {
     if(viewName === 'grades') loadGrades();
 };
 
-// HELPER: Parsear Texto Rich Text
 function parseStrapiText(content) {
     if (!content) return '';
     if (typeof content === 'string') return content;
@@ -261,20 +244,15 @@ function parseStrapiText(content) {
     return '';
 }
 
-// GENERAR HTML DESCRIPCIÓN
 function generarHtmlDescripcion(rawText, idUnico) {
     const textoLimpio = parseStrapiText(rawText);
-    
     if (!textoLimpio) return '';
-    
     const MAX_CHARS = 100;
     if (textoLimpio.length <= MAX_CHARS) {
         return `<div class="course-desc-container"><p class="course-desc">${textoLimpio}</p></div>`;
     }
-    
     const safeFullText = textoLimpio.replace(/"/g, '&quot;');
     const textoCorto = textoLimpio.substring(0, MAX_CHARS) + '...';
-    
     return `
         <div class="course-desc-container">
             <p class="course-desc short" id="desc-p-${idUnico}" data-full="${safeFullText}">${textoCorto}</p>
@@ -286,7 +264,6 @@ function generarHtmlDescripcion(rawText, idUnico) {
 window.toggleDesc = function(id) {
     const p = document.getElementById(`desc-p-${id}`);
     const btn = document.getElementById(`desc-btn-${id}`);
-    
     if (btn.innerText === 'Mostrar més') {
         p.innerText = p.getAttribute('data-full'); 
         p.classList.remove('short');
@@ -425,16 +402,12 @@ async function loadUserCourses() { await renderCoursesLogic('dashboard'); }
 async function loadCatalog() { await renderCoursesLogic('home'); }
 
 window.alertFechaFutura = function(titol, fecha) {
-    window.mostrarModalConfirmacion(
-        "Curs no iniciat", 
-        `El curs "${titol}" estarà disponible el ${fecha}. Encara no hi pots accedir.`, 
-        () => { document.getElementById('custom-modal').style.display = 'none'; }
-    );
-    document.getElementById('modal-btn-cancel').style.display = 'none';
-    document.getElementById('modal-btn-confirm').innerText = "Entesos";
+    window.mostrarModalError(`El curs "${titol}" estarà disponible el ${fecha}. Encara no hi pots accedir.`);
 };
 
-// MATRÍCULA REAL (Con manejo de errores BONITO)
+// ==========================================
+// 3. MATRÍCULA REAL (CORREGIDA)
+// ==========================================
 window.solicitarMatricula = function(courseId, courseTitle) {
     window.mostrarModalConfirmacion(
         "Confirmar Matriculació", 
@@ -448,16 +421,15 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                 const user = JSON.parse(localStorage.getItem('user'));
                 const token = localStorage.getItem('jwt');
                 
-                const now = new Date().toISOString();
-
+                // Payload corregido para Strapi v5
                 const payload = {
                     data: {
                         curs: courseId,
-                        users_permissions_user: user.id,
+                        users_permissions_user: Number(user.id), // Aseguramos que sea número
                         progres: 0,
-                        estat: 'iniciat',
-                        data_inici: now,
-                        progres_detallat: {}
+                        estat: 'iniciat', // OJO: Si tu Strapi usa 'Iniciat', cambia esto
+                        data_inici: new Date().toISOString(),
+                        progres_detallat: {} // Objeto vacío para el progreso
                     }
                 };
 
@@ -474,14 +446,13 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                     window.location.reload();
                 } else {
                     const err = await res.json();
+                    console.error("Error Strapi:", err); // Para depurar en consola
                     
-                    // AQUÍ ESTÁ EL CAMBIO CLAVE: CERRAR CONFIRMACIÓN Y MOSTRAR ERROR BONITO
+                    // Cerramos modal de confirmación y mostramos error
                     document.getElementById('custom-modal').style.display = 'none';
-                    
-                    // Pequeño timeout para que la transición sea suave
                     setTimeout(() => {
                         window.mostrarModalError(
-                            "No s'ha pogut realitzar la matrícula. Error: " + (err.error?.message || "Permisos insuficients")
+                            "Error al matricular: " + (err.error?.message || "Dades incorrectes (400)")
                         );
                     }, 200);
                 }

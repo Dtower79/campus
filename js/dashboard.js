@@ -16,7 +16,7 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    // Restaurar estado inicial de botones (por si se ocultaron antes)
+    // Restaurar estado inicial de botones
     btnConfirm.innerText = "Confirmar";
     btnCancel.style.display = "inline-block";
 
@@ -283,10 +283,16 @@ async function renderCoursesLogic(viewMode) {
                 }
             }
 
+            // HORAS: Ahora visibles SIEMPRE
+            const horasHtml = `<div style="margin-bottom:10px; color:#666; font-size:0.9rem; font-weight:500;">
+                <i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'Durada no especificada'}
+            </div>`;
+
             let progressHtml = '';
             let btnAction = '';
             
             if (curs._matricula) {
+                // MATRICULADO
                 const mat = curs._matricula;
                 const color = mat.progres >= 100 ? '#10b981' : 'var(--brand-blue)';
                 progressHtml = `
@@ -302,8 +308,11 @@ async function renderCoursesLogic(viewMode) {
                 }
                 if(viewMode === 'home') dateBadge += ` <span class="badge-role" style="background:#e3f2fd; color:#0d47a1;">Ja matriculat</span>`;
             } else {
-                progressHtml = `<div style="margin-top:auto; margin-bottom:10px; color:#666; font-size:0.9rem;">${curs.hores ? curs.hores + ' Hores' : 'Formació Online'}</div>`;
-                btnAction = `<button class="btn-primary" onclick="window.solicitarMatricula('${curs.documentId || curs.id}', '${curs.titol}')">Matricular-me</button>`;
+                // NO MATRICULADO
+                progressHtml = `<div style="margin-top:auto;"></div>`; // Espaciador para empujar
+                
+                // Botón Matricular (Azul Corporativo)
+                btnAction = `<button class="btn-enroll" onclick="window.solicitarMatricula('${curs.documentId || curs.id}', '${curs.titol}')">Matricular-me</button>`;
             }
 
             const card = `
@@ -314,6 +323,7 @@ async function renderCoursesLogic(viewMode) {
                     <div class="card-body">
                         <h3 class="course-title">${curs.titol}</h3>
                         ${dateBadge}
+                        ${horasHtml}
                         ${progressHtml}
                         ${btnAction}
                     </div>

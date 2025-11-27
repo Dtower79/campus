@@ -337,10 +337,11 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
         }
 
+        // USO DE LA NUEVA CLASE 'exam-info-box'
         container.innerHTML = `
             <div class="dashboard-card" style="text-align:center; padding: 40px;">
                 <h2>📝 Test d'Avaluació: ${mod.titol}</h2>
-                <div style="background:#f8f9fa; padding:20px; border-radius:8px; margin:20px 0; text-align:left; display:inline-block;">
+                <div class="exam-info-box">
                     <p>✅ <strong>Aprovat:</strong> 70% d'encerts.</p>
                     <p>💾 <strong>Autoguardat:</strong> El progrés es guarda si tanques.</p>
                     <p>🔄 <strong>Intent:</strong> ${progreso.intentos + 1} de 2.</p>
@@ -583,9 +584,10 @@ document.addEventListener('DOMContentLoaded', () => {
             state.testEnCurso = true;
             renderFinalQuestions(container, savedData);
         } else {
+            // USO DE LA NUEVA CLASE 'exam-info-box'
             container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;">
                 <h2 style="color:var(--brand-blue);">🏆 Examen Final</h2>
-                <div style="background:#f8f9fa; padding:20px; margin:20px 0; text-align:left; display:inline-block;">
+                <div class="exam-info-box">
                     <p>⏱️ <strong>Temps:</strong> 30 minuts (Compte enrere).</p>
                     <p>🎯 <strong>Nota tall:</strong> 7.5 (75%).</p>
                     <p>⚠️ <strong>Intents:</strong> ${finalData.intentos + 1} de 2.</p>

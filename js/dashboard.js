@@ -15,17 +15,24 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
+    // Resetear botones
     btnConfirm.innerText = "Confirmar";
+    btnConfirm.disabled = false;
     btnCancel.style.display = "inline-block";
 
+    // Clonar para limpiar eventos previos
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     btnCancel.parentNode.replaceChild(newCancel, btnCancel);
 
     newConfirm.onclick = () => {
-        modal.style.display = 'none';
-        if(onConfirm) onConfirm();
+        // No cerramos inmediatamente si hay callback (para mostrar "Cargando...")
+        if(onConfirm) {
+            onConfirm();
+        } else {
+            modal.style.display = 'none';
+        }
     };
     newCancel.onclick = () => {
         modal.style.display = 'none';
@@ -34,7 +41,6 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     modal.style.display = 'flex';
 };
 
-// LOGOUT
 window.logoutApp = function() {
     window.mostrarModalConfirmacion(
         "Tancar Sessió", 
@@ -46,7 +52,6 @@ window.logoutApp = function() {
     );
 };
 
-// NAVEGACIÓN
 window.tornarAlDashboard = function() {
     document.getElementById('exam-view').style.display = 'none';
     document.getElementById('dashboard-view').style.display = 'block';
@@ -61,7 +66,7 @@ window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
 
-    console.log("🚀 Iniciando SICAP App (Bloque 2 Corregido)...");
+    console.log("🚀 Iniciando SICAP App (Fix Comillas & RichText)...");
 
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
 
@@ -82,7 +87,7 @@ function setupDirectClicks() {
     const btnBell = document.getElementById('btn-notifs');
     if (btnBell) btnBell.onclick = (e) => { 
         e.stopPropagation(); 
-        window.mostrarModalConfirmacion("Novetats", "No tens noves notificacions.", () => {});
+        window.mostrarModalConfirmacion("Novetats", "No tens noves notificacions.", () => { document.getElementById('custom-modal').style.display = 'none'; });
         document.getElementById('modal-btn-cancel').style.display = 'none';
         document.getElementById('modal-btn-confirm').innerText = "D'acord";
     };
@@ -90,7 +95,7 @@ function setupDirectClicks() {
     const btnMsg = document.getElementById('btn-messages');
     if (btnMsg) btnMsg.onclick = (e) => { 
         e.stopPropagation(); 
-        window.mostrarModalConfirmacion("Missatgeria", "El sistema de missatgeria estarà disponible properament.", () => {});
+        window.mostrarModalConfirmacion("Missatgeria", "El sistema de missatgeria estarà disponible properament.", () => { document.getElementById('custom-modal').style.display = 'none'; });
         document.getElementById('modal-btn-cancel').style.display = 'none';
         document.getElementById('modal-btn-confirm').innerText = "Entesos";
     };
@@ -207,20 +212,45 @@ window.showView = function(viewName) {
     if(viewName === 'grades') loadGrades();
 };
 
-// HELPER: Generar HTML descripción con "Mostrar més"
-// CORRECCIÓN PUNTO 1: Usamos 'descripcio' en lugar de 'resum' si viene del CMS
-function generarHtmlDescripcion(texto, idUnico) {
-    if (!texto) return '';
-    const MAX_CHARS = 90; // Cortar antes para que no ocupe mucho
-    if (texto.length <= MAX_CHARS) {
-        return `<div class="course-desc-container"><p class="course-desc">${texto}</p></div>`;
+// --- NUEVO: PARSEADOR DE TEXTO STRAPI PARA DESCRIPCIONES ---
+function parseStrapiText(content) {
+    if (!content) return '';
+    
+    // Si ya es string, devolver
+    if (typeof content === 'string') return content;
+    
+    // Si es array (Rich Text / Blocks de Strapi v5)
+    if (Array.isArray(content)) {
+        return content.map(block => {
+            // Extraer texto de párrafos o listas
+            if (block.children && Array.isArray(block.children)) {
+                return block.children.map(child => child.text).join('');
+            }
+            return '';
+        }).join(' '); // Unir bloques con espacio
     }
-    // Cortamos texto
-    const textoCorto = texto.substring(0, MAX_CHARS) + '...';
+    
+    return ''; // Fallback
+}
+
+// GENERAR HTML DESCRIPCIÓN
+function generarHtmlDescripcion(rawText, idUnico) {
+    const textoLimpio = parseStrapiText(rawText); // Limpiamos el [object Object]
+    
+    if (!textoLimpio) return '';
+    
+    const MAX_CHARS = 100;
+    if (textoLimpio.length <= MAX_CHARS) {
+        return `<div class="course-desc-container"><p class="course-desc">${textoLimpio}</p></div>`;
+    }
+    
+    // Escapar comillas para el atributo data-full
+    const safeFullText = textoLimpio.replace(/"/g, '&quot;');
+    const textoCorto = textoLimpio.substring(0, MAX_CHARS) + '...';
     
     return `
         <div class="course-desc-container">
-            <p class="course-desc short" id="desc-p-${idUnico}" data-full="${encodeURIComponent(texto)}">${textoCorto}</p>
+            <p class="course-desc short" id="desc-p-${idUnico}" data-full="${safeFullText}">${textoCorto}</p>
             <span class="read-more-link" id="desc-btn-${idUnico}" onclick="toggleDesc('${idUnico}')">Mostrar més</span>
         </div>
     `;
@@ -231,12 +261,12 @@ window.toggleDesc = function(id) {
     const btn = document.getElementById(`desc-btn-${id}`);
     
     if (btn.innerText === 'Mostrar més') {
-        p.innerText = decodeURIComponent(p.getAttribute('data-full'));
+        p.innerText = p.getAttribute('data-full'); // Ya sale decodificado
         p.classList.remove('short');
         btn.innerText = 'Mostrar menys';
     } else {
-        const fullText = decodeURIComponent(p.getAttribute('data-full'));
-        p.innerText = fullText.substring(0, 90) + '...';
+        const full = p.getAttribute('data-full');
+        p.innerText = full.substring(0, 100) + '...';
         p.classList.add('short');
         btn.innerText = 'Mostrar més';
     }
@@ -271,7 +301,6 @@ async function renderCoursesLogic(viewMode) {
             });
         }
 
-        // Ordenar por fecha (más reciente primero)
         cursosAMostrar.sort((a, b) => {
             const dateA = new Date(a.fecha_inicio || a.publishedAt);
             const dateB = new Date(b.fecha_inicio || b.publishedAt);
@@ -286,52 +315,45 @@ async function renderCoursesLogic(viewMode) {
 
         cursosAMostrar.forEach((curs, index) => {
             const cursId = curs.documentId || curs.id;
+            // IMPORTANTE: Escapar comillas simples del título para el onclick
+            const safeTitle = curs.titol.replace(/'/g, "\\'"); 
+
             let imgUrl = 'img/logo-sicap.png';
             if(curs.imatge) { 
                 const img = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge; 
                 if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url; 
             }
 
-            // Lógica Fechas
             const hoy = new Date();
             const fechaInicio = curs.fecha_inicio ? new Date(curs.fecha_inicio) : new Date(curs.publishedAt);
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES');
 
-            // CORRECCIÓN PUNTO 2: Badge sobre la imagen
             let badgeOverlay = '';
             if (esFuturo) {
-                // Amarillo si es futuro
                 badgeOverlay = `<span class="course-badge" style="background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
                     <i class="fa-regular fa-calendar"></i> Properament: ${dateStr}
                 </span>`;
             } else if (curs.etiqueta) {
-                // Azul original si ya empezó
                 badgeOverlay = `<span class="course-badge">${curs.etiqueta}</span>`;
             }
 
-            // Etiqueta de fecha en el cuerpo (informativa)
             let dateBodyInfo = '';
-            if (esFuturo) {
-                // Si es futuro, ya sale arriba, abajo no hace falta repetir o ponemos gris
-            } else {
+            if (!esFuturo) {
                 dateBodyInfo = `<div class="badge-date"><i class="fa-solid fa-check"></i> Iniciat: ${dateStr}</div>`;
             }
             if (curs._matricula && viewMode === 'home') {
                 dateBodyInfo += ` <span class="badge-role" style="background:#e3f2fd; color:#0d47a1; margin-left:5px;">Ja matriculat</span>`;
             }
 
-            // Horas y Descripción
-            // CORRECCIÓN PUNTO 1: Leemos 'descripcio' del objeto Strapi
-            const descText = curs.descripcio || curs.resum || ''; 
-            const descHtml = generarHtmlDescripcion(descText, index);
+            // Usamos la nueva función para limpiar el rich text
+            const descHtml = generarHtmlDescripcion(curs.descripcio || curs.resum, index);
             const horasHtml = `<div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'Durada no especificada'}</div>`;
 
             let actionHtml = '';
             let progressHtml = '';
 
             if (curs._matricula) {
-                // MATRICULADO
                 const mat = curs._matricula;
                 const color = mat.progres >= 100 ? '#10b981' : 'var(--brand-blue)';
                 progressHtml = `
@@ -341,15 +363,15 @@ async function renderCoursesLogic(viewMode) {
                     </div>`;
 
                 if (esFuturo) {
-                    actionHtml = `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alertFechaFutura('${curs.titol}', '${dateStr}')">Accedir</button>`;
+                    actionHtml = `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alertFechaFutura('${safeTitle}', '${dateStr}')">Accedir</button>`;
                 } else {
                     actionHtml = `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
                 }
 
             } else {
-                // NO MATRICULADO
-                // CORRECCIÓN PUNTO 3: Botón real de matrícula
-                actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${curs.titol}')">Matricular-me</button>`;
+                progressHtml = ``; 
+                // USAMOS safeTitle AQUÍ PARA EVITAR EL ERROR DE COMILLAS
+                actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${safeTitle}')">Matricular-me</button>`;
             }
 
             const card = `
@@ -382,15 +404,15 @@ window.alertFechaFutura = function(titol, fecha) {
     window.mostrarModalConfirmacion(
         "Curs no iniciat", 
         `El curs "${titol}" estarà disponible el ${fecha}. Encara no hi pots accedir.`, 
-        () => {}
+        () => { document.getElementById('custom-modal').style.display = 'none'; }
     );
     document.getElementById('modal-btn-cancel').style.display = 'none';
     document.getElementById('modal-btn-confirm').innerText = "Entesos";
 };
 
-// CORRECCIÓN PUNTO 3: MATRÍCULA REAL (POST a API)
-// CORRECCIÓN FINAL: Añadir data_inici al payload
 window.solicitarMatricula = function(courseId, courseTitle) {
+    console.log("Intentando matricular en:", courseTitle); // Debug
+    
     window.mostrarModalConfirmacion(
         "Confirmar Matriculació", 
         `Vols inscriure't al curs "${courseTitle}"?`,
@@ -403,7 +425,6 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                 const user = JSON.parse(localStorage.getItem('user'));
                 const token = localStorage.getItem('jwt');
                 
-                // Fecha ISO para Strapi (YYYY-MM-DDTHH:mm:ss.sssZ)
                 const now = new Date().toISOString();
 
                 const payload = {
@@ -412,7 +433,7 @@ window.solicitarMatricula = function(courseId, courseTitle) {
                         users_permissions_user: user.id,
                         progres: 0,
                         estat: 'iniciat',
-                        data_inici: now, // <--- AÑADIDO: Fecha de inicio real
+                        data_inici: now,
                         progres_detallat: {}
                     }
                 };

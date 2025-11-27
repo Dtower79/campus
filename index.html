@@ -159,7 +159,25 @@
                         <h3 id="profile-name-display">Carregant...</h3>
                         <span class="badge-role">Afiliat Actiu</span>
                         <p style="font-size:0.9rem; color:#666; margin-top:10px;">DNI: <span id="profile-dni-display">...</span></p>
+                        
+                        <!-- NUEVO: CONTENEDOR DE ESTADÍSTICAS (Punto 4) -->
+                        <div id="profile-stats-container" class="profile-stats-box" style="display:none;">
+                            <div class="stat-row">
+                                <span><i class="fa-solid fa-graduation-cap"></i> Cursos Iniciats:</span>
+                                <strong id="stat-started">0</strong>
+                            </div>
+                            <div class="stat-row">
+                                <span><i class="fa-solid fa-check-circle"></i> Completats:</span>
+                                <strong id="stat-finished">0</strong>
+                            </div>
+                            <div class="stat-divider"></div>
+                            <div class="stat-row">
+                                <span><i class="fa-regular fa-clock"></i> Hores Totals:</span>
+                                <strong id="stat-hours">0h</strong>
+                            </div>
+                        </div>
                     </div>
+
                     <div class="profile-data-form">
                         <div class="form-grid-2">
                             <div class="input-group"><label>Telèfon Mòbil</label><input type="text" id="prof-movil" disabled></div>
@@ -201,6 +219,7 @@
                 <div class="sidebar-header"><h3>Índex del Curs</h3></div>
                 <div id="course-index"></div>
                 <div style="margin-top:20px;">
+                    <!-- MODIFICADO: Botón volver sin recarga (Punto 23) -->
                     <a href="#" onclick="window.tornarAlDashboard(); return false;" class="btn-small">
                         <i class="fa-solid fa-arrow-left"></i> Tornar als Cursos
                     </a>
@@ -222,8 +241,8 @@
             </aside>
         </div>
     </div>
-    
-    <!-- MODAL GENÉRICO (Confirmación) -->
+
+    <!-- MODAL GENÉRICO (Confirmación) - AÑADIDO BLOQUE 1 -->
     <div id="custom-modal" class="modal-overlay" style="display: none;">
         <div class="modal-card">
             <div class="modal-icon"><i class="fa-solid fa-circle-question"></i></div>

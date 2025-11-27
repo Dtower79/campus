@@ -38,7 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const USER = JSON.parse(localStorage.getItem('user'));
     const TOKEN = localStorage.getItem('jwt');
 
-    // Estado global de la aplicación
     let state = {
         matriculaId: null,
         curso: null,
@@ -60,7 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // --- FIX VISUAL: OCULTAR LOGIN Y MOSTRAR CURSO INMEDIATAMENTE ---
     const loginOverlay = document.getElementById('login-overlay');
     const appContainer = document.getElementById('app-container');
     const dashboardView = document.getElementById('dashboard-view');
@@ -70,9 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (appContainer) appContainer.style.display = 'block';
     if (dashboardView) dashboardView.style.display = 'none';
     if (examView) examView.style.display = 'flex';
-    // -----------------------------------------------------------------
 
-    // INICIAR
     init();
 
     async function init() {
@@ -81,7 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             await cargarDatos();
-            // Si es la primera vez, inicializamos el JSON de progreso
             if (!state.progreso || Object.keys(state.progreso).length === 0) {
                 await inicializarProgresoEnStrapi();
             }
@@ -93,9 +88,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ------------------------------------------------------------------------
-    // 3. CARGA DE DATOS
-    // ------------------------------------------------------------------------
     async function cargarDatos() {
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
@@ -103,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `populate[curs][populate][moduls][populate][preguntes][populate][opcions]=true`, 
             `populate[curs][populate][moduls][populate][material_pdf]=true`,
             `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
-            `populate[curs][populate][examen_final][populate][opcions]=true`, // <--- ESTA LÍNEA ES CRÍTICA
+            `populate[curs][populate][examen_final][populate][opcions]=true`, 
             `populate[curs][populate][imatge]=true`
         ].join('&');
 
@@ -148,14 +140,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.progreso = progresoObj;
     }
 
-    // ------------------------------------------------------------------------
-    // 4. LÓGICA DE BLOQUEOS (CORE)
-    // ------------------------------------------------------------------------
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
-
         if (indexModulo === 0) return false; 
-        
         const moduloAnterior = state.progreso.modulos[indexModulo - 1];
         if (!moduloAnterior) return false; 
         return !moduloAnterior.aprobado;
@@ -167,9 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return state.progreso.modulos.every(m => m.aprobado === true);
     }
 
-    // ------------------------------------------------------------------------
-    // 5. RENDERIZADO SIDEBAR (MENÚ)
-    // ------------------------------------------------------------------------
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
         const tituloEl = document.getElementById('curs-titol');
@@ -177,7 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let html = '';
 
-        // --- BOTÓN MODO PROFESOR (SOLO SI TIENE PERMISO) ---
         if (USER.es_professor === true) {
             html += `
                 <div style="margin-bottom:15px; padding:10px; border-bottom:1px solid #eee; text-align:center; background:#fff3cd; border-radius:6px;">
@@ -189,15 +172,12 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
         
-        // 1. MÓDULOS
         state.curso.moduls.forEach((mod, idx) => {
             const isLocked = estaBloqueado(idx);
             const lockIcon = isLocked ? '<i class="fa-solid fa-lock"></i>' : '<i class="fa-regular fa-folder-open"></i>';
-            
             const modProgreso = state.progreso.modulos ? state.progreso.modulos[idx] : null;
             const statusColor = modProgreso && modProgreso.aprobado ? 'color:green;' : '';
             const check = modProgreso && modProgreso.aprobado ? '<i class="fa-solid fa-check"></i>' : '';
-            
             const forcedIcon = (state.godMode && isLocked) ? '<span style="font-size:0.7em; color:orange; margin-left:5px;">(Vist)</span>' : '';
 
             html += `
@@ -207,22 +187,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     </span>
                     <div class="sidebar-sub-menu">
             `;
-
             html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
-            
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
                 html += renderSubLink(idx, 'flashcards', '🔄 Targetes de Repàs', isLocked);
             }
-
             const intentos = modProgreso ? modProgreso.intentos : 0;
             html += renderSubLink(idx, 'test', `📝 Test Avaluació (${intentos}/2)`, isLocked);
-
             html += `</div></div>`;
         });
 
-        // 2. BLOQUE FINAL
         const finalIsLocked = !puedeHacerExamenFinal(); 
-        
         html += `
             <div class="sidebar-module-group" style="margin-top:20px; border-top:2px solid var(--brand-blue);">
                 <span class="sidebar-module-title">🎓 Avaluació Final</span>
@@ -235,15 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSubLink(modIdx, viewName, label, locked) {
         const reallyLocked = locked && !state.godMode;
-
         let isActive = false;
         if (modIdx === state.currentModuleIndex && state.currentView === viewName) isActive = true;
         if (modIdx === 999 && state.currentView === 'examen_final') isActive = true;
-
         const lockedClass = reallyLocked ? 'locked' : '';
         const activeClass = isActive ? 'active' : '';
         const clickFn = reallyLocked ? '' : `window.cambiarVista(${modIdx}, '${viewName}')`;
-
         return `<div class="sidebar-subitem ${lockedClass} ${activeClass}" onclick="${clickFn}">
                     ${label} ${reallyLocked ? '<i class="fa-solid fa-lock" style="font-size:0.7em; margin-left:5px;"></i>' : ''}
                 </div>`;
@@ -264,9 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.scrollTo(0,0);
     }
 
-    // ------------------------------------------------------------------------
-    // 6. RENDERIZADO CONTENIDO PRINCIPAL
-    // ------------------------------------------------------------------------
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
@@ -305,7 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 html += `<div class="materials-section"><span class="materials-title">Material Descarregable</span>`;
                 archivos.forEach(a => {
                     let pdfUrl = a.url;
-                    // Lógica para Cloudinary vs Local
                     if (!pdfUrl.startsWith('http')) {
                         try {
                             const dominioBase = new URL(STRAPI_URL).origin;
@@ -320,20 +287,13 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
-    // js/renderitzadorCurs.js
-
+    // MODIFICADO BLOQUE 1: FLASHCARDS GRID
     function renderFlashcards(container, cards) {
         if (!cards || cards.length === 0) {
             container.innerHTML = '<p>No hi ha targetes disponibles per aquest mòdul.</p>'; return;
         }
-
         let html = `<h3>Targetes de Repàs</h3>`;
-        
-        // Lógica: Si hay muchas (>12), podríamos paginar, pero CSS Grid es mejor para "PC Grid".
-        // El requisito dice "PC mostrar Grid (2 filas de 3)". CSS Grid responsive hace esto automáticamente.
-        
         html += `<div class="flashcards-grid-view">`;
-        
         cards.forEach((card, idx) => {
             html += `
                 <div class="flashcard" onclick="this.classList.toggle('flipped')">
@@ -350,24 +310,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         });
-
         html += `</div>`;
         container.innerHTML = html;
     }
 
-    window.moveCarousel = function(dir) {
-        const newIndex = window.currentFcIndex + dir;
-        if (newIndex < 0 || newIndex >= window.totalFc) return;
-
-        document.getElementById(`fc-${window.currentFcIndex}`).classList.remove('active');
-        document.getElementById(`fc-${newIndex}`).classList.add('active');
-        window.currentFcIndex = newIndex;
-        document.getElementById('fc-current').innerText = newIndex + 1;
-    }
-
-    // ------------------------------------------------------------------------
-    // TESTS MODULO
-    // ------------------------------------------------------------------------
     function renderTestIntro(container, mod, modIdx) {
         const progreso = state.progreso.modulos[modIdx] || { aprobado: false, intentos: 0, nota: 0 };
         
@@ -424,7 +370,6 @@ document.addEventListener('DOMContentLoaded', () => {
             container.innerHTML = '<p>No hi ha preguntes.</p>'; return;
         }
 
-        // Grid Derecho
         mod.preguntes.forEach((p, i) => {
             const div = document.createElement('div');
             div.className = 'grid-item';
@@ -465,13 +410,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.selectTestOption = function(qId, valIdx) {
         state.respuestasTemp[qId] = valIdx;
-        // Visual card
         const card = document.getElementById(`card-${qId}`);
         card.querySelectorAll('.option-item').forEach((el, idx) => {
             if (idx === valIdx) { el.classList.add('selected'); el.querySelector('input').checked = true; } 
             else { el.classList.remove('selected'); el.querySelector('input').checked = false; }
         });
-        // Visual grid
         const gridIdx = qId.split('-')[1];
         const gridItem = document.getElementById(`grid-q-${gridIdx}`);
         if(gridItem) gridItem.classList.add('answered');
@@ -480,14 +423,12 @@ document.addEventListener('DOMContentLoaded', () => {
     window.entregarTest = async function(modIdx) {
         if (!confirm("Estàs segur? Aquest intent comptarà.")) return;
         
-        // Tiempo
         const endTime = Date.now();
         const durationMs = endTime - state.testStartTime;
         const minutes = Math.floor(durationMs / 60000);
         const seconds = ((durationMs % 60000) / 1000).toFixed(0);
         const tiempoTexto = `${minutes} min ${seconds} s`;
 
-        // Corrección
         const preguntas = window.currentQuestions;
         let aciertos = 0;
         preguntas.forEach((preg, idx) => {
@@ -500,9 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2));
         const aprobado = nota >= 7.0;
 
-        // Actualizar Estado
         if (!state.progreso.modulos) state.progreso.modulos = [];
-        // Aseguramos que existe el objeto
         if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false };
 
         const p = state.progreso;
@@ -515,7 +454,6 @@ document.addEventListener('DOMContentLoaded', () => {
         state.testEnCurso = false; 
         state.respuestasTemp = {}; 
 
-        // Pantalla Resultado
         const container = document.getElementById('moduls-container');
         const color = aprobado ? 'green' : 'red';
         const titulo = aprobado ? 'Test Superat!' : 'No Superat';
@@ -533,9 +471,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSidebar(); 
     }
 
-    // ------------------------------------------------------------------------
-    // 7. EXAMEN FINAL (NUEVA LÓGICA)
-    // ------------------------------------------------------------------------
     function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
@@ -556,14 +491,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.iniciarExamenFinal = function() {
-        // USAMOS LAS PREGUNTAS DEL CAMPO 'EXAMEN_FINAL'
         if (!state.curso.examen_final || state.curso.examen_final.length === 0) {
             alert("Error: No s'han carregat preguntes per l'examen final. Revisa Strapi.");
             return;
         }
-        // BARAJAR (SHUFFLE)
         state.preguntasExamenFinal = [...state.curso.examen_final].sort(() => 0.5 - Math.random());
-        
         state.testEnCurso = true;
         state.testStartTime = Date.now();
         state.respuestasTemp = {};
@@ -616,9 +548,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('quiz-grid').innerHTML = '';
     }
 
-    // ------------------------------------------------------------------------
-    // DIPLOMA (Versión Ajustada a Márgenes)
-    // ------------------------------------------------------------------------
     window.imprimirDiploma = function(nota) {
         const nombreCurso = state.curso.titol;
         const fechaHoy = new Date().toLocaleDateString('ca-ES', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -633,120 +562,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 <title>Diploma Oficial - SICAP</title>
                 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
                 <style>
-                    /* RESET TOTAL DE MÁRGENES DEL NAVEGADOR */
                     @page { size: A4 landscape; margin: 0; }
-                    
-                    body { 
-                        margin: 0; padding: 0; 
-                        width: 100vw; height: 100vh; 
-                        display: flex; justify-content: center; align-items: center;
-                        background: white; 
-                        font-family: 'Roboto', sans-serif;
-                        -webkit-print-color-adjust: exact; 
-                        print-color-adjust: exact;
-                    }
-
-                    .page {
-                        /* Usamos el 95% para dejar un margen de seguridad blanco */
-                        width: 95%; height: 95%;
-                        position: relative;
-                        border: 1px solid #fff; /* Invisible, solo para estructura */
-                        display: flex; flex-direction: column; align-items: center; justify-content: center;
-                        text-align: center;
-                    }
-
-                    /* El borde decorativo ahora es relativo al contenedor seguro */
-                    .border-deco {
-                        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-                        border: 3px solid #004B87;
-                        outline: 5px double #E30613;
-                        outline-offset: -10px; /* Hacia adentro */
-                        z-index: 0;
-                    }
-
+                    body { margin: 0; padding: 0; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: white; font-family: 'Roboto', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .page { width: 95%; height: 95%; position: relative; border: 1px solid #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+                    .border-deco { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 3px solid #004B87; outline: 5px double #E30613; outline-offset: -10px; z-index: 0; }
                     .content-layer { z-index: 10; position: relative; width: 80%; }
-
                     .logo { width: 180px; margin-bottom: 20px; }
-                    
-                    h1 { 
-                        font-family: 'Playfair Display', serif; 
-                        font-size: 36pt; 
-                        color: #004B87; 
-                        margin: 0 0 10px 0; 
-                        text-transform: uppercase; 
-                        letter-spacing: 2px; 
-                    }
-                    
+                    h1 { font-family: 'Playfair Display', serif; font-size: 36pt; color: #004B87; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 2px; }
                     .subtitle { font-size: 14pt; color: #666; margin: 0; }
-                    
-                    .student { 
-                        font-size: 24pt; font-weight: bold; 
-                        margin: 20px auto; 
-                        border-bottom: 2px solid #333; 
-                        display: inline-block;
-                        padding: 0 40px;
-                        min-width: 400px;
-                    }
-                    
+                    .student { font-size: 24pt; font-weight: bold; margin: 20px auto; border-bottom: 2px solid #333; display: inline-block; padding: 0 40px; min-width: 400px; }
                     .dni { font-size: 11pt; color: #555; margin-bottom: 20px; }
-                    
                     .course-intro { font-size: 14pt; color: #333; }
-                    
-                    .course-name { 
-                        font-size: 20pt; font-weight: bold; color: #E30613; 
-                        margin: 10px 0 30px 0; 
-                    }
-                    
+                    .course-name { font-size: 20pt; font-weight: bold; color: #E30613; margin: 10px 0 30px 0; }
                     .meta { font-size: 11pt; color: #444; margin-bottom: 40px; }
-                    
-                    .signatures { 
-                        display: flex; justify-content: space-between; 
-                        margin-top: 20px; padding: 0 50px;
-                    }
+                    .signatures { display: flex; justify-content: space-between; margin-top: 20px; padding: 0 50px; }
                     .sig-box { text-align: center; width: 220px; }
                     .sig-line { border-top: 1px solid #333; margin-bottom: 5px; }
                     .sig-role { font-size: 9pt; font-weight: bold; color: #004B87; text-transform: uppercase; }
-
                 </style>
             </head>
             <body>
-                <div class="page">
-                    <div class="border-deco"></div>
-                    
-                    <div class="content-layer">
-                        <img src="img/logo-sicap.png" class="logo" alt="SICAP">
-                        
-                        <h1>Certificat d'Aprofitament</h1>
-                        <p class="subtitle">El Sindicat Català de Presons (SICAP) certifica que</p>
-                        
-                        <div class="student">${nombreAlumno}</div>
-                        <div class="dni">amb DNI/NIF: <strong>${alumno.username}</strong></div>
-                        
-                        <p class="course-intro">Ha superat satisfactòriament l'acció formativa:</p>
-                        <div class="course-name">${nombreCurso}</div>
-                        
-                        <p class="meta">
-                            Nota Final: <strong>${nota}</strong> &nbsp;|&nbsp; 
-                            Data d'expedició: <strong>${fechaHoy}</strong>
-                        </p>
-                        
-                        <div class="signatures">
-                            <div class="sig-box">
-                                <div style="height:40px;"></div>
-                                <div class="sig-line"></div>
-                                <div class="sig-role">Secretari General</div>
-                            </div>
-                            <div class="sig-box">
-                                <div style="height:40px;"></div>
-                                <div class="sig-line"></div>
-                                <div class="sig-role">Secretari de Formació</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <script>
-                    window.onload = function() { setTimeout(() => window.print(), 500); }
-                </script>
+                <div class="page"><div class="border-deco"></div><div class="content-layer"><img src="img/logo-sicap.png" class="logo" alt="SICAP"><h1>Certificat d'Aprofitament</h1><p class="subtitle">El Sindicat Català de Presons (SICAP) certifica que</p><div class="student">${nombreAlumno}</div><div class="dni">amb DNI/NIF: <strong>${alumno.username}</strong></div><p class="course-intro">Ha superat satisfactòriament l'acció formativa:</p><div class="course-name">${nombreCurso}</div><p class="meta">Nota Final: <strong>${nota}</strong> &nbsp;|&nbsp; Data d'expedició: <strong>${fechaHoy}</strong></p><div class="signatures"><div class="sig-box"><div style="height:40px;"></div><div class="sig-line"></div><div class="sig-role">Secretari General</div></div><div class="sig-box"><div style="height:40px;"></div><div class="sig-line"></div><div class="sig-role">Secretari de Formació</div></div></div></div></div>
+                <script>window.onload = function() { setTimeout(() => window.print(), 500); }</script>
             </body>
             </html>
         `);

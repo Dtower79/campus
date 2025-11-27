@@ -25,8 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if(errorMsg) errorMsg.style.display = 'none';
         };
     }
-    
-    // AUTO-FORMATO DNI (Punto 2)
+
+    // MODIFICADO BLOQUE 1: AUTO-FORMATO DNI
     const inputsDNI = [document.getElementById('login-dni'), document.getElementById('reg-dni')];
     inputsDNI.forEach(input => {
         if(input) {
@@ -137,7 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         })
                     });
 
-                    // --- AQUÍ ESTÁ EL CAMBIO ESTÉTICO ---
                     mostrarExitoRegistro();
 
                 } else {
@@ -158,7 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // FUNCION PARA MOSTRAR PANTALLA DE ÉXITO BONITA
     function mostrarExitoRegistro() {
         registerView.innerHTML = `
             <div style="text-align: center; padding: 20px 0; animation: fadeIn 0.5s;">
@@ -170,8 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             </div>
         `;
-        
-        // Al hacer clic, recargamos para ir al login limpio
         document.getElementById('btn-success-login').onclick = () => window.location.reload();
     }
 

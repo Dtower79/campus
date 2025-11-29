@@ -121,13 +121,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function guardarProgreso(progresoObj) {
-        const payload = { data: { progres_detallat: progresoObj } };
+        // 1. Calcular porcentaje matemático
+        let totalModulos = state.curso.modulos ? state.curso.modulos.length : 0;
+        let aprobados = 0;
+        
+        if (progresoObj.modulos) {
+            aprobados = progresoObj.modulos.filter(m => m.aprobado).length;
+        }
+
+        // Regla de tres simple (evitando división por cero)
+        let porcentaje = totalModulos > 0 ? Math.round((aprobados / totalModulos) * 100) : 0;
+
+        // Si el examen final está aprobado, forzamos el 100%
+        if (progresoObj.examen_final && progresoObj.examen_final.aprobado) {
+            porcentaje = 100;
+        }
+
+        // 2. Preparar datos para Strapi (JSON + Campo numérico 'progres')
+        const payload = { 
+            data: { 
+                progres_detallat: progresoObj,
+                progres: porcentaje // <--- AQUÍ ACTUALIZAMOS LA BARRA
+            } 
+        };
+
         await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
             body: JSON.stringify(payload)
         });
+        
         state.progreso = progresoObj;
+        console.log(`Progrés actualitzat: ${porcentaje}%`);
     }
 
     // ------------------------------------------------------------------------

@@ -345,3 +345,72 @@ ul { list-style: none; padding: 0; margin: 0; }
 #modal-btn-cancel:hover { filter: brightness(0.95); }
 #modal-btn-confirm { background-color: var(--brand-blue); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
 #modal-btn-confirm:hover { filter: brightness(1.1); transform: translateY(-1px); }
+/* ==========================================================================
+   12. RESPONSIVE (MÓVIL Y TABLET) - SOLUCIÓN MAESTRA
+   ========================================================================== */
+
+/* Se activa cuando la pantalla es menor a 1000px (Tablets y Móviles) */
+@media (max-width: 1000px) {
+    
+    /* 1. Romper la fila horizontal y hacerla vertical */
+    .app-container {
+        flex-direction: column;
+        padding: 10px;
+        gap: 15px;
+    }
+
+    /* 2. Las columnas ahora ocupan el 100% del ancho */
+    .sidebar-left, 
+    .sidebar-right, 
+    .main-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex-basis: auto;
+        position: static; /* Quitar sticky para que no se quede pegado molestando */
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    /* 3. Reordenar visualmente (Opcional pero recomendado) */
+    /* En móvil: Primero el Timer/Nav (si es examen), luego Contenido, luego Índice */
+    .app-container {
+        display: flex;
+    }
+    
+    /* Orden específico para que sea usable */
+    .sidebar-right { order: 1; } /* Timer arriba del todo en exámenes */
+    .main-content { order: 2; }  /* Contenido en medio */
+    .sidebar-left { order: 3; }  /* Índice abajo (menos prioritario al leer) */
+
+    /* 4. Ajustes estéticos para móvil */
+    .exam-card, .dashboard-card {
+        padding: 20px; /* Menos relleno para ganar espacio */
+    }
+
+    .course-title {
+        font-size: 1.3rem; /* Títulos un poco más pequeños */
+    }
+
+    /* 5. Ajustar botones grandes */
+    .btn-centered-container .btn-primary {
+        min-width: 100%; /* Botón ancho completo en móvil */
+    }
+
+    /* 6. Ajustar Grid de preguntas para dedos */
+    .grid-container, #grid-inner-numbers {
+        grid-template-columns: repeat(5, 1fr); /* Mantener 5 columnas */
+        gap: 10px;
+    }
+    .grid-item {
+        padding: 10px; /* Más área táctil */
+        font-size: 1rem;
+    }
+    
+    /* 7. Esconder el Timer box gigante y hacerlo más compacto si se desea, 
+       o dejarlo full width */
+    .timer-box {
+        padding: 10px;
+        font-size: 1.5rem;
+    }
+}

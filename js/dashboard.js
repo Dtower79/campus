@@ -179,12 +179,14 @@ function setupDirectClicks() {
         }
     };
 
-    // MENSAJERIA
+    // MODIFICADO BLOQUE 4: MENSAJERÍA REAL
     const btnMsg = document.getElementById('btn-messages');
-    if (btnMsg) btnMsg.onclick = (e) => { 
-        e.stopPropagation(); 
-        window.mostrarModalError("El sistema de missatgeria estarà disponible properament.");
-    };
+    if (btnMsg) {
+        btnMsg.onclick = async (e) => { 
+            e.stopPropagation(); 
+            await abrirPanelMensajes();
+        };
+    }
 
     const btnMobile = document.getElementById('mobile-menu-btn');
     const navMenu = document.getElementById('main-nav');
@@ -476,3 +478,137 @@ async function loadGrades() {
         });
     } catch(e) { console.error(e); tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Error carregant qualificacions.</td></tr>'; }
 }
+
+// ==========================================
+// NUEVO BLOQUE 4: GESTIÓN DE MENSAJERÍA
+// ==========================================
+async function abrirPanelMensajes() {
+    const modal = document.getElementById('custom-modal');
+    const titleEl = document.getElementById('modal-title');
+    const msgEl = document.getElementById('modal-msg');
+    const btnConfirm = document.getElementById('modal-btn-confirm');
+    const btnCancel = document.getElementById('modal-btn-cancel');
+    
+    // Setup visual del modal
+    titleEl.innerText = "Bústia de Dubtes";
+    titleEl.style.color = "var(--brand-blue)";
+    btnCancel.style.display = 'none';
+    btnConfirm.innerText = "Tancar";
+    
+    // Clonar botón cerrar
+    const newConfirm = btnConfirm.cloneNode(true);
+    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+    newConfirm.onclick = () => modal.style.display = 'none';
+
+    // Loader mientras carga
+    msgEl.innerHTML = '<div class="loader"></div><p style="text-align:center">Carregant missatges...</p>';
+    modal.style.display = 'flex';
+
+    try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const token = localStorage.getItem('jwt');
+        
+        // Detectar si es Profesor (usamos la flag es_professor del usuario)
+        const esProfe = user.es_professor === true;
+
+        let endpoint = '';
+        if (esProfe) {
+            // Profesor ve TODO lo pendiente
+            endpoint = `${STRAPI_URL}/api/missatges?filters[estat][$eq]=pendent&sort[0]=createdAt:desc`;
+        } else {
+            // Alumno ve SUS mensajes
+            endpoint = `${STRAPI_URL}/api/missatges?filters[users_permissions_user][id][$eq]=${user.id}&sort[0]=createdAt:desc`;
+        }
+
+        const res = await fetch(endpoint, {
+             headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+        const mensajes = json.data || [];
+
+        if (mensajes.length === 0) {
+            msgEl.innerHTML = `<p style="text-align:center; padding:20px;">No hi ha missatges ${esProfe ? 'pendents' : 'registrats'}.</p>`;
+            return;
+        }
+
+        let html = '<div class="msg-list-container">';
+        
+        mensajes.forEach(msg => {
+            const fecha = new Date(msg.createdAt).toLocaleDateString('ca-ES');
+            const estadoClass = msg.estat === 'pendent' ? 'status-pending' : 'status-replied';
+            const estadoTexto = msg.estat === 'pendent' ? 'Pendent' : 'Respost';
+            
+            // Lógica Profesor vs Alumno
+            let actionHtml = '';
+            
+            if (esProfe && msg.estat === 'pendent') {
+                actionHtml = `
+                    <div style="margin-top:10px;">
+                        <textarea id="reply-${msg.documentId || msg.id}" class="modal-textarea" style="height:60px; margin:5px 0;" placeholder="Escriu la resposta..."></textarea>
+                        <button class="btn-small" style="background:var(--brand-blue); color:white;" onclick="enviarResposta('${msg.documentId || msg.id}')">Respondre</button>
+                    </div>
+                `;
+            } else if (msg.resposta_professor) {
+                actionHtml = `<div class="msg-reply-box"><strong>👨‍🏫 Professor:</strong><br>${msg.resposta_professor}</div>`;
+            }
+
+            html += `
+                <div class="msg-card">
+                    <div class="msg-header">
+                        <span>${esProfe ? '👤 ' + msg.alumne_nom : '📅 ' + fecha}</span>
+                        <span class="msg-status-badge ${estadoClass}">${estadoTexto}</span>
+                    </div>
+                    <div class="msg-body">
+                        <strong>Curs:</strong> ${msg.curs} <br>
+                        <strong>Tema:</strong> ${msg.tema} <br>
+                        <p style="margin-top:5px; font-style:italic;">"${msg.missatge}"</p>
+                    </div>
+                    ${actionHtml}
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        msgEl.innerHTML = html;
+
+    } catch (e) {
+        console.error(e);
+        msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges. (Potser falta crear la col·lecció a Strapi)</p>';
+    }
+}
+
+// Función global para que el profesor responda desde el modal
+window.enviarResposta = async function(msgId) {
+    const txtArea = document.getElementById(`reply-${msgId}`);
+    const respuesta = txtArea.value.trim();
+    if(!respuesta) return alert("Escriu una resposta.");
+
+    const token = localStorage.getItem('jwt');
+    const btn = txtArea.nextElementSibling;
+    btn.innerText = "Enviant..."; 
+    btn.disabled = true;
+
+    try {
+        const payload = {
+            data: {
+                resposta_professor: respuesta,
+                estat: 'respost'
+            }
+        };
+
+        const res = await fetch(`${STRAPI_URL}/api/missatges/${msgId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(payload)
+        });
+
+        if(res.ok) {
+            // Recargar lista
+            abrirPanelMensajes(); 
+        } else {
+            alert("Error al guardar la resposta");
+        }
+    } catch(e) {
+        alert("Error de connexió");
+    }
+};

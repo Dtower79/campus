@@ -273,14 +273,14 @@ document.addEventListener('DOMContentLoaded', () => {
         window.scrollTo(0,0);
     }
 
+    // MODIFICADO BLOQUE 4: AHORA LLENA EL SIDEBAR DERECHO EN VEZ DE DEJARLO VACÍO
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
         gridRight.innerHTML = ''; 
-        gridRight.className = 'grid-container'; 
+        gridRight.className = ''; // Resetear clase grid
         
         detenerCronometro(); 
-
         document.body.classList.remove('exam-active');
 
         if (state.currentView === 'examen_final') {
@@ -290,22 +290,139 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const mod = state.curso.moduls[state.currentModuleIndex];
         
-        if (state.currentView === 'teoria') renderTeoria(container, mod);
-        else if (state.currentView === 'flashcards') renderFlashcards(container, mod.targetes_memoria);
+        if (state.currentView === 'teoria') {
+            renderTeoria(container, mod);
+            renderSidebarTools(gridRight, mod); // BLOQUE 4: Mostrar herramientas
+        }
+        else if (state.currentView === 'flashcards') {
+            renderFlashcards(container, mod.targetes_memoria);
+            renderSidebarTools(gridRight, mod); // BLOQUE 4: Mostrar herramientas
+        }
         else if (state.currentView === 'test') {
             const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
             const hayDatosGuardados = Object.keys(savedData).length > 0;
             const moduloAprobado = state.progreso.modulos[state.currentModuleIndex].aprobado;
             
+            // Si el test está activo (o recuperado), ponemos el Grid de navegación
             if ((state.testEnCurso || hayDatosGuardados) && !moduloAprobado) {
+                gridRight.className = 'grid-container';
                 state.respuestasTemp = savedData;
                 state.testEnCurso = true;
                 renderTestQuestions(container, mod, state.currentModuleIndex);
             } else {
+                // Si es la intro del test o ya está aprobado, mostramos las herramientas
                 renderTestIntro(container, mod, state.currentModuleIndex);
+                renderSidebarTools(gridRight, mod); // BLOQUE 4: Mostrar herramientas
             }
         }
     }
+
+    // NUEVO BLOQUE 4: RENDERIZAR HERRAMIENTAS LATERALES (BLOC DE NOTAS + DUDAS)
+    function renderSidebarTools(container, mod) {
+        const noteKey = `sicap_notes_${USER.id}_${state.curso.slug}`;
+        const savedNote = localStorage.getItem(noteKey) || '';
+
+        const toolsHtml = `
+            <div class="sidebar-header"><h3>Eines d'Estudi</h3></div>
+            
+            <div class="tools-box">
+                <div class="tools-title"><i class="fa-regular fa-note-sticky"></i> Les meves notes</div>
+                <textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea>
+                <small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small>
+            </div>
+
+            <div class="tools-box" style="border-color: var(--brand-blue);">
+                <div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div>
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">
+                    Tens alguna pregunta sobre el mòdul <strong>"${mod.titol}"</strong>? Envia-la al professor.
+                </p>
+                <button class="btn-doubt" onclick="obrirFormulariDubte('${mod.titol.replace(/'/g, "\\'")}')">
+                    <i class="fa-regular fa-paper-plane"></i> Enviar Dubte
+                </button>
+            </div>
+        `;
+        
+        container.innerHTML = toolsHtml;
+
+        // Auto-guardado de notas
+        const noteArea = document.getElementById('quick-notes');
+        if(noteArea) {
+            noteArea.addEventListener('input', (e) => {
+                localStorage.setItem(noteKey, e.target.value);
+            });
+        }
+    }
+
+    // NUEVO BLOQUE 4: FORMULARIO DE DUDAS
+    window.obrirFormulariDubte = function(moduloTitulo) {
+        const modal = document.getElementById('custom-modal');
+        const titleEl = document.getElementById('modal-title');
+        const msgEl = document.getElementById('modal-msg');
+        const btnConfirm = document.getElementById('modal-btn-confirm');
+        const btnCancel = document.getElementById('modal-btn-cancel');
+
+        titleEl.innerText = "Enviar Dubte";
+        titleEl.style.color = "var(--brand-blue)";
+        
+        msgEl.innerHTML = `
+            <p>Escriu la teva pregunta sobre: <strong>${moduloTitulo}</strong></p>
+            <textarea id="modal-doubt-text" class="modal-textarea" placeholder="Explica el teu dubte detalladament..."></textarea>
+            <small>El professor rebrà una notificació instantània.</small>
+        `;
+
+        btnCancel.style.display = 'block';
+        btnConfirm.innerText = "Enviar";
+        btnConfirm.disabled = false;
+        btnConfirm.style.background = "var(--brand-blue)";
+
+        const newConfirm = btnConfirm.cloneNode(true);
+        const newCancel = btnCancel.cloneNode(true);
+        btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+        btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
+        newCancel.onclick = () => modal.style.display = 'none';
+        
+        newConfirm.onclick = async () => {
+            const text = document.getElementById('modal-doubt-text').value.trim();
+            if(!text) return alert("Escriu alguna cosa!");
+
+            newConfirm.innerText = "Enviant...";
+            newConfirm.disabled = true;
+
+            try {
+                const payload = {
+                    data: {
+                        missatge: text,
+                        tema: moduloTitulo,
+                        curs: state.curso.titol,
+                        alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`,
+                        users_permissions_user: USER.id,
+                        estat: 'pendent',
+                        data_envio: new Date().toISOString()
+                    }
+                };
+
+                const res = await fetch(`${STRAPI_URL}/api/missatges`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+                    body: JSON.stringify(payload)
+                });
+
+                if(res.ok) {
+                    modal.style.display = 'none';
+                    window.mostrarModalError("Dubte enviat correctament! Rebràs la resposta a l'apartat de missatges.");
+                } else {
+                    throw new Error("Error API");
+                }
+            } catch(e) {
+                console.error(e);
+                modal.style.display = 'none';
+                window.mostrarModalError("Error al connectar amb el servidor. (Verifica la col·lecció 'missatges' a Strapi)");
+            }
+        };
+
+        modal.style.display = 'flex';
+    };
 
     function renderTeoria(container, mod) {
         let html = `<h2>${mod.titol}</h2>`;
@@ -362,7 +479,6 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
         }
 
-        // USO DE LA NUEVA CLASE 'exam-info-box'
         container.innerHTML = `
             <div class="dashboard-card" style="text-align:center; padding: 40px;">
                 <h2>📝 Test d'Avaluació: ${mod.titol}</h2>
@@ -609,7 +725,6 @@ document.addEventListener('DOMContentLoaded', () => {
             state.testEnCurso = true;
             renderFinalQuestions(container, savedData);
         } else {
-            // USO DE LA NUEVA CLASE 'exam-info-box'
             container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;">
                 <h2 style="color:var(--brand-blue);">🏆 Examen Final</h2>
                 <div class="exam-info-box">

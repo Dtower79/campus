@@ -214,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let html = '';
 
+        // Botón Mode Professor
         if (USER.es_professor === true) {
             html += `<div style="margin-bottom:15px; padding:10px; border-bottom:1px solid #eee; text-align:center; background:#fff3cd; border-radius:6px;">
                     <label style="font-size:0.85rem; cursor:pointer; font-weight:bold; color:#856404;">
@@ -237,10 +238,31 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div class="sidebar-module-group">
                     <span class="sidebar-module-title" style="${statusColor}">${lockIcon} ${mod.titol} ${check}</span>
                     <div class="sidebar-sub-menu">`;
+            
+            // 2.1 Enlace Principal Temario
             html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
+
+            // 2.2 LISTA DE ARCHIVOS PDF (NUEVO)
+            // Solo mostramos los archivos si el módulo no está bloqueado (o somos dios)
+            if ((!isLocked || state.godMode) && mod.material_pdf) {
+                const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
+                if (archivos.length > 0) {
+                    archivos.forEach(pdf => {
+                        const pdfUrl = pdf.url.startsWith('/') ? STRAPI_URL + pdf.url : pdf.url;
+                        // Usamos un div con onclick o un tag <a> directo
+                        html += `<a href="${pdfUrl}" target="_blank" class="sidebar-file-item">
+                                    <i class="fa-solid fa-file-pdf"></i> ${pdf.name}
+                                 </a>`;
+                    });
+                }
+            }
+
+            // 2.3 Flashcards
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
                 html += renderSubLink(idx, 'flashcards', '🔄 Targetes de Repàs', isLocked);
             }
+            
+            // 2.4 Test
             const intentos = modProgreso ? modProgreso.intentos : 0;
             html += renderSubLink(idx, 'test', `📝 Test Avaluació (${intentos}/2)`, isLocked);
             html += `</div></div>`;

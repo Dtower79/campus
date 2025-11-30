@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // CORRECCIÓN CRÍTICA: Si hay sesión, ocultar login INMEDIATAMENTE
+    // Si hay sesión, ocultar login INMEDIATAMENTE
     if (localStorage.getItem('jwt')) {
         const overlay = document.getElementById('login-overlay');
         const app = document.getElementById('app-container');
@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Gestión "He oblidat la contrasenya" (Modal Bonito)
+    // Gestión "He oblidat la contrasenya"
     const forgotLink = document.getElementById('forgot-pass');
     if(forgotLink) {
         forgotLink.onclick = (e) => {
@@ -45,8 +45,7 @@ function startInactivityTimers() {
 function resetInactivity() {
     // Solo reseteamos si NO estamos mostrando ya el modal de aviso
     const modal = document.getElementById('custom-modal');
-    // Si el modal está visible y es el de inactividad (lo sabremos por el título), no reseteamos al mover el ratón
-    // para obligar al usuario a hacer click en "Extender".
+    // Si el modal está visible y es el de inactividad, no reseteamos al mover el ratón
     const isInactivityModal = document.getElementById('modal-title')?.innerText === "Inactivitat Detectada";
     
     if (modal && modal.style.display === 'flex' && isInactivityModal) {
@@ -81,7 +80,7 @@ function mostrarModalInactividad() {
     btnConfirm.innerText = "Estendre Sessió";
     btnConfirm.style.background = "var(--brand-blue)";
     
-    // Clonar botones
+    // Clonar botones para limpiar eventos anteriores
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
@@ -89,7 +88,7 @@ function mostrarModalInactividad() {
 
     // Acción Tancar
     newCancel.onclick = () => {
-        logoutApp(); // Función existente
+        logoutApp(); 
     };
 
     // Acción Extender
@@ -122,10 +121,77 @@ function mostrarModalInactividad() {
     }, 1000);
 }
 
-// Listeners
+// Listeners para resetear el timer con actividad
 ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
     document.addEventListener(evt, resetInactivity);
 });
+
+
+// ==========================================
+// 1. SISTEMA DE MODALES PERSONALIZADOS
+// ==========================================
+window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
+    const modal = document.getElementById('custom-modal');
+    if(!modal) return; 
+    const titleEl = document.getElementById('modal-title');
+    const msgEl = document.getElementById('modal-msg');
+    const btnConfirm = document.getElementById('modal-btn-confirm');
+    const btnCancel = document.getElementById('modal-btn-cancel');
+
+    titleEl.innerText = titulo;
+    titleEl.style.color = "var(--brand-blue)"; 
+    msgEl.innerText = mensaje;
+    
+    btnConfirm.innerText = "Confirmar";
+    btnConfirm.disabled = false;
+    btnConfirm.style.background = ""; 
+    btnCancel.style.display = "block"; 
+
+    const newConfirm = btnConfirm.cloneNode(true);
+    const newCancel = btnCancel.cloneNode(true);
+    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+    btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
+    newConfirm.onclick = () => {
+        if(onConfirm) onConfirm();
+        else modal.style.display = 'none';
+    };
+    newCancel.onclick = () => {
+        modal.style.display = 'none';
+    };
+
+    modal.style.display = 'flex';
+};
+
+window.mostrarModalError = function(mensaje, onCloseAction) {
+    const modal = document.getElementById('custom-modal');
+    if(!modal) { console.warn("Modal no cargado:", mensaje); return; }
+
+    const titleEl = document.getElementById('modal-title');
+    const btnConfirm = document.getElementById('modal-btn-confirm');
+    const btnCancel = document.getElementById('modal-btn-cancel');
+
+    titleEl.innerText = "Atenció";
+    titleEl.style.color = "var(--brand-blue)"; 
+    document.getElementById('modal-msg').innerText = mensaje;
+
+    btnCancel.style.display = 'none'; 
+    btnConfirm.innerText = "Entesos";
+    btnConfirm.style.background = "var(--brand-blue)"; 
+    btnConfirm.disabled = false;
+    
+    const newConfirm = btnConfirm.cloneNode(true);
+    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+    
+    newConfirm.onclick = () => {
+        modal.style.display = 'none';
+        if (onCloseAction) {
+            onCloseAction(); 
+        }
+    };
+
+    modal.style.display = 'flex';
+};
 
 // ==========================================
 // 2. FUNCIONES PRINCIPALES APP
@@ -158,7 +224,8 @@ window.iniciarApp = function() {
     window.appIniciada = true;
     console.log("🚀 Iniciando SICAP App...");
     
-    resetInactivityTimer();
+    // CORRECCIÓN AQUÍ: Llamamos a la nueva función de inactividad
+    startInactivityTimers();
     
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
     
@@ -196,7 +263,7 @@ function setupDirectClicks() {
         }
     };
 
-    // MODIFICADO BLOQUE 4: MENSAJERÍA REAL
+    // MENSAJERÍA
     const btnMsg = document.getElementById('btn-messages');
     if (btnMsg) {
         btnMsg.onclick = async (e) => { 
@@ -497,7 +564,7 @@ async function loadGrades() {
 }
 
 // ==========================================
-// NUEVO BLOQUE 4: GESTIÓN DE MENSAJERÍA
+// NUEVO: GESTIÓN DE MENSAJERÍA
 // ==========================================
 async function abrirPanelMensajes() {
     const modal = document.getElementById('custom-modal');

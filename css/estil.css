@@ -603,3 +603,36 @@ ul { list-style: none; padding: 0; margin: 0; }
     color: var(--brand-red);
     margin: 10px 0;
 }
+
+/* Estilo para los archivos en el sidebar */
+.sidebar-file-item {
+    font-size: 0.85rem;
+    color: #555;
+    padding: 8px 10px 8px 45px; /* Más indentación para que parezca jerarquía */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+    text-decoration: none;
+}
+
+.sidebar-file-item:hover {
+    background-color: #fff;
+    color: var(--brand-red);
+    padding-left: 50px; /* Pequeño efecto de movimiento */
+}
+
+.sidebar-file-item i {
+    color: var(--brand-red); /* Icono PDF en rojo corporativo */
+    font-size: 1rem;
+}
+
+[data-theme="dark"] .sidebar-file-item {
+    color: #aaa;
+}
+[data-theme="dark"] .sidebar-file-item:hover {
+    background-color: rgba(255,255,255,0.05);
+    color: #fff;
+}

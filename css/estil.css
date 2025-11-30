@@ -559,3 +559,47 @@ ul { list-style: none; padding: 0; margin: 0; }
     color: var(--text-main);
     resize: none;
 }
+
+/* --- BLOQUE 5: MEJORAS UX Y ESTRUCTURA --- */
+
+/* Breadcrumbs (Ruta) */
+.breadcrumbs {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    line-height: 1.4;
+}
+.breadcrumbs a {
+    color: var(--brand-blue);
+    text-decoration: none;
+}
+.breadcrumbs a:hover {
+    text-decoration: underline;
+}
+.breadcrumb-separator {
+    margin: 0 5px;
+    color: #ccc;
+}
+.breadcrumb-current {
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+/* Iconos especiales sidebar */
+.sidebar-subitem.special-item {
+    font-weight: 500;
+    color: var(--text-main);
+}
+.sidebar-subitem.special-item i {
+    color: var(--brand-blue);
+}
+
+/* Modal de Inactividad (Warning) */
+.modal-timer-text {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--brand-red);
+    margin: 10px 0;
+}

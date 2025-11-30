@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
-    // 1. HELPER: TRADUCTOR DE TEXTO
+    // 1. HELPER: TRADUCTOR DE TEXTO (Rich Text Strapi)
     // ------------------------------------------------------------------------
     function parseStrapiRichText(content) {
         if (!content) return '';
@@ -45,8 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
         matriculaId: null,
         curso: null,
         progreso: {},
-        currentModuleIndex: 0,
-        currentView: 'teoria', 
+        currentModuleIndex: -1, // -1 = Intro/Programa
+        currentView: 'intro',   // Empezamos en 'intro'
         respuestasTemp: {},
         testStartTime: 0,
         testEnCurso: false,
@@ -62,7 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    document.getElementById('login-overlay').style.display = 'none';
+    // Ajuste de vistas principales
+    const loginOverlay = document.getElementById('login-overlay');
+    if(loginOverlay) loginOverlay.style.display = 'none';
+    
     document.getElementById('app-container').style.display = 'block';
     document.getElementById('dashboard-view').style.display = 'none';
     document.getElementById('exam-view').style.display = 'flex';
@@ -87,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
+        // Nota: Asumimos que 'glossari' y 'data_fi' son campos directos en 'curs' y vienen por defecto
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
@@ -129,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             aprobados = progresoObj.modulos.filter(m => m.aprobado).length;
         }
 
-        // Regla de tres simple (evitando división por cero)
+        // Regla de tres simple
         let porcentaje = totalModulos > 0 ? Math.round((aprobados / totalModulos) * 100) : 0;
 
         // Si el examen final está aprobado, forzamos el 100%
@@ -137,11 +141,10 @@ document.addEventListener('DOMContentLoaded', () => {
             porcentaje = 100;
         }
 
-        // 2. Preparar datos para Strapi (JSON + Campo numérico 'progres')
         const payload = { 
             data: { 
                 progres_detallat: progresoObj,
-                progres: porcentaje // <--- AQUÍ ACTUALIZAMOS LA BARRA
+                progres: porcentaje 
             } 
         };
 
@@ -152,7 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         state.progreso = progresoObj;
-        console.log(`Progrés actualitzat: ${porcentaje}%`);
     }
 
     // ------------------------------------------------------------------------
@@ -189,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 4. LÓGICA DEL UI
+    // 4. LÓGICA DEL UI (SIDEBAR Y NAVEGACIÓN)
     // ------------------------------------------------------------------------
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
@@ -219,6 +221,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     </label></div>`;
         }
         
+        // --- 1. PROGRAMA (INTRO) ---
+        html += `<div class="sidebar-module-group">
+            ${renderSubLink(-1, 'intro', '📄 Programa del curs', false, true)}
+        </div>`;
+
+        // --- 2. MÓDULOS ---
         state.curso.moduls.forEach((mod, idx) => {
             const isLocked = estaBloqueado(idx);
             const lockIcon = isLocked ? '<i class="fa-solid fa-lock"></i>' : '<i class="fa-regular fa-folder-open"></i>';
@@ -238,25 +246,34 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `</div></div>`;
         });
 
+        // --- 3. EXAMEN FINAL ---
         const finalIsLocked = !puedeHacerExamenFinal(); 
         html += `<div class="sidebar-module-group" style="margin-top:20px; border-top:2px solid var(--brand-blue);">
                 <span class="sidebar-module-title">🎓 Avaluació Final</span>
                 ${renderSubLink(999, 'examen_final', '🏆 Examen Final', finalIsLocked)}
             </div>`;
 
+        // --- 4. GLOSARIO ---
+        html += `<div class="sidebar-module-group">
+            ${renderSubLink(1000, 'glossary', '📚 Glossari', false, true)}
+        </div>`;
+
         indexContainer.innerHTML = html;
     }
 
-    function renderSubLink(modIdx, viewName, label, locked) {
+    function renderSubLink(modIdx, viewName, label, locked, isSpecial = false) {
         const reallyLocked = locked && !state.godMode;
         let isActive = (modIdx === state.currentModuleIndex && state.currentView === viewName);
         if (modIdx === 999 && state.currentView === 'examen_final') isActive = true;
+        if (modIdx === 1000 && state.currentView === 'glossary') isActive = true;
+        if (modIdx === -1 && state.currentView === 'intro') isActive = true;
         
         const lockedClass = reallyLocked ? 'locked' : '';
         const activeClass = isActive ? 'active' : '';
+        const specialClass = isSpecial ? 'special-item' : ''; // Clase CSS para destacar Programa/Glossari
         const clickFn = reallyLocked ? '' : `window.cambiarVista(${modIdx}, '${viewName}')`;
         
-        return `<div class="sidebar-subitem ${lockedClass} ${activeClass}" onclick="${clickFn}">
+        return `<div class="sidebar-subitem ${lockedClass} ${activeClass} ${specialClass}" onclick="${clickFn}">
                     ${label} ${reallyLocked ? '<i class="fa-solid fa-lock" style="font-size:0.7em;"></i>' : ''}
                 </div>`;
     }
@@ -273,56 +290,119 @@ document.addEventListener('DOMContentLoaded', () => {
         window.scrollTo(0,0);
     }
 
-    // MODIFICADO BLOQUE 4: AHORA LLENA EL SIDEBAR DERECHO EN VEZ DE DEJARLO VACÍO
+    // ------------------------------------------------------------------------
+    // 5. RENDERIZADO DE CONTENIDO PRINCIPAL
+    // ------------------------------------------------------------------------
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
         gridRight.innerHTML = ''; 
-        gridRight.className = ''; // Resetear clase grid
+        gridRight.className = ''; // Limpiar clases (ej. grid-container del examen)
         
         detenerCronometro(); 
         document.body.classList.remove('exam-active');
 
+        // --- VISTA 1: PROGRAMA DEL CURSO (INTRO) ---
+        if (state.currentView === 'intro') {
+            container.innerHTML = `
+                <h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2>
+                <div class="module-content-text" style="margin-top:20px;">
+                    ${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}
+                </div>
+            `;
+            // Renderizamos herramientas en la columna derecha
+            renderSidebarTools(gridRight, { titol: 'Programa' }); 
+            return;
+        }
+
+        // --- VISTA 2: GLOSARIO ---
+        if (state.currentView === 'glossary') {
+            const contenidoGlossari = state.curso.glossari 
+                ? parseStrapiRichText(state.curso.glossari) 
+                : "<p>No hi ha entrades al glossari.</p>";
+            
+            container.innerHTML = `
+                <h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2>
+                <div class="dashboard-card" style="margin-top:20px;">
+                    <div class="module-content-text">${contenidoGlossari}</div>
+                </div>
+            `;
+            renderSidebarTools(gridRight, { titol: 'Glossari' }); 
+            return;
+        }
+
+        // --- VISTA 3: EXAMEN FINAL ---
         if (state.currentView === 'examen_final') {
             renderExamenFinal(container);
             return;
         }
 
+        // --- VISTAS DE MÓDULOS (Teoría, Flashcards, Test) ---
         const mod = state.curso.moduls[state.currentModuleIndex];
         
         if (state.currentView === 'teoria') {
             renderTeoria(container, mod);
-            renderSidebarTools(gridRight, mod); // BLOQUE 4: Mostrar herramientas
+            renderSidebarTools(gridRight, mod); // Mostrar herramientas
         }
         else if (state.currentView === 'flashcards') {
             renderFlashcards(container, mod.targetes_memoria);
-            renderSidebarTools(gridRight, mod); // BLOQUE 4: Mostrar herramientas
+            renderSidebarTools(gridRight, mod); // Mostrar herramientas
         }
         else if (state.currentView === 'test') {
             const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
             const hayDatosGuardados = Object.keys(savedData).length > 0;
             const moduloAprobado = state.progreso.modulos[state.currentModuleIndex].aprobado;
             
-            // Si el test está activo (o recuperado), ponemos el Grid de navegación
             if ((state.testEnCurso || hayDatosGuardados) && !moduloAprobado) {
+                // Si estamos haciendo el test, columna derecha = Grid de preguntas
                 gridRight.className = 'grid-container';
                 state.respuestasTemp = savedData;
                 state.testEnCurso = true;
                 renderTestQuestions(container, mod, state.currentModuleIndex);
             } else {
-                // Si es la intro del test o ya está aprobado, mostramos las herramientas
+                // Si es la intro del test o repaso, columna derecha = Herramientas
                 renderTestIntro(container, mod, state.currentModuleIndex);
-                renderSidebarTools(gridRight, mod); // BLOQUE 4: Mostrar herramientas
+                renderSidebarTools(gridRight, mod);
             }
         }
     }
 
-    // NUEVO BLOQUE 4: RENDERIZAR HERRAMIENTAS LATERALES (BLOC DE NOTAS + DUDAS)
+    // ------------------------------------------------------------------------
+    // 6. PANEL DERECHO (BREADCRUMBS + NOTAS + DUDAS)
+    // ------------------------------------------------------------------------
     function renderSidebarTools(container, mod) {
+        // --- Breadcrumbs ---
+        let viewLabel = '';
+        if (state.currentView === 'intro') viewLabel = 'Programa';
+        else if (state.currentView === 'glossary') viewLabel = 'Glossari';
+        else if (state.currentView === 'teoria') viewLabel = 'Temari';
+        else if (state.currentView === 'test') viewLabel = 'Test';
+        else if (state.currentView === 'flashcards') viewLabel = 'Targetes';
+        
+        let moduleName = mod.titol || '';
+        // Acortar nombres muy largos para que no rompan el layout
+        if(moduleName.length > 20) moduleName = moduleName.substring(0, 18) + '...';
+
+        const breadcrumbsHtml = `
+            <div class="breadcrumbs">
+                <a href="#" onclick="window.tornarAlDashboard(); return false;">Inici</a>
+                <span class="breadcrumb-separator">></span>
+                <span>${moduleName}</span>
+                <span class="breadcrumb-separator">></span>
+                <span class="breadcrumb-current">${viewLabel}</span>
+            </div>
+        `;
+
+        // --- Bloc de Notas ---
         const noteKey = `sicap_notes_${USER.id}_${state.curso.slug}`;
         const savedNote = localStorage.getItem(noteKey) || '';
+        
+        // --- Botón Dudas ---
+        const modTitleSafe = mod.titol ? mod.titol.replace(/'/g, "\\'") : 'General';
 
         const toolsHtml = `
+            ${breadcrumbsHtml}
+            
             <div class="sidebar-header"><h3>Eines d'Estudi</h3></div>
             
             <div class="tools-box">
@@ -334,9 +414,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="tools-box" style="border-color: var(--brand-blue);">
                 <div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div>
                 <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">
-                    Tens alguna pregunta sobre el mòdul <strong>"${mod.titol}"</strong>? Envia-la al professor.
+                    Tens alguna pregunta sobre <strong>"${mod.titol}"</strong>?
                 </p>
-                <button class="btn-doubt" onclick="obrirFormulariDubte('${mod.titol.replace(/'/g, "\\'")}')">
+                <button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')">
                     <i class="fa-regular fa-paper-plane"></i> Enviar Dubte
                 </button>
             </div>
@@ -353,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // NUEVO BLOQUE 4: FORMULARIO DE DUDAS
+    // --- Modal Formulario Dudas ---
     window.obrirFormulariDubte = function(moduloTitulo) {
         const modal = document.getElementById('custom-modal');
         const titleEl = document.getElementById('modal-title');
@@ -424,6 +504,9 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.style.display = 'flex';
     };
 
+    // ------------------------------------------------------------------------
+    // 7. RENDERIZADO ESPECÍFICO (Teoría, Flashcards, Test)
+    // ------------------------------------------------------------------------
     function renderTeoria(container, mod) {
         let html = `<h2>${mod.titol}</h2>`;
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
@@ -455,9 +538,6 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
-    // ------------------------------------------------------------------------
-    // 5. MOTOR DE TEST
-    // ------------------------------------------------------------------------
     function renderTestIntro(container, mod, modIdx) {
         const progreso = state.progreso.modulos[modIdx] || { aprobado: false, intentos: 0, nota: 0 };
         
@@ -693,18 +773,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 6. MOTOR DE EXAMEN FINAL
+    // 8. EXAMEN FINAL
     // ------------------------------------------------------------------------
     function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
 
         if (finalData.aprobado) {
+             // VALIDACIÓN FECHA DIPLOMA
+             let puedeDescargar = true;
+             let mensajeFecha = '';
+             
+             if (state.curso.data_fi) {
+                 const fechaFin = new Date(state.curso.data_fi);
+                 const hoy = new Date();
+                 if (hoy < fechaFin) {
+                     puedeDescargar = false;
+                     mensajeFecha = `El certificat estarà disponible a partir del: <strong>${fechaFin.toLocaleDateString('ca-ES')}</strong>.`;
+                 }
+             }
+
+             let botonHtml = '';
+             if (puedeDescargar) {
+                 botonHtml = `<button class="btn-primary" onclick="imprimirDiploma('${finalData.nota}')">Descarregar Diploma</button>`;
+             } else {
+                 botonHtml = `<div class="alert-info" style="margin-top:15px; color:#856404; background:#fff3cd; padding:10px; border-radius:4px;">
+                                 <i class="fa-solid fa-clock"></i> ${mensajeFecha}
+                              </div>`;
+             }
+
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;">
                 <h1 style="color:green;">🎉 ENHORABONA!</h1><p>Curs Completat.</p>
                 <div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div>
                 <div class="btn-centered-container">
-                    <button class="btn-primary" onclick="imprimirDiploma('${finalData.nota}')">Descarregar Diploma</button>
+                    ${botonHtml}
                 </div></div>`;
              return;
         }
@@ -833,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 7. CRONÓMETRO
+    // 9. CRONÓMETRO
     // ------------------------------------------------------------------------
     function iniciarCronometro() {
         const display = document.getElementById('exam-timer');
@@ -871,7 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 8. ENTREGA EXAMEN FINAL
+    // 10. ENTREGA EXAMEN FINAL
     // ------------------------------------------------------------------------
     window.entregarExamenFinal = function(forzado = false) {
         const doDelivery = async () => {
@@ -926,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 9. DIPLOMA
+    // 11. DIPLOMA PDF
     // ------------------------------------------------------------------------
     window.imprimirDiploma = function(nota) {
         const nombreCurso = state.curso.titol;

@@ -23,92 +23,109 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// PUNTO 9: CONTROL DE INACTIVIDAD (15 MIN)
+// PUNTO 9: CONTROL DE INACTIVIDAD (10 + 5 MIN)
 // ==========================================
-let inactivityTimer;
-const TIMEOUT_LIMIT = 15 * 60 * 1000; // 15 minutos
+let warningTimer;
+let logoutTimer;
+const WARNING_TIME = 10 * 60 * 1000; // 10 minutos para aviso
+const FINAL_TIMEOUT = 5 * 60 * 1000; // 5 minutos extra para cierre
 
-function resetInactivityTimer() {
-    if(!localStorage.getItem('jwt')) return; 
-    
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(() => {
-        localStorage.clear();
-        alert("Sessió tancada per inactivitat (15 min)."); 
-        window.location.href = 'index.html';
-    }, TIMEOUT_LIMIT);
+function startInactivityTimers() {
+    if(!localStorage.getItem('jwt')) return;
+
+    clearTimeout(warningTimer);
+    clearTimeout(logoutTimer);
+
+    // Timer 1: Mostrar Aviso
+    warningTimer = setTimeout(() => {
+        mostrarModalInactividad();
+    }, WARNING_TIME);
 }
 
-['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
-    document.addEventListener(evt, resetInactivityTimer);
-});
-
-
-// ==========================================
-// 1. SISTEMA DE MODALES PERSONALIZADOS
-// ==========================================
-window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
+function resetInactivity() {
+    // Solo reseteamos si NO estamos mostrando ya el modal de aviso
     const modal = document.getElementById('custom-modal');
-    if(!modal) return; 
+    // Si el modal está visible y es el de inactividad (lo sabremos por el título), no reseteamos al mover el ratón
+    // para obligar al usuario a hacer click en "Extender".
+    const isInactivityModal = document.getElementById('modal-title')?.innerText === "Inactivitat Detectada";
+    
+    if (modal && modal.style.display === 'flex' && isInactivityModal) {
+        return; 
+    }
+    
+    startInactivityTimers();
+}
+
+function mostrarModalInactividad() {
+    const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
     const msgEl = document.getElementById('modal-msg');
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    titleEl.innerText = titulo;
-    titleEl.style.color = "var(--brand-blue)"; 
-    msgEl.innerText = mensaje;
+    titleEl.innerText = "Inactivitat Detectada";
+    titleEl.style.color = "var(--brand-red)";
     
-    btnConfirm.innerText = "Confirmar";
-    btnConfirm.disabled = false;
-    btnConfirm.style.background = ""; 
-    btnCancel.style.display = "block"; 
+    // Timer visual descendente
+    let segundosRestantes = 300; // 5 minutos
+    
+    msgEl.innerHTML = `
+        <p>Portes 10 minuts sense activitat.</p>
+        <p>La sessió es tancarà automàticament en:</p>
+        <div id="logout-countdown" class="modal-timer-text">05:00</div>
+        <p>Vols continuar connectat?</p>
+    `;
 
+    btnCancel.style.display = 'block';
+    btnCancel.innerText = "Tancar Sessió";
+    btnConfirm.innerText = "Estendre Sessió";
+    btnConfirm.style.background = "var(--brand-blue)";
+    
+    // Clonar botones
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     btnCancel.parentNode.replaceChild(newCancel, btnCancel);
 
-    newConfirm.onclick = () => {
-        if(onConfirm) onConfirm();
-        else modal.style.display = 'none';
-    };
+    // Acción Tancar
     newCancel.onclick = () => {
-        modal.style.display = 'none';
+        logoutApp(); // Función existente
     };
 
-    modal.style.display = 'flex';
-};
-
-window.mostrarModalError = function(mensaje, onCloseAction) {
-    const modal = document.getElementById('custom-modal');
-    if(!modal) { console.warn("Modal no cargado:", mensaje); return; }
-
-    const titleEl = document.getElementById('modal-title');
-    const btnConfirm = document.getElementById('modal-btn-confirm');
-    const btnCancel = document.getElementById('modal-btn-cancel');
-
-    titleEl.innerText = "Atenció";
-    titleEl.style.color = "var(--brand-blue)"; 
-    document.getElementById('modal-msg').innerText = mensaje;
-
-    btnCancel.style.display = 'none'; 
-    btnConfirm.innerText = "Entesos";
-    btnConfirm.style.background = "var(--brand-blue)"; 
-    btnConfirm.disabled = false;
-    
-    const newConfirm = btnConfirm.cloneNode(true);
-    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
-    
+    // Acción Extender
     newConfirm.onclick = () => {
         modal.style.display = 'none';
-        if (onCloseAction) {
-            onCloseAction(); 
-        }
+        startInactivityTimers(); // Reiniciar contadores
     };
 
     modal.style.display = 'flex';
-};
+
+    // Iniciar cuenta atrás visual y forzar logout al final
+    const countdownInterval = setInterval(() => {
+        if(modal.style.display === 'none') {
+            clearInterval(countdownInterval);
+            return;
+        }
+        
+        segundosRestantes--;
+        const m = Math.floor(segundosRestantes / 60);
+        const s = segundosRestantes % 60;
+        const display = document.getElementById('logout-countdown');
+        if(display) display.innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+
+        if (segundosRestantes <= 0) {
+            clearInterval(countdownInterval);
+            modal.style.display = 'none';
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+    }, 1000);
+}
+
+// Listeners
+['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
+    document.addEventListener(evt, resetInactivity);
+});
 
 // ==========================================
 // 2. FUNCIONES PRINCIPALES APP

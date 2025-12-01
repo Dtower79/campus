@@ -56,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Estado global dentro del closure
     let state = {
         matriculaId: null,
         curso: null,
@@ -95,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.onscroll = () => { btn.style.display = (document.body.scrollTop > 300) ? "flex" : "none"; };
     }
 
-    // Inyectamos CSS crítico para solucionar el problema de clicks en 3D
+    // Inyectamos CSS crítico
     injectSafeCSS();
     init();
 
@@ -104,24 +103,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const style = document.createElement('style');
             style.id = 'flashcard-fix-css';
             style.innerHTML = `
-                /* Cuando la carta gira, ocultamos la cara frontal para que no intercepte clicks */
-                .flashcard.flipped .flashcard-front { 
-                    visibility: hidden; 
-                    pointer-events: none; 
-                }
-                /* La cara trasera se vuelve visible y clickable */
-                .flashcard.flipped .flashcard-back { 
-                    visibility: visible; 
-                    pointer-events: auto; 
-                }
-                /* Botones siempre por encima y clickables */
-                .btn-flash-option {
-                    position: relative;
-                    z-index: 1000;
-                    pointer-events: auto !important;
-                    user-select: none; /* Evita seleccionar texto al hacer clic */
-                }
-                /* Arreglo para Safari/Mobile */
+                .flashcard.flipped .flashcard-front { visibility: hidden; pointer-events: none; }
+                .flashcard.flipped .flashcard-back { visibility: visible; pointer-events: auto; }
+                .btn-flash-option { position: relative; z-index: 9999; pointer-events: auto !important; user-select: none; }
                 .flashcard-inner { transform-style: preserve-3d; }
             `;
             document.head.appendChild(style);
@@ -136,9 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!state.progreso || Object.keys(state.progreso).length === 0) {
                 await inicializarProgresoEnStrapi();
             }
-
             await sincronizarAvanceLocal(); 
-
             renderSidebar();
             renderMainContent();
         } catch (e) {
@@ -150,13 +132,11 @@ document.addEventListener('DOMContentLoaded', () => {
     async function sincronizarAvanceLocal() {
         let huboCambios = false;
         const modulos = state.curso.moduls || [];
-
         modulos.forEach((mod, idx) => {
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
                 const flippedIndices = getFlippedCards(idx);
                 const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
                 const estadoRemoto = state.progreso.modulos[idx] ? state.progreso.modulos[idx].flashcards_done : false;
-
                 if (localmenteCompletado && !estadoRemoto) {
                     if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
                     state.progreso.modulos[idx].flashcards_done = true;
@@ -164,13 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
-
         if (huboCambios) {
-            try {
-                await guardarProgreso(state.progreso);
-            } catch(e) {
-                console.error("Error guardando sync auto:", e);
-            }
+            try { await guardarProgreso(state.progreso); } catch(e) { console.error("Error guardando sync auto:", e); }
         }
     }
 
@@ -184,11 +159,9 @@ document.addEventListener('DOMContentLoaded', () => {
             `populate[curs][populate][examen_final][populate][opcions]=true`, 
             `populate[curs][populate][imatge]=true`
         ].join('&');
-
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const json = await res.json();
         if (!json.data || json.data.length === 0) throw new Error("No s'ha trobat la matrícula o el curs.");
-        
         const mat = json.data[0];
         state.matriculaId = mat.documentId || mat.id;
         state.curso = mat.curs;
@@ -211,7 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (progresoObj.modulos) aprobados = progresoObj.modulos.filter(m => m.aprobado).length;
         let porcentaje = totalModulos > 0 ? Math.round((aprobados / totalModulos) * 100) : 0;
         if (progresoObj.examen_final && progresoObj.examen_final.aprobado) porcentaje = 100;
-
         const payload = { data: { progres_detallat: progresoObj, progres: porcentaje } };
         await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, {
             method: 'PUT',
@@ -263,17 +235,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
-        
         const prevIdx = indexModulo - 1;
         const prevProgreso = state.progreso.modulos ? state.progreso.modulos[prevIdx] : null;
         const prevModuloData = state.curso.moduls[prevIdx];
-
         if (!prevProgreso) return true; 
-
         const testOk = prevProgreso.aprobado === true;
         const tieneFlashcards = prevModuloData && prevModuloData.targetes_memoria && prevModuloData.targetes_memoria.length > 0;
         const flashcardsOk = tieneFlashcards ? (prevProgreso.flashcards_done === true) : true;
-
         return !(testOk && flashcardsOk);
     }
 
@@ -496,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // FLASHCARDS: LOGICA ROBUSTA CON ENCODE (SOLUCION FINAL)
+    // FLASHCARDS: LOGICA ROBUSTA CON DATA ATTRIBUTES
     // ------------------------------------------------------------------------
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
@@ -559,11 +527,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             } else {
                 let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
+                // USO DATA-ATTRIBUTES PARA PASAR DATOS SEGUROS
                 let buttonsHtml = options.map(opt => {
-                    // USO encodeURIComponent PARA PASAR DATOS SEGUROS
                     const safeOpt = encodeURIComponent(opt);
                     const safeTarget = encodeURIComponent(targetClean);
-                    return `<button class="btn-flash-option" onclick="checkFlashcard(event, this, '${safeOpt}', '${safeTarget}', ${idx}, ${modIdx})">${opt}</button>`;
+                    return `<button class="btn-flash-option" 
+                            data-selected="${safeOpt}" 
+                            data-correct="${safeTarget}" 
+                            data-idx="${idx}"
+                            data-mod="${modIdx}"
+                            onclick="checkFlashcardFromDOM(event, this)">${opt}</button>`;
                 }).join('');
                 backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
             }
@@ -590,12 +563,17 @@ document.addEventListener('DOMContentLoaded', () => {
         cardElement.classList.toggle('flipped');
     }
 
-    // CHECK USANDO DECODEURICOMPONENT (A PRUEBA DE ERRORES)
-    window.checkFlashcard = function(e, btn, encodedSelected, encodedCorrect, cardIdx, modIdx) {
+    // NUEVA FUNCIÓN QUE LEE DEL DOM DIRECTAMENTE (INFALIBLE)
+    window.checkFlashcardFromDOM = function(e, btn) {
         if (e) {
             e.stopPropagation(); 
             e.preventDefault();
         }
+
+        const encodedSelected = btn.getAttribute('data-selected');
+        const encodedCorrect = btn.getAttribute('data-correct');
+        const cardIdx = parseInt(btn.getAttribute('data-idx'));
+        const modIdx = parseInt(btn.getAttribute('data-mod'));
 
         const selected = decodeURIComponent(encodedSelected);
         const correct = decodeURIComponent(encodedCorrect);

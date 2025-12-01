@@ -137,6 +137,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const flippedIndices = getFlippedCards(idx);
                 const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
                 const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx].flashcards_done : false;
+                
+                // Solo sincronizamos hacia arriba si localmente está hecho y remotamente no.
                 if (localmenteCompletado && !estadoRemoto) {
                     if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
                     state.progreso.modulos[idx].flashcards_done = true;
@@ -173,22 +175,46 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
 
-        // --- NUEVO: PURGA DE CACHÉ SI CAMBIA LA MATRÍCULA ---
-        // Esto soluciona que al borrarte y volverte a apuntar te salgan cosas hechas.
+        // --- LÓGICA DE RESET INTELIGENTE ---
+        // 1. Detección por cambio de ID de matrícula
         const cacheKey = `sicap_last_matricula_${SLUG}`;
         const lastMatricula = localStorage.getItem(cacheKey);
-        
+        let forceReset = false;
+
         if (lastMatricula && lastMatricula !== String(state.matriculaId)) {
-            console.log("Detectada nova matrícula. Netejant caché local...");
-            // Borramos todo lo relacionado con este curso
+            console.log("Detectada nova matrícula per ID. Netejant caché local...");
+            forceReset = true;
+        }
+        
+        // 2. Detección por Progreso 0 (Safety Check)
+        // Si el progreso global es 0, asumimos que es un curso nuevo y forzamos limpieza
+        // Esto arregla casos donde la BD tiene basura antigua
+        if (mat.progres === 0) {
+            console.log("Detectat progrés 0%. Forçant estat inicial...");
+            forceReset = true;
+            // Reseteamos el estado en memoria para que la UI no se pinte verde
+            if (state.progreso.modulos) {
+                state.progreso.modulos.forEach(m => {
+                    m.flashcards_done = false;
+                    m.aprobado = false;
+                    m.nota = 0;
+                    m.intentos = 0;
+                });
+                // Guardamos este estado limpio en DB para corregir inconsistencias
+                guardarProgreso(state.progreso); 
+            }
+        }
+
+        if (forceReset) {
+            // Borramos todo lo relacionado con este curso del localStorage
             Object.keys(localStorage).forEach(key => {
                 if (key.includes(SLUG) && (key.includes('flipped') || key.includes('progress'))) {
                     localStorage.removeItem(key);
                 }
             });
         }
+        
         localStorage.setItem(cacheKey, String(state.matriculaId));
-        // ----------------------------------------------------
     }
 
     async function inicializarProgresoEnStrapi() {
@@ -201,8 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function guardarProgreso(progresoObj) {
-        const modulos = (state.curso && state.curso.moduls) ? state.curso.moduls : [];
-        let totalModulos = modulos.length; 
+        let totalModulos = (state.curso.moduls || []).length; 
         
         let aprobados = 0;
         if (progresoObj && progresoObj.modulos && Array.isArray(progresoObj.modulos)) {
@@ -213,15 +238,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (progresoObj.examen_final && progresoObj.examen_final.aprobado) porcentaje = 100;
 
         const payload = { data: { progres_detallat: progresoObj, progres: porcentaje } };
-        
         await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
             body: JSON.stringify(payload)
         });
-        
         state.progreso = progresoObj;
-        
         if (document.getElementById('course-index') && document.getElementById('course-index').innerHTML !== '') {
             renderSidebar(); 
         }
@@ -375,7 +397,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="sidebar-sub-menu">`;
                 
                 html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
-                
                 if ((!isLocked || state.godMode) && mod.material_pdf) {
                     const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
                     if (archivos.length > 0) {
@@ -385,12 +406,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                 }
-                
                 if (tieneFlash) {
                     const fCheck = flashDone ? '✓' : '';
                     html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);
                 }
-                
                 const intentos = modProgreso ? modProgreso.intentos : 0;
                 const tCheck = testDone ? '✓' : '';
                 html += renderSubLink(idx, 'test', `📝 Test Avaluació ${tCheck} (${intentos}/2)`, isLocked);

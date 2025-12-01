@@ -411,3 +411,126 @@ ul { list-style: none; padding: 0; margin: 0; }
     .grid-container, #grid-inner-numbers { gap: 10px; }
     .grid-item { padding: 10px; font-size: 1rem; }
 }
+
+/* --- MEJORAS BLOQUE 5.2: FLASHCARDS INTEGRADAS Y BREADCRUMBS --- */
+
+/* 1. FLASHCARDS INTEGRACIÓN */
+.flashcard-game-container {
+    background: rgba(0,0,0,0.3); /* Un poco más oscuro para contraste */
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 5px;
+    width: 100%;
+    text-align: left; /* Alinear texto a la izquierda para lectura natural */
+}
+
+.flashcard-question-text {
+    font-size: 1.1rem; /* Texto base un poco más grande */
+    line-height: 1.8;  /* Más separación entre líneas */
+    color: white;
+    margin-bottom: 15px;
+    display: inline; /* Para que fluya */
+}
+
+/* El hueco o la palabra rellenada */
+.cloze-blank {
+    display: inline-block;
+    min-width: 60px;
+    border-bottom: 2px solid #ffeb3b;
+    color: #ffeb3b;
+    font-weight: bold;
+    text-align: center;
+    padding: 0 5px;
+    transition: all 0.3s ease;
+}
+
+.cloze-blank.filled-correct {
+    color: #4caf50; /* Verde */
+    border-bottom-color: #4caf50;
+    transform: scale(1.1); /* Pequeño pop al acertar */
+}
+
+.cloze-blank.filled-wrong {
+    color: #f44336; /* Rojo */
+    border-bottom-color: #f44336;
+    text-decoration: line-through;
+}
+
+/* Botones de opciones más discretos */
+.flashcard-options {
+    display: flex;
+    flex-wrap: wrap; /* Permitir que se pongan al lado si caben */
+    gap: 8px;
+    margin-top: 15px;
+    justify-content: center;
+}
+
+.btn-flash-option {
+    padding: 6px 12px; /* Más pequeños */
+    font-size: 0.85rem;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    border-radius: 20px; /* Bordes redondeados tipo "pill" */
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-flash-option:hover {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-1px);
+}
+
+.btn-flash-option.correct {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+}
+
+.btn-flash-option.wrong {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+    opacity: 0.5;
+}
+
+/* 2. BREADCRUMBS (NAVEGACIÓ) MEJORADO */
+.breadcrumbs {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    padding: 10px 15px;
+    background-color: var(--bg-body); /* Fondo suave */
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.breadcrumbs a {
+    color: var(--brand-blue);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 2px 5px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.breadcrumbs a:hover {
+    background-color: rgba(0, 75, 135, 0.1);
+    text-decoration: none;
+}
+
+.breadcrumb-separator {
+    color: #999;
+    font-size: 0.7rem;
+}
+
+.breadcrumb-current {
+    font-weight: bold;
+    color: var(--text-main);
+    padding: 2px 5px;
+    background-color: rgba(0,0,0,0.05); /* Destacar el actual */
+    border-radius: 4px;
+}

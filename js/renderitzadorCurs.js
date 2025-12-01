@@ -1,12 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
-    // 1. HELPER: TRADUCTOR DE TEXTO (ROBUSTO)
+    // 1. HELPER: TRADUCTOR DE TEXTO (ROBUSTO PARA STRAPI V5)
     // ------------------------------------------------------------------------
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
         
-        // Función recursiva para extraer texto de bloques anidados de Strapi v5
         const extractText = (nodes) => {
             if (!nodes) return "";
             if (typeof nodes === "string") return nodes;
@@ -27,11 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<p>${text}</p>`;
             }).join('');
         }
-        
         return JSON.stringify(content);
     }
 
-    // Helper específico para texto plano (Flashcards)
+    // Helper para limpiar texto plano (usado en Flashcards)
     function getPlainText(content) {
         if (!content) return "";
         if (typeof content === 'string') return content;
@@ -76,15 +74,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Configuración visual inicial
     const loginOverlay = document.getElementById('login-overlay');
     if(loginOverlay) loginOverlay.style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.getElementById('dashboard-view').style.display = 'none';
     document.getElementById('exam-view').style.display = 'flex';
 
+    // Forzar Footer visible
     const footer = document.getElementById('app-footer');
     if(footer) footer.style.display = 'block';
 
+    // Inyectar botón Scroll Top
     if(!document.getElementById('scroll-top-btn')) {
         const btn = document.createElement('button');
         btn.id = 'scroll-top-btn';
@@ -172,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.progreso = progresoObj;
     }
 
+    // --- Persistencia Local ---
     function getStorageKey(tipo) { return `sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`; }
     function guardarRespuestaLocal(tipo, preguntaId, opcionIdx) {
         const key = getStorageKey(tipo);
@@ -193,6 +195,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ------------------------------------------------------------------------
+    // 4. LÓGICA DEL UI (SIDEBAR + ACORDEÓN)
+    // ------------------------------------------------------------------------
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
@@ -207,34 +212,34 @@ document.addEventListener('DOMContentLoaded', () => {
         return state.progreso.modulos.every(m => m.aprobado === true);
     }
 
+    // Toggle Acordeón
     window.toggleAccordion = function(headerElement) {
         const group = headerElement.parentElement;
         if (group.classList.contains('group-locked') && !state.godMode) return;
         group.classList.toggle('open');
     };
 
+    // Toggle Modo Dios / Profesor
     window.toggleGodMode = function(checkbox) { 
         state.godMode = checkbox.checked; 
         renderSidebar(); 
-        renderMainContent();
+        renderMainContent(); // Recargar para ver respuestas en tests/flashcards
     }
 
+    // Navegación Principal
     window.cambiarVista = function(idx, view) {
-        state.currentModuleIndex = parseInt(idx); 
+        state.currentModuleIndex = parseInt(idx); // Asegurar número
         state.currentView = view;
         state.respuestasTemp = {}; 
         state.testEnCurso = false;
-        
         renderSidebar();
         renderMainContent();
         window.scrollTo(0,0);
 
-        // --- CORRECCIÓN: EXPANDIR EL MENÚ AUTOMÁTICAMENTE ---
+        // Auto-expandir menú
         setTimeout(() => {
-            // Buscamos el ítem activo en el sidebar
             const activeItem = document.querySelector('.sidebar-subitem.active');
             if(activeItem) {
-                // Buscamos su padre (el grupo desplegable)
                 const parentGroup = activeItem.closest('.sidebar-module-group');
                 if(parentGroup && !parentGroup.classList.contains('open')) {
                     parentGroup.classList.add('open');
@@ -244,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // RENDER SIDEBAR
+    // RENDER SIDEBAR (MENÚ LATERAL)
     // ------------------------------------------------------------------------
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
@@ -260,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </label></div>`;
         }
         
-        // 1. PROGRAMA
+        // 1. PROGRAMA (Intro)
         const isIntroActive = state.currentModuleIndex === -1;
         html += `<div class="sidebar-module-group ${isIntroActive ? 'open' : ''}">
             <div class="sidebar-module-title" onclick="toggleAccordion(this)">
@@ -338,7 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSubLink(modIdx, viewName, label, locked, isSpecial = false) {
         const reallyLocked = locked && !state.godMode;
-        // CORREGIDO: Conversión a string para asegurar comparación
+        
+        // CORRECCIÓN CRÍTICA: Comparación como String
         let isActive = (String(state.currentModuleIndex) === String(modIdx) && state.currentView === viewName);
         
         const lockedClass = reallyLocked ? 'locked' : '';
@@ -351,6 +357,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
     }
 
+    // ------------------------------------------------------------------------
+    // RENDER MAIN CONTENT
+    // ------------------------------------------------------------------------
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
@@ -416,37 +425,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ------------------------------------------------------------------------
+    // RENDER SIDEBAR RIGHT (BREADCRUMBS)
+    // ------------------------------------------------------------------------
     function renderSidebarTools(container, mod) {
-        let viewLabel = '';
-        if (state.currentView === 'intro') viewLabel = 'Programa';
-        else if (state.currentView === 'glossary') viewLabel = 'Glossari';
-        else if (state.currentView === 'teoria') viewLabel = 'Temari';
-        else if (state.currentView === 'test') viewLabel = 'Test';
-        else if (state.currentView === 'flashcards') viewLabel = 'Targetes';
+        let breadcrumbs = [];
         
-        let moduleName = mod.titol || '';
-        if(moduleName.length > 20) moduleName = moduleName.substring(0, 18) + '...';
+        // Nivel 1: Inicio
+        breadcrumbs.push(`<a href="#" onclick="window.tornarAlDashboard(); return false;">Inici</a>`);
 
-        let moduleLink = `<span>${moduleName}</span>`;
-        
-        // Hacemos linkable si NO estamos en esa vista ya
-        if (state.currentModuleIndex !== -1 && state.currentModuleIndex !== 1000 && state.currentModuleIndex !== 999) {
-             // Si es un módulo normal (0, 1, 2...), lleva a la teoría
-             moduleLink = `<a href="#" onclick="window.cambiarVista(${state.currentModuleIndex}, 'teoria'); return false;">${moduleName}</a>`;
-        } else if (state.currentView !== 'intro' && state.currentModuleIndex === -1) {
-             // Si estamos en Programa pero en otra sub-vista (raro pero posible), link al programa
-             moduleLink = `<a href="#" onclick="window.cambiarVista(-1, 'intro'); return false;">Programa</a>`;
+        // Nivel 2: Depende de la vista
+        if (state.currentView === 'intro') {
+            breadcrumbs.push(`<span class="breadcrumb-current">Programa del Curs</span>`);
+        } 
+        else if (state.currentView === 'glossary') {
+            breadcrumbs.push(`<span class="breadcrumb-current">Glossari</span>`);
+        }
+        else if (state.currentView === 'examen_final') {
+            breadcrumbs.push(`<span class="breadcrumb-current">Examen Final</span>`);
+        }
+        else {
+            // Caso Módulo: Enlace si no estamos en teoría
+            let moduleName = mod.titol || 'Mòdul';
+            if(moduleName.length > 25) moduleName = moduleName.substring(0, 22) + '...';
+            
+            if (state.currentView !== 'teoria') {
+                breadcrumbs.push(`<a href="#" onclick="window.cambiarVista(${state.currentModuleIndex}, 'teoria'); return false;">${moduleName}</a>`);
+            } else {
+                breadcrumbs.push(`<span>${moduleName}</span>`);
+            }
+            
+            let subSection = '';
+            if (state.currentView === 'teoria') subSection = 'Temari';
+            if (state.currentView === 'test') subSection = 'Test Avaluació';
+            if (state.currentView === 'flashcards') subSection = 'Targetes';
+            
+            breadcrumbs.push(`<span class="breadcrumb-current">${subSection}</span>`);
         }
 
-        const breadcrumbsHtml = `
-            <div class="breadcrumbs">
-                <a href="#" onclick="window.tornarAlDashboard(); return false;">Inici</a>
-                <span class="breadcrumb-separator">></span>
-                ${moduleLink}
-                <span class="breadcrumb-separator">></span>
-                <span class="breadcrumb-current">${viewLabel}</span>
-            </div>
-        `;
+        const breadcrumbsHtml = `<div class="breadcrumbs">${breadcrumbs.join('<span class="breadcrumb-separator"><i class="fa-solid fa-angle-right"></i></span>')}</div>`;
 
         const noteKey = `sicap_notes_${USER.id}_${state.curso.slug}`;
         const savedNote = localStorage.getItem(noteKey) || '';
@@ -463,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="tools-box" style="border-color: var(--brand-blue);">
                 <div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div>
                 <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">
-                    Tens alguna pregunta sobre <strong>"${mod.titol}"</strong>?
+                    Tens alguna pregunta sobre <strong>"${mod.titol || 'aquest apartat'}"</strong>?
                 </p>
                 <button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')">
                     <i class="fa-regular fa-paper-plane"></i> Enviar Dubte
@@ -481,6 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Modal Duda
     window.obrirFormulariDubte = function(moduloTitulo) {
         const modal = document.getElementById('custom-modal');
         const titleEl = document.getElementById('modal-title');
@@ -558,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // FLASHCARDS GAMIFICADAS (FIXED)
+    // FLASHCARDS GAMIFICADAS (VERSIÓN ROBUSTA)
     // ------------------------------------------------------------------------
     function renderFlashcards(container, cards) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
@@ -568,31 +586,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
 
         cards.forEach((card, idx) => {
-            // 1. LIMPIEZA DE TEXTO DEFINITIVA (Usando un div temporal)
+            // LIMPIEZA DE TEXTO (Extraer de cualquier estructura de Strapi)
             let tempDiv = document.createElement("div");
-            
-            // Intentamos parsear si es un objeto JSON de Strapi
             try {
-                if (typeof card.resposta === 'object') {
-                    // Si es bloques de Strapi, usamos el helper parseStrapiRichText
-                    tempDiv.innerHTML = parseStrapiRichText(card.resposta);
-                } else {
-                    tempDiv.innerHTML = card.resposta;
-                }
-            } catch (e) {
-                tempDiv.innerText = String(card.resposta);
-            }
+                if (typeof card.resposta === 'object') tempDiv.innerHTML = parseStrapiRichText(card.resposta);
+                else tempDiv.innerHTML = card.resposta;
+            } catch (e) { tempDiv.innerText = String(card.resposta); }
 
-            // Extraemos solo el texto limpio
-            let answerText = tempDiv.innerText || tempDiv.textContent || "Text no disponible";
-            answerText = answerText.trim();
+            let answerText = (tempDiv.innerText || tempDiv.textContent || "Text no disponible").trim();
+            // Eliminamos saltos de línea múltiples
+            answerText = answerText.replace(/\s\s+/g, ' ');
 
-            // 2. Lógica del juego
-            let words = answerText.split(/\s+/); // Separar por cualquier espacio
+            let words = answerText.split(" ");
             let targetWord = "";
             let hiddenIndex = -1;
 
-            // Buscar palabra candidata (>4 letras)
+            // Buscar palabra larga
             for (let i = 0; i < words.length; i++) {
                 let cleanWord = words[i].replace(/[.,;:"'()]/g, '');
                 if (cleanWord.length > 4) {
@@ -601,15 +610,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     break; 
                 }
             }
-            
-            // Fallback: Si no hay palabra larga, coger la última
             if(hiddenIndex === -1 && words.length > 0) {
                 targetWord = words[words.length-1];
                 hiddenIndex = words.length-1;
             }
 
-            let options = [targetWord.replace(/[.,;:"'()]/g, '')]; // Opción limpia
-            
+            let options = [targetWord.replace(/[.,;:"'()]/g, '')];
             while(options.length < 3) {
                 let rand = distractors[Math.floor(Math.random() * distractors.length)];
                 if(!options.includes(rand)) options.push(rand);
@@ -620,13 +626,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.godMode) {
                 backContent = `<div style="padding:15px; color:white; font-size:0.95rem;">${answerText}</div>`;
             } else {
-                let questionText = words.map((w, i) => i === hiddenIndex ? "<b style='color:#ffeb3b; border-bottom:2px solid white;'>_______</b>" : w).join(" ");
-                
-                // Limpiar la palabra objetivo para la comparación (sin comas ni puntos)
+                // Hueco para rellenar
+                let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
                 let targetClean = targetWord.replace(/[.,;:"'()]/g, '');
                 
                 let buttonsHtml = options.map(opt => {
-                    // Escapar comillas simples para el HTML
                     let optSafe = opt.replace(/'/g, "\\'");
                     let targetSafe = targetClean.replace(/'/g, "\\'");
                     return `<button class="btn-flash-option" onclick="checkFlashcard(this, '${optSafe}', '${targetSafe}')">${opt}</button>`;
@@ -634,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 backContent = `
                     <div class="flashcard-game-container">
-                        <p class="flashcard-question-text" style="color:white; font-size:0.95rem;">${questionText}</p>
+                        <div class="flashcard-question-text">${questionText}</div>
                         <div class="flashcard-options">${buttonsHtml}</div>
                     </div>
                 `;
@@ -656,19 +660,30 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
+    // Verificar respuesta Flashcard e integrar palabra
     window.checkFlashcard = function(btn, selected, correct) {
         event.stopPropagation(); 
-        const parent = btn.parentElement;
-        const buttons = parent.querySelectorAll('.btn-flash-option');
+        
+        const container = btn.closest('.flashcard-game-container');
+        const blankSpan = container.querySelector('.cloze-blank');
+        const buttons = container.querySelectorAll('.btn-flash-option');
+        
         buttons.forEach(b => b.disabled = true);
+
         if (selected === correct) {
             btn.classList.add('correct');
-            btn.innerHTML += ' <i class="fa-solid fa-check"></i>';
+            // Integrar palabra
+            blankSpan.innerText = selected;
+            blankSpan.classList.remove('cloze-blank');
+            blankSpan.classList.add('cloze-blank', 'filled-correct');
         } else {
             btn.classList.add('wrong');
             buttons.forEach(b => {
                 if (b.innerText === correct) b.classList.add('correct');
             });
+            // Mostrar error
+            blankSpan.innerText = selected;
+            blankSpan.classList.add('filled-wrong');
         }
     };
 
@@ -706,6 +721,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.iniciarTest = function() { state.testEnCurso = true; renderMainContent(); }
 
+    // ------------------------------------------------------------------------
+    // MODO PROFESOR EN TEST (AUTO-RESPONDER)
+    // ------------------------------------------------------------------------
     function renderTestQuestions(container, mod, modIdx) {
         const gridRight = document.getElementById('quiz-grid');
         gridRight.innerHTML = ''; 
@@ -724,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mod.preguntes.forEach((preg, idx) => {
             const qId = `q-${idx}`; 
             
-            // CORREGIDO: Lógica Modo Profesor
+            // LÓGICA MODO PROFESOR (Auto-seleccionar)
             if (state.godMode && state.respuestasTemp[qId] === undefined) {
                 const correctIdx = preg.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
                 if (correctIdx !== -1) {
@@ -820,17 +838,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const qId = esFinal ? `final-${idx}` : `q-${idx}`;
             const userRes = respuestasUsuario[qId];
             const cardId = esFinal ? `card-final-${idx}` : `card-q-${idx}`;
-            html += `<div class="question-card review-mode" id="${cardId}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            
+            html += `<div class="question-card review-mode" id="${cardId}">
+                        <div class="q-header">Pregunta ${idx + 1}</div>
+                        <div class="q-text">${preg.text}</div>
+                        <div class="options-list">`;
+            
             preg.opcions.forEach((opt, oIdx) => {
                 let classes = 'option-item ';
                 const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                
                 if (isCorrect) classes += 'correct-answer ';
-                if (userRes == oIdx) { classes += 'selected '; if (!isCorrect) classes += 'user-wrong '; }
-                html += `<div class="${classes}"><input type="radio" ${userRes == oIdx ? 'checked' : ''} disabled><span>${opt.text}</span></div>`;
+                if (userRes == oIdx) { 
+                    classes += 'selected '; 
+                    if (!isCorrect) classes += 'user-wrong '; 
+                }
+                
+                html += `<div class="${classes}">
+                            <input type="radio" ${userRes == oIdx ? 'checked' : ''} disabled>
+                            <span>${opt.text}</span>
+                         </div>`;
             });
+            
             if (preg.explicacio) html += `<div class="explanation-box"><strong><i class="fa-solid fa-circle-info"></i> Explicació:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
             html += `</div></div>`;
         });
+        
         container.innerHTML = html;
         window.scrollTo(0,0);
     }

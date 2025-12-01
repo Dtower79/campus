@@ -96,8 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Inyectamos CSS crítico
     injectSafeCSS();
-    
-    // INICIO SEGURO
     init();
 
     function injectSafeCSS() {
@@ -119,15 +117,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if(container) container.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
         try {
             await cargarDatos();
-            
-            // Si no hay progreso o está vacío, inicializamos
             if (!state.progreso || Object.keys(state.progreso).length === 0) {
                 await inicializarProgresoEnStrapi();
             }
-
-            // Sincronización proactiva al cargar
             await sincronizarAvanceLocal(); 
-
             renderSidebar();
             renderMainContent();
         } catch (e) {
@@ -138,30 +131,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function sincronizarAvanceLocal() {
         let huboCambios = false;
-        // Acceso seguro a módulos
-        const modulos = (state.curso && state.curso.moduls) ? state.curso.moduls : [];
-
+        const modulos = state.curso.moduls || [];
         modulos.forEach((mod, idx) => {
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
                 const flippedIndices = getFlippedCards(idx);
                 const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
-                
-                // Acceso seguro a progreso
-                const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) 
-                                     ? state.progreso.modulos[idx].flashcards_done 
-                                     : false;
-
+                const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx].flashcards_done : false;
                 if (localmenteCompletado && !estadoRemoto) {
-                    // Asegurar estructura
-                    if (!state.progreso.modulos) state.progreso.modulos = [];
                     if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
-                    
                     state.progreso.modulos[idx].flashcards_done = true;
                     huboCambios = true;
                 }
             }
         });
-
         if (huboCambios) {
             try { await guardarProgreso(state.progreso); } catch(e) { console.error("Error guardando sync auto:", e); }
         }
@@ -188,16 +170,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         state.matriculaId = mat.documentId || mat.id;
         state.curso = mat.curs;
-        
-        // Inicialización defensiva de arrays
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
+
+        // --- NUEVO: PURGA DE CACHÉ SI CAMBIA LA MATRÍCULA ---
+        // Esto soluciona que al borrarte y volverte a apuntar te salgan cosas hechas.
+        const cacheKey = `sicap_last_matricula_${SLUG}`;
+        const lastMatricula = localStorage.getItem(cacheKey);
+        
+        if (lastMatricula && lastMatricula !== String(state.matriculaId)) {
+            console.log("Detectada nova matrícula. Netejant caché local...");
+            // Borramos todo lo relacionado con este curso
+            Object.keys(localStorage).forEach(key => {
+                if (key.includes(SLUG) && (key.includes('flipped') || key.includes('progress'))) {
+                    localStorage.removeItem(key);
+                }
+            });
+        }
+        localStorage.setItem(cacheKey, String(state.matriculaId));
+        // ----------------------------------------------------
     }
 
     async function inicializarProgresoEnStrapi() {
-        // Acceso seguro: si state.curso.moduls es undefined, usamos []
         const modulos = (state.curso && state.curso.moduls) ? state.curso.moduls : [];
-        
         const nuevoProgreso = {
             modulos: modulos.map(() => ({ aprobado: false, nota: 0, intentos: 0, flashcards_done: false })),
             examen_final: { aprobado: false, nota: 0, intentos: 0 }
@@ -206,7 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function guardarProgreso(progresoObj) {
-        // CÁLCULO SEGURO DEL PROGRESO (Solución del error 'reading length')
         const modulos = (state.curso && state.curso.moduls) ? state.curso.moduls : [];
         let totalModulos = modulos.length; 
         
@@ -228,7 +222,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         state.progreso = progresoObj;
         
-        // Solo renderizar si el DOM ya existe
         if (document.getElementById('course-index') && document.getElementById('course-index').innerHTML !== '') {
             renderSidebar(); 
         }
@@ -277,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const prevIdx = indexModulo - 1;
         const prevProgreso = (state.progreso.modulos && state.progreso.modulos[prevIdx]) ? state.progreso.modulos[prevIdx] : null;
         
-        // Acceso seguro a moduls
         const modulos = state.curso.moduls || [];
         const prevModuloData = modulos[prevIdx];
 
@@ -582,6 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             } else {
                 let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
+                // USO DATA-ATTRIBUTES PARA PASAR DATOS SEGUROS
                 let buttonsHtml = options.map(opt => {
                     const safeOpt = encodeURIComponent(opt);
                     const safeTarget = encodeURIComponent(targetClean);

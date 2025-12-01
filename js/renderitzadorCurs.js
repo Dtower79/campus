@@ -96,11 +96,52 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!state.progreso || Object.keys(state.progreso).length === 0) {
                 await inicializarProgresoEnStrapi();
             }
+
+            // --- CORRECCIÓN: Sincronización proactiva al cargar ---
+            // Revisa si el LocalStorage dice que ya acabamos las flashcards aunque Strapi no lo sepa aún.
+            // Esto arregla el problema de "tener que entrar para que se desbloquee el siguiente".
+            await sincronizarAvanceLocal(); 
+            // -------------------------------------------------------
+
             renderSidebar();
             renderMainContent();
         } catch (e) {
             console.error(e);
             if(container) container.innerHTML = `<div class="alert alert-danger" style="color:red; padding:20px;">Error: ${e.message}</div>`;
+        }
+    }
+
+    // --- NUEVA FUNCIÓN DE SINCRONIZACIÓN ---
+    async function sincronizarAvanceLocal() {
+        let huboCambios = false;
+        const modulos = state.curso.moduls || [];
+
+        modulos.forEach((mod, idx) => {
+            if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
+                // Obtenemos qué cartas están giradas en este navegador
+                const flippedIndices = getFlippedCards(idx);
+                // ¿Están todas giradas localmente?
+                const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
+                // ¿Qué dice la base de datos (estado global)?
+                const estadoRemoto = state.progreso.modulos[idx] ? state.progreso.modulos[idx].flashcards_done : false;
+
+                // Si aquí está hecho pero en la nube no... actualizamos el estado en memoria YA.
+                if (localmenteCompletado && !estadoRemoto) {
+                    console.log(`[Auto-Sync] Sincronitzant flashcards mòdul ${idx + 1}...`);
+                    if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
+                    state.progreso.modulos[idx].flashcards_done = true;
+                    huboCambios = true;
+                }
+            }
+        });
+
+        // Si hubo cambios, guardamos en Strapi para que persista, pero el usuario ya ve los candados abiertos
+        if (huboCambios) {
+            try {
+                await guardarProgreso(state.progreso);
+            } catch(e) {
+                console.error("Error guardando sync auto:", e);
+            }
         }
     }
 
@@ -149,7 +190,10 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify(payload)
         });
         state.progreso = progresoObj;
-        renderSidebar(); 
+        // Solo repintar sidebar si ya se ha inicializado la vista
+        if (document.getElementById('course-index').innerHTML !== '') {
+            renderSidebar(); 
+        }
     }
 
     // --- Helpers LocalStorage ---
@@ -191,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 3. LÓGICA DE BLOQUEO (REVISADA)
+    // 3. LÓGICA DE BLOQUEO
     // ------------------------------------------------------------------------
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
@@ -454,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // FLASHCARDS (SOLUCIÓN DEFINITIVA)
+    // FLASHCARDS (CORREGIDO PARA PERMITIR REPASO)
     // ------------------------------------------------------------------------
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
@@ -489,6 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cards.forEach((card, idx) => {
             // Verificar si esta tarjeta ya fue hecha
             const isDone = isReallyCompleted || flippedIndices.includes(idx) || state.godMode;
+            // Visualmente, si está hecha, se muestra "flipped" por defecto, pero se puede revertir.
             const flipClass = isDone ? 'flipped' : '';
 
             // Texto
@@ -537,8 +582,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
             }
 
-            // Click solo gira si NO está completada ya (para evitar re-jugar lo ganado)
-            const clickAttr = isDone ? '' : `onclick="handleFlip(this)"`; 
+            // CORRECCIÓN UX: Siempre permitimos hacer click (flip) para repasar.
+            const clickAttr = `onclick="handleFlip(this)"`; 
 
             html += `<div class="flashcard ${flipClass}" ${clickAttr}>
                     <div class="flashcard-inner">
@@ -552,21 +597,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         html += `</div>`;
         
-        // BOTÓN FORZAR (Si acaso falla algo automático)
-        if(isReallyCompleted && !isCompletedDB) {
-             // Si localmente está acabado pero DB dice que no, forzamos actualización
-             console.log("Detectado completado local, sincronizando...");
-             actualizarProgresoFlashcards(modIdx);
-        }
-
         container.innerHTML = html;
     }
 
     // Solo efecto visual
     window.handleFlip = function(cardElement) {
-        if (!cardElement.classList.contains('flipped')) {
-            cardElement.classList.add('flipped');
-        }
+        cardElement.classList.toggle('flipped');
     }
 
     // Comprobar respuesta

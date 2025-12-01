@@ -62,20 +62,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Configuración visual inicial
     const loginOverlay = document.getElementById('login-overlay');
     if(loginOverlay) loginOverlay.style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.getElementById('dashboard-view').style.display = 'none';
     document.getElementById('exam-view').style.display = 'flex';
 
-    // Inyectar botón Scroll Top si no existe
+    // Forzar Footer visible
+    const footer = document.getElementById('app-footer');
+    if(footer) footer.style.display = 'block';
+
+    // Inyectar botón Scroll Top
     if(!document.getElementById('scroll-top-btn')) {
         const btn = document.createElement('button');
         btn.id = 'scroll-top-btn';
         btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
         btn.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
         document.body.appendChild(btn);
-        
         window.onscroll = () => {
             if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
                 btn.style.display = "flex";
@@ -90,7 +94,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function init() {
         const container = document.getElementById('moduls-container');
         if(container) container.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
-        
         try {
             await cargarDatos();
             if (!state.progreso || Object.keys(state.progreso).length === 0) {
@@ -158,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.progreso = progresoObj;
     }
 
+    // --- Persistencia Local ---
     function getStorageKey(tipo) { return `sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`; }
     function guardarRespuestaLocal(tipo, preguntaId, opcionIdx) {
         const key = getStorageKey(tipo);
@@ -196,19 +200,34 @@ document.addEventListener('DOMContentLoaded', () => {
         return state.progreso.modulos.every(m => m.aprobado === true);
     }
 
-    // Función para abrir/cerrar acordeón
+    // Toggle Acordeón
     window.toggleAccordion = function(headerElement) {
         const group = headerElement.parentElement;
-        // Si está bloqueado y no somos dios, no hacemos nada (se queda cerrado)
-        if (group.classList.contains('group-locked') && !state.godMode) {
-            return; 
-        }
-        
-        // Cerrar todos los demás (comportamiento acordeón estricto) o dejar abiertos (opcional).
-        // Vamos a dejar que se abran/cierren a voluntad, pero empezando cerrado.
+        if (group.classList.contains('group-locked') && !state.godMode) return;
         group.classList.toggle('open');
     };
 
+    // Toggle Modo Dios / Profesor
+    window.toggleGodMode = function(checkbox) { 
+        state.godMode = checkbox.checked; 
+        renderSidebar(); 
+        renderMainContent(); // Recargar para ver respuestas en tests/flashcards
+    }
+
+    // Navegación Principal
+    window.cambiarVista = function(idx, view) {
+        state.currentModuleIndex = idx;
+        state.currentView = view;
+        state.respuestasTemp = {}; 
+        state.testEnCurso = false;
+        renderSidebar();
+        renderMainContent();
+        window.scrollTo(0,0);
+    }
+
+    // ------------------------------------------------------------------------
+    // RENDER SIDEBAR (MENÚ LATERAL)
+    // ------------------------------------------------------------------------
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
         const tituloEl = document.getElementById('curs-titol');
@@ -223,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </label></div>`;
         }
         
-        // --- 1. PROGRAMA (Siempre abierto si es la vista actual) ---
+        // 1. PROGRAMA (Intro)
         const isIntroActive = state.currentModuleIndex === -1;
         html += `<div class="sidebar-module-group ${isIntroActive ? 'open' : ''}">
             <div class="sidebar-module-title" onclick="toggleAccordion(this)">
@@ -234,21 +253,20 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>`;
 
-        // --- 2. MÓDULOS ---
+        // 2. MÓDULOS
         state.curso.moduls.forEach((mod, idx) => {
             const isLocked = estaBloqueado(idx);
-            const lockIcon = isLocked ? '<i class="fa-solid fa-lock"></i>' : '<i class="fa-regular fa-folder-open"></i>';
             const modProgreso = state.progreso.modulos ? state.progreso.modulos[idx] : null;
             const check = modProgreso && modProgreso.aprobado ? '<i class="fa-solid fa-check" style="color:green"></i>' : '';
             
-            // Lógica de apertura: Solo abierto si es el módulo activo
+            // Abierto si es el módulo actual
             const isOpen = (state.currentModuleIndex === idx);
             const lockedClass = (isLocked && !state.godMode) ? 'group-locked' : '';
             const openClass = isOpen ? 'open' : '';
 
             html += `<div class="sidebar-module-group ${lockedClass} ${openClass}">
                     <div class="sidebar-module-title" onclick="toggleAccordion(this)">
-                        <span>${lockIcon} ${mod.titol} ${check}</span>
+                        <span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span>
                     </div>
                     <div class="sidebar-sub-menu">`;
             
@@ -260,9 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (archivos.length > 0) {
                     archivos.forEach(pdf => {
                         const pdfUrl = pdf.url.startsWith('/') ? STRAPI_URL + pdf.url : pdf.url;
-                        html += `<a href="${pdfUrl}" target="_blank" class="sidebar-file-item">
-                                    <i class="fa-solid fa-file-pdf"></i> ${pdf.name}
-                                 </a>`;
+                        html += `<a href="${pdfUrl}" target="_blank" class="sidebar-file-item"><i class="fa-solid fa-file-pdf"></i> ${pdf.name}</a>`;
                     });
                 }
             }
@@ -276,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `</div></div>`;
         });
 
-        // --- 3. GLOSARIO (Separado, siempre accesible) ---
+        // 3. GLOSARIO
         const isGlossaryActive = state.currentModuleIndex === 1000;
         html += `<div class="sidebar-module-group ${isGlossaryActive ? 'open' : ''}" style="border-top:1px solid #eee; margin-top:10px;">
             <div class="sidebar-module-title" onclick="toggleAccordion(this)">
@@ -287,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>`;
 
-        // --- 4. EXAMEN FINAL (Separado) ---
+        // 4. EXAMEN FINAL
         const finalIsLocked = !puedeHacerExamenFinal(); 
         const isFinalActive = state.currentModuleIndex === 999;
         const lockedFinalClass = (finalIsLocked && !state.godMode) ? 'group-locked' : '';
@@ -305,13 +321,17 @@ document.addEventListener('DOMContentLoaded', () => {
         indexContainer.innerHTML = html;
     }
 
+    // Helper para generar enlaces del menú
     function renderSubLink(modIdx, viewName, label, locked, isSpecial = false) {
         const reallyLocked = locked && !state.godMode;
-        let isActive = (modIdx === state.currentModuleIndex && state.currentView === viewName);
+        
+        // Comparamos como String para evitar errores de tipo
+        let isActive = (String(state.currentModuleIndex) === String(modIdx) && state.currentView === viewName);
         
         const lockedClass = reallyLocked ? 'locked' : '';
         const activeClass = isActive ? 'active' : '';
         const specialClass = isSpecial ? 'special-item' : '';
+        
         const clickFn = reallyLocked ? '' : `window.cambiarVista(${modIdx}, '${viewName}')`;
         
         return `<div class="sidebar-subitem ${lockedClass} ${activeClass} ${specialClass}" onclick="${clickFn}">
@@ -319,18 +339,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
     }
 
-    window.toggleGodMode = function(checkbox) { state.godMode = checkbox.checked; renderSidebar(); }
-
-    window.cambiarVista = function(idx, view) {
-        state.currentModuleIndex = idx;
-        state.currentView = view;
-        state.respuestasTemp = {}; 
-        state.testEnCurso = false;
-        renderSidebar();
-        renderMainContent();
-        window.scrollTo(0,0);
-    }
-
+    // ------------------------------------------------------------------------
+    // RENDER MAIN CONTENT (CONTENIDO CENTRAL)
+    // ------------------------------------------------------------------------
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
@@ -339,6 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         detenerCronometro(); 
         document.body.classList.remove('exam-active');
 
+        // VISTA: PROGRAMA
         if (state.currentView === 'intro') {
             container.innerHTML = `
                 <h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2>
@@ -350,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // VISTA: GLOSARIO
         if (state.currentView === 'glossary') {
             const contenidoGlossari = state.curso.glossari 
                 ? parseStrapiRichText(state.curso.glossari) 
@@ -364,11 +377,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // VISTA: EXAMEN FINAL
         if (state.currentView === 'examen_final') {
             renderExamenFinal(container);
             return;
         }
 
+        // VISTAS DE MÓDULO (Teoría, Flashcards, Test)
         const mod = state.curso.moduls[state.currentModuleIndex];
         
         if (state.currentView === 'teoria') {
@@ -396,8 +411,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ------------------------------------------------------------------------
+    // RENDER SIDEBAR RIGHT (HERRAMIENTAS + BREADCRUMBS)
+    // ------------------------------------------------------------------------
     function renderSidebarTools(container, mod) {
-        // --- Breadcrumbs Interactivos ---
+        // Breadcrumbs Interactivos
         let viewLabel = '';
         if (state.currentView === 'intro') viewLabel = 'Programa';
         else if (state.currentView === 'glossary') viewLabel = 'Glossari';
@@ -408,7 +426,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let moduleName = mod.titol || '';
         if(moduleName.length > 20) moduleName = moduleName.substring(0, 18) + '...';
 
-        // Enlace del módulo lleva a la teoría si es un módulo normal
         let moduleLink = `<span>${moduleName}</span>`;
         if (state.currentModuleIndex >= 0 && state.currentModuleIndex < 900) {
             moduleLink = `<a href="#" onclick="window.cambiarVista(${state.currentModuleIndex}, 'teoria'); return false;">${moduleName}</a>`;
@@ -457,9 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ... (Mantener funciones: obrirFormulariDubte, renderTeoria, renderFlashcards, renderTestIntro, etc. sin cambios) ...
-    // Para no alargar, pego aquí las funciones que faltan sin modificar su lógica interna, solo asegurando que están.
-
+    // Modal Duda (Ya definido pero necesario)
     window.obrirFormulariDubte = function(moduloTitulo) {
         const modal = document.getElementById('custom-modal');
         const titleEl = document.getElementById('modal-title');
@@ -536,19 +551,118 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
+    // ------------------------------------------------------------------------
+    // FLASHCARDS GAMIFICADAS (FIXED)
+    // ------------------------------------------------------------------------
     function renderFlashcards(container, cards) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
-        let html = `<h3>Targetes de Repàs</h3><div class="flashcards-grid-view">`;
+        
+        let html = `<h3>Targetes de Repàs (Gamificat)</h3><div class="flashcards-grid-view">`;
+        
+        // Diccionario de distracciones (palabras penitenciarias típicas para rellenar)
+        const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
+
         cards.forEach((card, idx) => {
+            // 1. Limpieza de texto (Strapi a veces manda objetos Rich Text)
+            let rawResp = card.resposta;
+            let answerText = "";
+            
+            if (typeof rawResp === 'string') answerText = rawResp;
+            else if (Array.isArray(rawResp)) answerText = rawResp.map(b => b.children?.map(c => c.text).join('') || '').join(' ');
+            else answerText = "Text no disponible";
+
+            // Quitar etiquetas HTML si las hay
+            answerText = answerText.replace(/<[^>]*>?/gm, '');
+
+            // 2. Lógica del juego
+            let words = answerText.split(" ");
+            let targetWord = "";
+            let hiddenIndex = -1;
+
+            // Buscar palabra candidata (larga)
+            for (let i = 0; i < words.length; i++) {
+                // Limpiar puntuación para contar letras
+                let cleanWord = words[i].replace(/[.,;]/g, '');
+                if (cleanWord.length > 4) {
+                    targetWord = words[i]; // Guardamos con puntuación original
+                    hiddenIndex = i;
+                    break;
+                }
+            }
+            // Si no hay larga, cogemos la última
+            if(hiddenIndex === -1 && words.length > 0) {
+                targetWord = words[words.length-1];
+                hiddenIndex = words.length-1;
+            }
+
+            // Crear opciones
+            let options = [targetWord];
+            // Añadir 2 falsas
+            while(options.length < 3) {
+                let rand = distractors[Math.floor(Math.random() * distractors.length)];
+                if(!options.includes(rand)) options.push(rand);
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            // HTML de la parte trasera
+            let backContent = '';
+            if (state.godMode) {
+                backContent = `<div style="padding:15px; color:white;">${answerText}</div>`;
+            } else {
+                // Reconstruir frase con hueco
+                let questionText = words.map((w, i) => i === hiddenIndex ? "<b style='color:#ffeb3b'>_______</b>" : w).join(" ");
+                
+                // Escapar comillas para el onclick
+                let targetSafe = targetWord.replace(/'/g, "\\'");
+                
+                let buttonsHtml = options.map(opt => {
+                    let optSafe = opt.replace(/'/g, "\\'");
+                    return `<button class="btn-flash-option" onclick="checkFlashcard(this, '${optSafe}', '${targetSafe}')">${opt}</button>`;
+                }).join('');
+
+                backContent = `
+                    <div class="flashcard-game-container">
+                        <p class="flashcard-question-text" style="color:white; font-size:0.95rem;">${questionText}</p>
+                        <div class="flashcard-options">${buttonsHtml}</div>
+                    </div>
+                `;
+            }
+
             html += `<div class="flashcard" onclick="this.classList.toggle('flipped')">
                     <div class="flashcard-inner">
-                        <div class="flashcard-front"><h4>Pregunta ${idx + 1}</h4><div>${card.pregunta}</div><small><i class="fa-solid fa-rotate"></i> Girar</small></div>
-                        <div class="flashcard-back"><p>${card.resposta}</p></div>
+                        <div class="flashcard-front">
+                            <h4>Pregunta ${idx + 1}</h4>
+                            <div style="padding:10px;">${card.pregunta}</div>
+                            <small><i class="fa-solid fa-rotate"></i> Girar</small>
+                        </div>
+                        <div class="flashcard-back" style="display:flex; align-items:center; justify-content:center;">
+                            ${backContent}
+                        </div>
                     </div></div>`;
         });
         html += `</div>`;
         container.innerHTML = html;
     }
+
+    // Función global para verificar respuesta flashcard
+    window.checkFlashcard = function(btn, selected, correct) {
+        event.stopPropagation(); 
+        const parent = btn.parentElement;
+        const buttons = parent.querySelectorAll('.btn-flash-option');
+        
+        buttons.forEach(b => b.disabled = true);
+
+        if (selected === correct) {
+            btn.classList.add('correct');
+            btn.innerHTML += ' <i class="fa-solid fa-check"></i>';
+        } else {
+            btn.classList.add('wrong');
+            // Marcar la correcta
+            buttons.forEach(b => {
+                if (b.innerText === correct) b.classList.add('correct');
+            });
+        }
+    };
 
     function renderTestIntro(container, mod, modIdx) {
         const progreso = state.progreso.modulos[modIdx] || { aprobado: false, intentos: 0, nota: 0 };
@@ -584,9 +698,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.iniciarTest = function() { state.testEnCurso = true; renderMainContent(); }
 
+    // ------------------------------------------------------------------------
+    // MODO PROFESOR EN TEST (AUTO-RESPONDER)
+    // ------------------------------------------------------------------------
     function renderTestQuestions(container, mod, modIdx) {
         const gridRight = document.getElementById('quiz-grid');
-        gridRight.innerHTML = ''; gridRight.className = 'grid-container'; 
+        gridRight.innerHTML = ''; 
+        gridRight.className = 'grid-container'; 
+        
         mod.preguntes.forEach((p, i) => {
             const div = document.createElement('div');
             div.className = 'grid-item'; div.id = `grid-q-${i}`; div.innerText = i + 1;
@@ -594,21 +713,48 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.respuestasTemp[`q-${i}`] !== undefined) div.classList.add('answered');
             gridRight.appendChild(div);
         });
+
         let html = `<h3>Test en Curs...</h3>`;
+        
         mod.preguntes.forEach((preg, idx) => {
-            const qId = `q-${idx}`; const savedVal = state.respuestasTemp[qId];
+            const qId = `q-${idx}`; 
+            
+            // LÓGICA MODO PROFESOR (Auto-seleccionar)
+            if (state.godMode && state.respuestasTemp[qId] === undefined) {
+                // Busca la opción correcta (soporta varios nombres de campo)
+                const correctIdx = preg.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
+                if (correctIdx !== -1) {
+                    state.respuestasTemp[qId] = correctIdx;
+                    // Actualizar grid
+                    setTimeout(() => {
+                        const gridItem = document.getElementById(`grid-q-${idx}`);
+                        if(gridItem) gridItem.classList.add('answered');
+                    }, 0);
+                }
+            }
+
+            const savedVal = state.respuestasTemp[qId];
+
             html += `<div class="question-card" id="card-${qId}">
                     <div class="q-header">Pregunta ${idx + 1}</div>
                     <div class="q-text">${preg.text}</div>
                     <div class="options-list">`;
+            
             preg.opcions.forEach((opt, oIdx) => {
-                const isSelected = (savedVal == oIdx) ? 'selected' : ''; const checked = (savedVal == oIdx) ? 'checked' : '';
+                const isSelected = (savedVal == oIdx) ? 'selected' : ''; 
+                const checked = (savedVal == oIdx) ? 'checked' : '';
+                
                 html += `<div class="option-item ${isSelected}" onclick="selectTestOption('${qId}', ${oIdx}, 'test_mod_${modIdx}')">
-                        <input type="radio" name="${qId}" value="${oIdx}" ${checked}><span>${opt.text}</span></div>`;
+                        <input type="radio" name="${qId}" value="${oIdx}" ${checked}>
+                        <span>${opt.text}</span>
+                    </div>`;
             });
             html += `</div></div>`;
         });
-        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="entregarTest(${modIdx})">FINALITZAR I ENTREGAR</button></div>`;
+
+        const btnText = state.godMode ? "⚡ PROFESSOR: ENTREGAR ARA" : "FINALITZAR I ENTREGAR";
+        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="entregarTest(${modIdx})">${btnText}</button></div>`;
+        
         container.innerHTML = html;
         window.currentQuestions = mod.preguntes; 
     }
@@ -616,10 +762,12 @@ document.addEventListener('DOMContentLoaded', () => {
     window.selectTestOption = function(qId, valIdx, storageKeyType) {
         state.respuestasTemp[qId] = valIdx;
         const card = document.getElementById(`card-${qId}`);
-        card.querySelectorAll('.option-item').forEach((el, idx) => {
-            if (idx === valIdx) { el.classList.add('selected'); el.querySelector('input').checked = true; } 
-            else { el.classList.remove('selected'); el.querySelector('input').checked = false; }
-        });
+        if(card) {
+            card.querySelectorAll('.option-item').forEach((el, idx) => {
+                if (idx === valIdx) { el.classList.add('selected'); el.querySelector('input').checked = true; } 
+                else { el.classList.remove('selected'); el.querySelector('input').checked = false; }
+            });
+        }
         const gridIdx = qId.split('-')[1]; 
         let gridItemId = storageKeyType === 'examen_final' ? `grid-final-q-${gridIdx}` : `grid-q-${gridIdx}`;
         const gridItem = document.getElementById(gridItemId);
@@ -634,7 +782,8 @@ document.addEventListener('DOMContentLoaded', () => {
             let aciertos = 0;
             preguntas.forEach((preg, idx) => {
                 const userRes = state.respuestasTemp[`q-${idx}`];
-                const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta);
+                // Soporte robusto para nombre del campo
+                const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
                 if (userRes == correctaIdx) aciertos++;
             });
             const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2));
@@ -657,42 +806,46 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('moduls-container');
         const color = aprobado ? 'green' : 'red';
         const titulo = aprobado ? (esFinal ? 'EXAMEN FINAL SUPERAT!' : 'Test Superat!') : 'No Superat';
-        const msg = aprobado ? 'Enhorabona! Has demostrat els coneixements.' : 'Repassa el temari i torna-ho a intentar.';
         let html = `<div class="dashboard-card" style="border-top:5px solid ${color}; text-align:center; margin-bottom:30px;">
                 <h2 style="color:${color}">${titulo}</h2>
                 <div style="font-size:4rem; font-weight:bold; margin:10px 0;">${nota}</div>
-                <p>${msg}</p>
                 <div class="btn-centered-container">
                     <button class="btn-primary" onclick="window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')">Continuar</button>
                 </div>
             </div><h3>Revisió de Respostes:</h3>`;
+        
         preguntas.forEach((preg, idx) => {
             const qId = esFinal ? `final-${idx}` : `q-${idx}`;
             const userRes = respuestasUsuario[qId];
             const cardId = esFinal ? `card-final-${idx}` : `card-q-${idx}`;
-            html += `<div class="question-card review-mode" id="${cardId}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            
+            html += `<div class="question-card review-mode" id="${cardId}">
+                        <div class="q-header">Pregunta ${idx + 1}</div>
+                        <div class="q-text">${preg.text}</div>
+                        <div class="options-list">`;
+            
             preg.opcions.forEach((opt, oIdx) => {
                 let classes = 'option-item ';
-                if (opt.esCorrecta) classes += 'correct-answer ';
-                if (userRes == oIdx) { classes += 'selected '; if (!opt.esCorrecta) classes += 'user-wrong '; }
-                html += `<div class="${classes}"><input type="radio" ${userRes == oIdx ? 'checked' : ''} disabled><span>${opt.text}</span></div>`;
+                const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                
+                if (isCorrect) classes += 'correct-answer ';
+                if (userRes == oIdx) { 
+                    classes += 'selected '; 
+                    if (!isCorrect) classes += 'user-wrong '; 
+                }
+                
+                html += `<div class="${classes}">
+                            <input type="radio" ${userRes == oIdx ? 'checked' : ''} disabled>
+                            <span>${opt.text}</span>
+                         </div>`;
             });
+            
             if (preg.explicacio) html += `<div class="explanation-box"><strong><i class="fa-solid fa-circle-info"></i> Explicació:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
             html += `</div></div>`;
         });
+        
         container.innerHTML = html;
         window.scrollTo(0,0);
-        const gridRight = document.getElementById('quiz-grid'); gridRight.className = ''; gridRight.innerHTML = '';
-        const gridInner = document.createElement('div'); gridInner.id = 'grid-inner-numbers'; gridRight.appendChild(gridInner);
-        preguntas.forEach((preg, i) => {
-            const div = document.createElement('div'); div.className = 'grid-item answered'; div.innerText = i + 1;
-            const qId = esFinal ? `final-${i}` : `q-${i}`; const userRes = respuestasUsuario[qId];
-            const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta);
-            if (userRes == correctaIdx) { div.style.backgroundColor = '#d4edda'; div.style.color = '#155724'; div.style.borderColor = '#c3e6cb'; } 
-            else { div.style.backgroundColor = '#f8d7da'; div.style.color = '#721c24'; div.style.borderColor = '#f5c6cb'; }
-            div.onclick = () => { document.getElementById(esFinal ? `card-final-${i}` : `card-q-${i}`).scrollIntoView({behavior:'smooth', block:'center'}); };
-            gridInner.appendChild(div);
-        });
     }
 
     function renderExamenFinal(container) {
@@ -735,12 +888,15 @@ document.addEventListener('DOMContentLoaded', () => {
              storedOrder.forEach(id => { const found = state.curso.examen_final.find(p => (p.id || p.documentId) === id); if(found) state.preguntasExamenFinal.push(found); });
              if(state.preguntasExamenFinal.length === 0) state.preguntasExamenFinal = state.curso.examen_final;
         } else if (state.preguntasExamenFinal.length === 0) { state.preguntasExamenFinal = state.curso.examen_final; }
+        
         const storedStartTime = localStorage.getItem(`sicap_timer_start_${USER.id}_${SLUG}`);
         if(storedStartTime) state.testStartTime = parseInt(storedStartTime);
         else { state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime); }
+        
         const gridRight = document.getElementById('quiz-grid'); gridRight.className = ''; 
         gridRight.innerHTML = `<div id="exam-timer-container"><div id="exam-timer" class="timer-box">30:00</div></div><div id="grid-inner-numbers"></div>`;
         iniciarCronometro();
+        
         const gridInner = document.getElementById('grid-inner-numbers');
         state.preguntasExamenFinal.forEach((p, i) => {
             const div = document.createElement('div'); div.className = 'grid-item'; div.id = `grid-final-q-${i}`; div.innerText = i + 1;
@@ -748,7 +904,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.respuestasTemp[`final-${i}`] !== undefined || (savedData && savedData[`final-${i}`] !== undefined)) div.classList.add('answered');
             gridInner.appendChild(div);
         });
+        
         if(savedData) state.respuestasTemp = savedData;
+        
+        if (state.godMode) {
+            state.preguntasExamenFinal.forEach((p, i) => {
+                if (state.respuestasTemp[`final-${i}`] === undefined) {
+                    const correctIdx = p.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
+                    if(correctIdx !== -1) state.respuestasTemp[`final-${i}`] = correctIdx;
+                }
+            });
+        }
+
         let html = `<h3 style="color:var(--brand-red);">Examen Final en Curs...</h3>`;
         state.preguntasExamenFinal.forEach((preg, idx) => {
             const qId = `final-${idx}`; const userRes = state.respuestasTemp[qId];
@@ -759,7 +926,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             html += `</div></div>`;
         });
-        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="entregarExamenFinal()">ENTREGAR EXAMEN FINAL</button></div>`;
+        
+        const btnText = state.godMode ? "⚡ PROFESSOR: ENTREGAR EXAMEN ARA" : "ENTREGAR EXAMEN FINAL";
+        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="entregarExamenFinal()">${btnText}</button></div>`;
         container.innerHTML = html;
         window.currentQuestions = state.preguntasExamenFinal;
     }
@@ -785,7 +954,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let aciertos = 0;
             preguntas.forEach((preg, idx) => {
                 const qId = `final-${idx}`; const userRes = state.respuestasTemp[qId];
-                const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta);
+                const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
                 if (userRes == correctaIdx) aciertos++;
             });
             const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2));

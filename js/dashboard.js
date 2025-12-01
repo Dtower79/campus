@@ -20,6 +20,27 @@ document.addEventListener('DOMContentLoaded', () => {
             window.mostrarModalError("S'ha enviat un correu de recuperació a la teva adreça d'afiliació.");
         }
     }
+
+    // --- NUEVO: MOSTRAR FOOTER SIEMPRE ---
+    const footer = document.getElementById('app-footer');
+    if(footer) footer.style.display = 'block';
+
+    // --- NUEVO: BOTÓN SCROLL TOP ---
+    if(!document.getElementById('scroll-top-btn')) {
+        const btn = document.createElement('button');
+        btn.id = 'scroll-top-btn';
+        btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
+        btn.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
+        document.body.appendChild(btn);
+        
+        window.onscroll = () => {
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+                btn.style.display = "flex";
+            } else {
+                btn.style.display = "none";
+            }
+        };
+    }
 });
 
 // ==========================================
@@ -27,8 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 let warningTimer;
 let logoutTimer;
-const WARNING_TIME = 10 * 60 * 1000; // 10 minutos para aviso
-const FINAL_TIMEOUT = 5 * 60 * 1000; // 5 minutos extra para cierre
+const WARNING_TIME = 10 * 60 * 1000; 
+const FINAL_TIMEOUT = 5 * 60 * 1000; 
 
 function startInactivityTimers() {
     if(!localStorage.getItem('jwt')) return;
@@ -36,16 +57,13 @@ function startInactivityTimers() {
     clearTimeout(warningTimer);
     clearTimeout(logoutTimer);
 
-    // Timer 1: Mostrar Aviso
     warningTimer = setTimeout(() => {
         mostrarModalInactividad();
     }, WARNING_TIME);
 }
 
 function resetInactivity() {
-    // Solo reseteamos si NO estamos mostrando ya el modal de aviso
     const modal = document.getElementById('custom-modal');
-    // Si el modal está visible y es el de inactividad, no reseteamos al mover el ratón
     const isInactivityModal = document.getElementById('modal-title')?.innerText === "Inactivitat Detectada";
     
     if (modal && modal.style.display === 'flex' && isInactivityModal) {
@@ -65,8 +83,7 @@ function mostrarModalInactividad() {
     titleEl.innerText = "Inactivitat Detectada";
     titleEl.style.color = "var(--brand-red)";
     
-    // Timer visual descendente
-    let segundosRestantes = 300; // 5 minutos
+    let segundosRestantes = 300; 
     
     msgEl.innerHTML = `
         <p>Portes 10 minuts sense activitat.</p>
@@ -80,26 +97,19 @@ function mostrarModalInactividad() {
     btnConfirm.innerText = "Estendre Sessió";
     btnConfirm.style.background = "var(--brand-blue)";
     
-    // Clonar botones para limpiar eventos anteriores
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     btnCancel.parentNode.replaceChild(newCancel, btnCancel);
 
-    // Acción Tancar
-    newCancel.onclick = () => {
-        logoutApp(); 
-    };
-
-    // Acción Extender
+    newCancel.onclick = () => { logoutApp(); };
     newConfirm.onclick = () => {
         modal.style.display = 'none';
-        startInactivityTimers(); // Reiniciar contadores
+        startInactivityTimers(); 
     };
 
     modal.style.display = 'flex';
 
-    // Iniciar cuenta atrás visual y forzar logout al final
     const countdownInterval = setInterval(() => {
         if(modal.style.display === 'none') {
             clearInterval(countdownInterval);
@@ -121,11 +131,9 @@ function mostrarModalInactividad() {
     }, 1000);
 }
 
-// Listeners para resetear el timer con actividad
 ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
     document.addEventListener(evt, resetInactivity);
 });
-
 
 // ==========================================
 // 1. SISTEMA DE MODALES PERSONALIZADOS
@@ -156,16 +164,13 @@ window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
         if(onConfirm) onConfirm();
         else modal.style.display = 'none';
     };
-    newCancel.onclick = () => {
-        modal.style.display = 'none';
-    };
-
+    newCancel.onclick = () => { modal.style.display = 'none'; };
     modal.style.display = 'flex';
 };
 
 window.mostrarModalError = function(mensaje, onCloseAction) {
     const modal = document.getElementById('custom-modal');
-    if(!modal) { console.warn("Modal no cargado:", mensaje); return; }
+    if(!modal) return; 
 
     const titleEl = document.getElementById('modal-title');
     const btnConfirm = document.getElementById('modal-btn-confirm');
@@ -185,11 +190,8 @@ window.mostrarModalError = function(mensaje, onCloseAction) {
     
     newConfirm.onclick = () => {
         modal.style.display = 'none';
-        if (onCloseAction) {
-            onCloseAction(); 
-        }
+        if (onCloseAction) onCloseAction(); 
     };
-
     modal.style.display = 'flex';
 };
 
@@ -197,14 +199,10 @@ window.mostrarModalError = function(mensaje, onCloseAction) {
 // 2. FUNCIONES PRINCIPALES APP
 // ==========================================
 window.logoutApp = function() {
-    window.mostrarModalConfirmacion(
-        "Tancar Sessió", 
-        "Estàs segur que vols sortir del campus?", 
-        () => {
-            localStorage.clear(); 
-            window.location.href = 'index.html';
-        }
-    );
+    window.mostrarModalConfirmacion("Tancar Sessió", "Estàs segur que vols sortir del campus?", () => {
+        localStorage.clear(); 
+        window.location.href = 'index.html';
+    });
 };
 
 window.tornarAlDashboard = function() {
@@ -223,12 +221,8 @@ window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
     console.log("🚀 Iniciando SICAP App...");
-    
-    // CORRECCIÓN AQUÍ: Llamamos a la nueva función de inactividad
     startInactivityTimers();
-    
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
-    
     setTimeout(() => { setupDirectClicks(); }, 100);
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -241,7 +235,6 @@ window.iniciarApp = function() {
 };
 
 function setupDirectClicks() {
-    // NOTIFICACIONES
     const btnBell = document.getElementById('btn-notifs');
     const bellDot = btnBell ? btnBell.querySelector('.notification-dot') : null;
 
@@ -253,8 +246,7 @@ function setupDirectClicks() {
 
     if (btnBell) btnBell.onclick = (e) => { 
         e.stopPropagation();
-        const hasPending = localStorage.getItem('notification_pending') === 'true';
-        if (hasPending) {
+        if (localStorage.getItem('notification_pending') === 'true') {
             if (bellDot) { bellDot.style.display = 'none'; bellDot.classList.remove('animate-ping'); }
             localStorage.removeItem('notification_pending');
             window.mostrarModalError("🔔 Tens novetats: T'has matriculat correctament al nou curs.");
@@ -263,7 +255,6 @@ function setupDirectClicks() {
         }
     };
 
-    // MENSAJERÍA
     const btnMsg = document.getElementById('btn-messages');
     if (btnMsg) {
         btnMsg.onclick = async (e) => { 
@@ -342,11 +333,9 @@ function initHeaderData() {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return;
     const setText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
-    
     let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
     if (user.apellidos) initials += user.apellidos.charAt(0);
     initials = initials.toUpperCase();
-
     setText('user-initials', initials);
     setText('dropdown-username', user.nombre ? `${user.nombre} ${user.apellidos}` : user.username);
     setText('dropdown-email', user.email);
@@ -573,34 +562,27 @@ async function abrirPanelMensajes() {
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
     
-    // Setup visual del modal
     titleEl.innerText = "Bústia de Dubtes";
     titleEl.style.color = "var(--brand-blue)";
     btnCancel.style.display = 'none';
     btnConfirm.innerText = "Tancar";
     
-    // Clonar botón cerrar
     const newConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     newConfirm.onclick = () => modal.style.display = 'none';
 
-    // Loader mientras carga
     msgEl.innerHTML = '<div class="loader"></div><p style="text-align:center">Carregant missatges...</p>';
     modal.style.display = 'flex';
 
     try {
         const user = JSON.parse(localStorage.getItem('user'));
         const token = localStorage.getItem('jwt');
-        
-        // Detectar si es Profesor (usamos la flag es_professor del usuario)
         const esProfe = user.es_professor === true;
 
         let endpoint = '';
         if (esProfe) {
-            // Profesor ve TODO lo pendiente
             endpoint = `${STRAPI_URL}/api/missatges?filters[estat][$eq]=pendent&sort[0]=createdAt:desc`;
         } else {
-            // Alumno ve SUS mensajes
             endpoint = `${STRAPI_URL}/api/missatges?filters[users_permissions_user][id][$eq]=${user.id}&sort[0]=createdAt:desc`;
         }
 
@@ -616,13 +598,10 @@ async function abrirPanelMensajes() {
         }
 
         let html = '<div class="msg-list-container">';
-        
         mensajes.forEach(msg => {
             const fecha = new Date(msg.createdAt).toLocaleDateString('ca-ES');
             const estadoClass = msg.estat === 'pendent' ? 'status-pending' : 'status-replied';
             const estadoTexto = msg.estat === 'pendent' ? 'Pendent' : 'Respost';
-            
-            // Lógica Profesor vs Alumno
             let actionHtml = '';
             
             if (esProfe && msg.estat === 'pendent') {
@@ -651,17 +630,14 @@ async function abrirPanelMensajes() {
                 </div>
             `;
         });
-
         html += '</div>';
         msgEl.innerHTML = html;
-
     } catch (e) {
         console.error(e);
-        msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges. (Potser falta crear la col·lecció a Strapi)</p>';
+        msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>';
     }
 }
 
-// Función global para que el profesor responda desde el modal
 window.enviarResposta = async function(msgId) {
     const txtArea = document.getElementById(`reply-${msgId}`);
     const respuesta = txtArea.value.trim();
@@ -679,15 +655,12 @@ window.enviarResposta = async function(msgId) {
                 estat: 'respost'
             }
         };
-
         const res = await fetch(`${STRAPI_URL}/api/missatges/${msgId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(payload)
         });
-
         if(res.ok) {
-            // Recargar lista
             abrirPanelMensajes(); 
         } else {
             alert("Error al guardar la resposta");

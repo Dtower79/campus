@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Estado global dentro del closure
     let state = {
         matriculaId: null,
         curso: null,
@@ -118,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     position: relative;
                     z-index: 1000;
                     pointer-events: auto !important;
-                    user-select: none;
+                    user-select: none; /* Evita seleccionar texto al hacer clic */
                 }
                 /* Arreglo para Safari/Mobile */
                 .flashcard-inner { transform-style: preserve-3d; }

@@ -220,13 +220,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.cambiarVista = function(idx, view) {
-        state.currentModuleIndex = parseInt(idx); // Asegurar número
+        state.currentModuleIndex = parseInt(idx); 
         state.currentView = view;
         state.respuestasTemp = {}; 
         state.testEnCurso = false;
+        
         renderSidebar();
         renderMainContent();
         window.scrollTo(0,0);
+
+        // --- CORRECCIÓN: EXPANDIR EL MENÚ AUTOMÁTICAMENTE ---
+        setTimeout(() => {
+            // Buscamos el ítem activo en el sidebar
+            const activeItem = document.querySelector('.sidebar-subitem.active');
+            if(activeItem) {
+                // Buscamos su padre (el grupo desplegable)
+                const parentGroup = activeItem.closest('.sidebar-module-group');
+                if(parentGroup && !parentGroup.classList.contains('open')) {
+                    parentGroup.classList.add('open');
+                }
+            }
+        }, 100);
     }
 
     // ------------------------------------------------------------------------
@@ -414,8 +428,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if(moduleName.length > 20) moduleName = moduleName.substring(0, 18) + '...';
 
         let moduleLink = `<span>${moduleName}</span>`;
-        if (state.currentModuleIndex >= 0 && state.currentModuleIndex < 900) {
-            moduleLink = `<a href="#" onclick="window.cambiarVista(${state.currentModuleIndex}, 'teoria'); return false;">${moduleName}</a>`;
+        
+        // Hacemos linkable si NO estamos en esa vista ya
+        if (state.currentModuleIndex !== -1 && state.currentModuleIndex !== 1000 && state.currentModuleIndex !== 999) {
+             // Si es un módulo normal (0, 1, 2...), lleva a la teoría
+             moduleLink = `<a href="#" onclick="window.cambiarVista(${state.currentModuleIndex}, 'teoria'); return false;">${moduleName}</a>`;
+        } else if (state.currentView !== 'intro' && state.currentModuleIndex === -1) {
+             // Si estamos en Programa pero en otra sub-vista (raro pero posible), link al programa
+             moduleLink = `<a href="#" onclick="window.cambiarVista(-1, 'intro'); return false;">Programa</a>`;
         }
 
         const breadcrumbsHtml = `
@@ -548,28 +568,48 @@ document.addEventListener('DOMContentLoaded', () => {
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
 
         cards.forEach((card, idx) => {
-            // CORREGIDO: Uso de helper getPlainText para limpiar cualquier estructura de Strapi
-            let answerText = getPlainText(card.resposta).replace(/<[^>]*>?/gm, '').trim();
-            if(!answerText) answerText = "Resposta oculta";
+            // 1. LIMPIEZA DE TEXTO DEFINITIVA (Usando un div temporal)
+            let tempDiv = document.createElement("div");
+            
+            // Intentamos parsear si es un objeto JSON de Strapi
+            try {
+                if (typeof card.resposta === 'object') {
+                    // Si es bloques de Strapi, usamos el helper parseStrapiRichText
+                    tempDiv.innerHTML = parseStrapiRichText(card.resposta);
+                } else {
+                    tempDiv.innerHTML = card.resposta;
+                }
+            } catch (e) {
+                tempDiv.innerText = String(card.resposta);
+            }
 
-            let words = answerText.split(" ");
+            // Extraemos solo el texto limpio
+            let answerText = tempDiv.innerText || tempDiv.textContent || "Text no disponible";
+            answerText = answerText.trim();
+
+            // 2. Lógica del juego
+            let words = answerText.split(/\s+/); // Separar por cualquier espacio
             let targetWord = "";
             let hiddenIndex = -1;
 
+            // Buscar palabra candidata (>4 letras)
             for (let i = 0; i < words.length; i++) {
-                let cleanWord = words[i].replace(/[.,;]/g, '');
+                let cleanWord = words[i].replace(/[.,;:"'()]/g, '');
                 if (cleanWord.length > 4) {
                     targetWord = words[i]; 
                     hiddenIndex = i;
-                    break;
+                    break; 
                 }
             }
+            
+            // Fallback: Si no hay palabra larga, coger la última
             if(hiddenIndex === -1 && words.length > 0) {
                 targetWord = words[words.length-1];
                 hiddenIndex = words.length-1;
             }
 
-            let options = [targetWord];
+            let options = [targetWord.replace(/[.,;:"'()]/g, '')]; // Opción limpia
+            
             while(options.length < 3) {
                 let rand = distractors[Math.floor(Math.random() * distractors.length)];
                 if(!options.includes(rand)) options.push(rand);
@@ -578,12 +618,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let backContent = '';
             if (state.godMode) {
-                backContent = `<div style="padding:15px; color:white;">${answerText}</div>`;
+                backContent = `<div style="padding:15px; color:white; font-size:0.95rem;">${answerText}</div>`;
             } else {
-                let questionText = words.map((w, i) => i === hiddenIndex ? "<b style='color:#ffeb3b'>_______</b>" : w).join(" ");
-                let targetSafe = targetWord.replace(/'/g, "\\'");
+                let questionText = words.map((w, i) => i === hiddenIndex ? "<b style='color:#ffeb3b; border-bottom:2px solid white;'>_______</b>" : w).join(" ");
+                
+                // Limpiar la palabra objetivo para la comparación (sin comas ni puntos)
+                let targetClean = targetWord.replace(/[.,;:"'()]/g, '');
+                
                 let buttonsHtml = options.map(opt => {
+                    // Escapar comillas simples para el HTML
                     let optSafe = opt.replace(/'/g, "\\'");
+                    let targetSafe = targetClean.replace(/'/g, "\\'");
                     return `<button class="btn-flash-option" onclick="checkFlashcard(this, '${optSafe}', '${targetSafe}')">${opt}</button>`;
                 }).join('');
 
@@ -599,7 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="flashcard-inner">
                         <div class="flashcard-front">
                             <h4>Pregunta ${idx + 1}</h4>
-                            <div style="padding:10px;">${card.pregunta}</div>
+                            <div style="padding:10px; font-size:0.95rem;">${card.pregunta}</div>
                             <small><i class="fa-solid fa-rotate"></i> Girar</small>
                         </div>
                         <div class="flashcard-back" style="display:flex; align-items:center; justify-content:center;">

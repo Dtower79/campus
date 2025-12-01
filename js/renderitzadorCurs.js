@@ -96,6 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Inyectamos CSS crítico
     injectSafeCSS();
+    
+    // INICIO SEGURO
     init();
 
     function injectSafeCSS() {
@@ -117,10 +119,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if(container) container.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
         try {
             await cargarDatos();
+            
+            // Si no hay progreso o está vacío, inicializamos
             if (!state.progreso || Object.keys(state.progreso).length === 0) {
                 await inicializarProgresoEnStrapi();
             }
+
+            // Sincronización proactiva al cargar
             await sincronizarAvanceLocal(); 
+
             renderSidebar();
             renderMainContent();
         } catch (e) {
@@ -131,19 +138,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function sincronizarAvanceLocal() {
         let huboCambios = false;
-        const modulos = state.curso.moduls || [];
+        // Acceso seguro a módulos
+        const modulos = (state.curso && state.curso.moduls) ? state.curso.moduls : [];
+
         modulos.forEach((mod, idx) => {
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
                 const flippedIndices = getFlippedCards(idx);
                 const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
-                const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx].flashcards_done : false;
+                
+                // Acceso seguro a progreso
+                const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) 
+                                     ? state.progreso.modulos[idx].flashcards_done 
+                                     : false;
+
                 if (localmenteCompletado && !estadoRemoto) {
+                    // Asegurar estructura
+                    if (!state.progreso.modulos) state.progreso.modulos = [];
                     if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
+                    
                     state.progreso.modulos[idx].flashcards_done = true;
                     huboCambios = true;
                 }
             }
         });
+
         if (huboCambios) {
             try { await guardarProgreso(state.progreso); } catch(e) { console.error("Error guardando sync auto:", e); }
         }
@@ -159,18 +177,27 @@ document.addEventListener('DOMContentLoaded', () => {
             `populate[curs][populate][examen_final][populate][opcions]=true`, 
             `populate[curs][populate][imatge]=true`
         ].join('&');
+
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const json = await res.json();
+        
         if (!json.data || json.data.length === 0) throw new Error("No s'ha trobat la matrícula o el curs.");
+        
         const mat = json.data[0];
+        if (!mat.curs) throw new Error("Dades del curs incompletes.");
+
         state.matriculaId = mat.documentId || mat.id;
         state.curso = mat.curs;
+        
+        // Inicialización defensiva de arrays
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
     }
 
     async function inicializarProgresoEnStrapi() {
-        const modulos = state.curso.moduls || [];
+        // Acceso seguro: si state.curso.moduls es undefined, usamos []
+        const modulos = (state.curso && state.curso.moduls) ? state.curso.moduls : [];
+        
         const nuevoProgreso = {
             modulos: modulos.map(() => ({ aprobado: false, nota: 0, intentos: 0, flashcards_done: false })),
             examen_final: { aprobado: false, nota: 0, intentos: 0 }
@@ -179,18 +206,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function guardarProgreso(progresoObj) {
-        let totalModulos = state.curso.moduls ? state.curso.modulos.length : 0;
+        // CÁLCULO SEGURO DEL PROGRESO (Solución del error 'reading length')
+        const modulos = (state.curso && state.curso.moduls) ? state.curso.moduls : [];
+        let totalModulos = modulos.length; 
+        
         let aprobados = 0;
-        if (progresoObj.modulos) aprobados = progresoObj.modulos.filter(m => m.aprobado).length;
+        if (progresoObj && progresoObj.modulos && Array.isArray(progresoObj.modulos)) {
+            aprobados = progresoObj.modulos.filter(m => m.aprobado).length;
+        }
+        
         let porcentaje = totalModulos > 0 ? Math.round((aprobados / totalModulos) * 100) : 0;
         if (progresoObj.examen_final && progresoObj.examen_final.aprobado) porcentaje = 100;
+
         const payload = { data: { progres_detallat: progresoObj, progres: porcentaje } };
+        
         await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
             body: JSON.stringify(payload)
         });
+        
         state.progreso = progresoObj;
+        
+        // Solo renderizar si el DOM ya existe
         if (document.getElementById('course-index') && document.getElementById('course-index').innerHTML !== '') {
             renderSidebar(); 
         }
@@ -235,21 +273,30 @@ document.addEventListener('DOMContentLoaded', () => {
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
+        
         const prevIdx = indexModulo - 1;
-        const prevProgreso = state.progreso.modulos ? state.progreso.modulos[prevIdx] : null;
-        const prevModuloData = (state.curso.moduls || [])[prevIdx];
+        const prevProgreso = (state.progreso.modulos && state.progreso.modulos[prevIdx]) ? state.progreso.modulos[prevIdx] : null;
+        
+        // Acceso seguro a moduls
+        const modulos = state.curso.moduls || [];
+        const prevModuloData = modulos[prevIdx];
+
         if (!prevProgreso) return true; 
+
         const testOk = prevProgreso.aprobado === true;
         const tieneFlashcards = prevModuloData && prevModuloData.targetes_memoria && prevModuloData.targetes_memoria.length > 0;
         const flashcardsOk = tieneFlashcards ? (prevProgreso.flashcards_done === true) : true;
+
         return !(testOk && flashcardsOk);
     }
 
     function puedeHacerExamenFinal() {
         if (state.godMode) return true; 
         if (!state.progreso.modulos) return false;
+        
+        const modulos = state.curso.moduls || [];
         return state.progreso.modulos.every((m, idx) => {
-            const modObj = (state.curso.moduls || [])[idx];
+            const modObj = modulos[idx];
             const tieneFlash = modObj && modObj.targetes_memoria && modObj.targetes_memoria.length > 0;
             const flashOk = tieneFlash ? m.flashcards_done : true;
             return m.aprobado && flashOk;
@@ -290,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
         const tituloEl = document.getElementById('curs-titol');
-        if(tituloEl) tituloEl.innerText = state.curso.titol;
+        if(tituloEl) tituloEl.innerText = (state.curso && state.curso.titol) ? state.curso.titol : 'Curs';
 
         let html = '';
         if (USER.es_professor === true) {
@@ -310,16 +357,19 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>`;
 
-        const modulosSeguros = state.curso.moduls || [];
+        const modulosSeguros = (state.curso && state.curso.moduls) ? state.curso.moduls : [];
+        
         if (modulosSeguros.length === 0) {
             html += `<div style="padding:15px; color:#666; font-style:italic;">No hi ha mòduls definits.</div>`;
         } else {
             modulosSeguros.forEach((mod, idx) => {
                 const isLocked = estaBloqueado(idx);
-                const modProgreso = state.progreso.modulos ? state.progreso.modulos[idx] : null;
+                const modProgreso = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx] : null;
+                
                 const tieneFlash = mod.targetes_memoria && mod.targetes_memoria.length > 0;
                 const flashDone = modProgreso ? modProgreso.flashcards_done : false;
                 const testDone = modProgreso ? modProgreso.aprobado : false;
+                
                 const moduloCompleto = tieneFlash ? (testDone && flashDone) : testDone;
                 const check = moduloCompleto ? '<i class="fa-solid fa-check" style="color:green"></i>' : '';
                 const isOpen = (state.currentModuleIndex === idx);
@@ -333,6 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="sidebar-sub-menu">`;
                 
                 html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
+                
                 if ((!isLocked || state.godMode) && mod.material_pdf) {
                     const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
                     if (archivos.length > 0) {
@@ -342,10 +393,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                 }
+                
                 if (tieneFlash) {
                     const fCheck = flashDone ? '✓' : '';
                     html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);
                 }
+                
                 const intentos = modProgreso ? modProgreso.intentos : 0;
                 const tCheck = testDone ? '✓' : '';
                 html += renderSubLink(idx, 'test', `📝 Test Avaluació ${tCheck} (${intentos}/2)`, isLocked);
@@ -424,7 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (state.currentView === 'test') {
             const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
             const hayDatosGuardados = Object.keys(savedData).length > 0;
-            const moduloAprobado = state.progreso.modulos[state.currentModuleIndex] ? state.progreso.modulos[state.currentModuleIndex].aprobado : false;
+            const moduloAprobado = (state.progreso.modulos && state.progreso.modulos[state.currentModuleIndex]) ? state.progreso.modulos[state.currentModuleIndex].aprobado : false;
             
             if ((state.testEnCurso || hayDatosGuardados) && !moduloAprobado) {
                 gridRight.className = 'grid-container';
@@ -473,7 +526,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const flippedIndices = getFlippedCards(modIdx);
         const isReallyCompleted = isCompletedDB || (flippedIndices.length >= cards.length);
 
-        // AQUÍ AÑADO EL ID AL CONTENEDOR PARA PODER CAMBIARLO DESDE JS
         let headerHtml = `<div id="fc-header-container">`;
         
         if(isReallyCompleted) {
@@ -484,12 +536,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             const count = flippedIndices.length;
             const total = cards.length;
-            // AÑADO ID AL CONTADOR PARA ACTUALIZAR EL NÚMERO
             headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:4px;">
                 <i class="fa-solid fa-circle-exclamation"></i> Progrés: <strong id="fc-counter-text">${count}/${total}</strong> targetes contestades. Has de fer-les totes per avançar.
             </div>`;
         }
-        headerHtml += `</div>`; // Cierro contenedor
+        headerHtml += `</div>`; 
 
         let html = `<h3>Targetes de Repàs (Gamificat)</h3>${headerHtml}<div class="flashcards-grid-view">`;
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
@@ -531,7 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             } else {
                 let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
-                // USO DATA-ATTRIBUTES PARA PASAR DATOS SEGUROS
                 let buttonsHtml = options.map(opt => {
                     const safeOpt = encodeURIComponent(opt);
                     const safeTarget = encodeURIComponent(targetClean);
@@ -584,16 +634,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const selected = decodeURIComponent(encodedSelected);
         const correct = decodeURIComponent(encodedCorrect);
         
-        // Obtenemos el nuevo conteo de completadas
         const count = addFlippedCard(modIdx, cardIdx);
         
-        // ACTUALIZACIÓN DINÁMICA DEL CONTADOR (AMARILLO)
         const counterEl = document.getElementById('fc-counter-text');
         if (counterEl) {
             counterEl.innerText = `${count}/${totalCards}`;
         }
 
-        // Lógica visual de la carta (Tick o X)
         const container = btn.closest('.flashcard-game-container');
         const blankSpan = container.querySelector('.cloze-blank');
         const buttons = container.querySelectorAll('.btn-flash-option');
@@ -616,9 +663,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = `❌ ${btn.innerText}`;
         }
 
-        // SI HEMOS COMPLETADO TODAS: CAMBIAR A VERDE AL MOMENTO
         if (count >= totalCards) {
-            // Cambio visual inmediato del header
             const headerContainer = document.getElementById('fc-header-container');
             if (headerContainer) {
                 headerContainer.innerHTML = `
@@ -628,22 +673,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             }
-            // Llamamos al guardado que también desbloqueará la sidebar
             actualizarProgresoFlashcards(modIdx);
         }
     };
 
     function actualizarProgresoFlashcards(modIdx) {
-        const p = state.progreso;
-        if (!p.modulos) p.modulos = [];
-        if (!p.modulos[modIdx]) p.modulos[modIdx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
+        if (!state.progreso.modulos) state.progreso.modulos = [];
+        if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
 
-        if (!p.modulos[modIdx].flashcards_done) {
-            p.modulos[modIdx].flashcards_done = true;
+        if (!state.progreso.modulos[modIdx].flashcards_done) {
+            state.progreso.modulos[modIdx].flashcards_done = true;
             
-            // Guardamos en DB y actualizamos sidebar
-            guardarProgreso(p).then(() => {
-                // Quitamos el modal de alerta, ahora la UI verde es suficiente feedback
+            guardarProgreso(state.progreso).then(() => {
                 console.log("Progreso guardado y sidebar desbloqueada.");
                 renderSidebar(); 
             });
@@ -669,7 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function renderTestIntro(container, mod, modIdx) { 
-        const progreso = state.progreso.modulos[modIdx] || { aprobado: false, intentos: 0, nota: 0 };
+        const progreso = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx] : { aprobado: false, intentos: 0, nota: 0 };
         if (progreso.aprobado) {
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Mòdul Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="revisarTest(${modIdx})">Veure resultats anteriors</button></div></div>`;
              return;

@@ -578,6 +578,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
     // FLASHCARDS GAMIFICADAS (VERSIÓN ROBUSTA)
     // ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // FLASHCARDS GAMIFICADAS (VERSIÓN OPTIMIZADA UI)
+    // ------------------------------------------------------------------------
     function renderFlashcards(container, cards) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
         
@@ -586,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
 
         cards.forEach((card, idx) => {
-            // LIMPIEZA DE TEXTO (Extraer de cualquier estructura de Strapi)
+            // LIMPIEZA DE TEXTO ROBUSTA
             let tempDiv = document.createElement("div");
             try {
                 if (typeof card.resposta === 'object') tempDiv.innerHTML = parseStrapiRichText(card.resposta);
@@ -594,14 +597,13 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) { tempDiv.innerText = String(card.resposta); }
 
             let answerText = (tempDiv.innerText || tempDiv.textContent || "Text no disponible").trim();
-            // Eliminamos saltos de línea múltiples
-            answerText = answerText.replace(/\s\s+/g, ' ');
+            answerText = answerText.replace(/\s\s+/g, ' '); // Eliminar dobles espacios
 
             let words = answerText.split(" ");
             let targetWord = "";
             let hiddenIndex = -1;
 
-            // Buscar palabra larga
+            // Buscar palabra larga (>4 letras)
             for (let i = 0; i < words.length; i++) {
                 let cleanWord = words[i].replace(/[.,;:"'()]/g, '');
                 if (cleanWord.length > 4) {
@@ -610,25 +612,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     break; 
                 }
             }
+            // Fallback si no hay palabras largas
             if(hiddenIndex === -1 && words.length > 0) {
                 targetWord = words[words.length-1];
                 hiddenIndex = words.length-1;
             }
 
-            let options = [targetWord.replace(/[.,;:"'()]/g, '')];
+            // Generar Opciones
+            let targetClean = targetWord.replace(/[.,;:"'()]/g, '');
+            let options = [targetClean];
             while(options.length < 3) {
                 let rand = distractors[Math.floor(Math.random() * distractors.length)];
-                if(!options.includes(rand)) options.push(rand);
+                if(!options.includes(rand) && rand.toLowerCase() !== targetClean.toLowerCase()) options.push(rand);
             }
             options.sort(() => Math.random() - 0.5);
 
             let backContent = '';
+            
             if (state.godMode) {
-                backContent = `<div style="padding:15px; color:white; font-size:0.95rem;">${answerText}</div>`;
+                // Modo Profesor: Ver respuesta directa
+                backContent = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
+                        <i class="fa-solid fa-eye" style="font-size:2rem; margin-bottom:10px; opacity:0.5;"></i>
+                        <p style="font-size:1.1rem;">${answerText}</p>
+                    </div>`;
             } else {
-                // Hueco para rellenar
+                // Modo Alumno: Cloze Test
                 let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
-                let targetClean = targetWord.replace(/[.,;:"'()]/g, '');
                 
                 let buttonsHtml = options.map(opt => {
                     let optSafe = opt.replace(/'/g, "\\'");
@@ -644,14 +654,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
 
+            // Renderizar Tarjeta
             html += `<div class="flashcard" onclick="this.classList.toggle('flipped')">
                     <div class="flashcard-inner">
                         <div class="flashcard-front">
-                            <h4>Pregunta ${idx + 1}</h4>
-                            <div style="padding:10px; font-size:0.95rem;">${card.pregunta}</div>
-                            <small><i class="fa-solid fa-rotate"></i> Girar</small>
+                            <h4><i class="fa-solid fa-circle-question"></i> Targeta ${idx + 1}</h4>
+                            <div class="flashcard-front-text">${card.pregunta}</div>
+                            <small><i class="fa-solid fa-rotate"></i> Clic per girar</small>
                         </div>
-                        <div class="flashcard-back" style="display:flex; align-items:center; justify-content:center;">
+                        <div class="flashcard-back">
                             ${backContent}
                         </div>
                     </div></div>`;
@@ -659,6 +670,34 @@ document.addEventListener('DOMContentLoaded', () => {
         html += `</div>`;
         container.innerHTML = html;
     }
+
+    // Verificar respuesta Flashcard (Mantiene lógica, asegura que no propague el click al contenedor)
+    window.checkFlashcard = function(btn, selected, correct) {
+        event.stopPropagation(); // Evitar que la tarjeta se gire al hacer click en el botón
+        
+        const container = btn.closest('.flashcard-game-container');
+        const blankSpan = container.querySelector('.cloze-blank');
+        const buttons = container.querySelectorAll('.btn-flash-option');
+        
+        buttons.forEach(b => b.disabled = true);
+
+        if (selected === correct) {
+            btn.classList.add('correct');
+            blankSpan.innerText = selected;
+            blankSpan.classList.remove('cloze-blank');
+            blankSpan.classList.add('cloze-blank', 'filled-correct');
+            // Efecto confetti simple o feedback visual
+            btn.innerHTML = `✅ ${btn.innerText}`;
+        } else {
+            btn.classList.add('wrong');
+            buttons.forEach(b => {
+                if (b.innerText === correct) b.classList.add('correct');
+            });
+            blankSpan.innerText = selected;
+            blankSpan.classList.add('filled-wrong');
+            btn.innerHTML = `❌ ${btn.innerText}`;
+        }
+    };
 
     // Verificar respuesta Flashcard e integrar palabra
     window.checkFlashcard = function(btn, selected, correct) {

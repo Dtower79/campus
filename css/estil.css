@@ -750,3 +750,93 @@ ul { list-style: none; padding: 0; margin: 0; }
         height: auto;
     }
 }
+
+/* --- BLOQUE 5: FOOTER & GAMIFICACIÓN --- */
+
+/* FOOTER */
+.main-footer {
+    background-color: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+    padding: 30px 20px;
+    margin-top: 40px;
+    width: 100%;
+}
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+.footer-logo img { height: 40px; margin-bottom: 10px; filter: grayscale(100%); opacity: 0.7; }
+.footer-logo p { font-size: 0.8rem; color: var(--text-secondary); margin: 0; }
+.footer-links { display: flex; gap: 20px; }
+.footer-links a { font-size: 0.9rem; color: var(--text-secondary); text-decoration: none; }
+.footer-links a:hover { color: var(--brand-blue); text-decoration: underline; }
+.footer-social { display: flex; gap: 15px; }
+.footer-social a { color: var(--text-secondary); font-size: 1.2rem; transition: 0.2s; }
+.footer-social a:hover { color: var(--brand-blue); transform: translateY(-2px); }
+
+[data-theme="dark"] .main-footer { background-color: #1e1e1e; border-color: #333; }
+[data-theme="dark"] .footer-logo img { filter: grayscale(100%) brightness(200%); }
+
+/* FLASHCARDS GAMIFICADAS */
+.flashcard-game-container {
+    background: var(--bg-body);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+    width: 100%;
+}
+.flashcard-question-text {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    line-height: 1.6;
+}
+.cloze-blank {
+    display: inline-block;
+    border-bottom: 2px solid var(--brand-blue);
+    width: 80px;
+    text-align: center;
+    color: transparent;
+}
+.flashcard-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.btn-flash-option {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+.btn-flash-option:hover {
+    background-color: var(--bg-body);
+    border-color: var(--brand-blue);
+}
+.btn-flash-option.correct {
+    background-color: #d4edda !important;
+    border-color: #28a745 !important;
+    color: #155724 !important;
+    font-weight: bold;
+}
+.btn-flash-option.wrong {
+    background-color: #f8d7da !important;
+    border-color: #dc3545 !important;
+    color: #721c24 !important;
+    opacity: 0.6;
+}
+
+/* Ajuste móvil footer */
+@media (max-width: 768px) {
+    .footer-content { flex-direction: column; text-align: center; }
+    .footer-links { flex-direction: column; gap: 10px; }
+}

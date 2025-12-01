@@ -260,6 +260,30 @@ ul { list-style: none; padding: 0; margin: 0; }
 .exam-active .sidebar-left { pointer-events: none; opacity: 0.5; filter: grayscale(1); }
 .exam-active .main-header { pointer-events: none; }
 
+/* ... código anterior ... */
+
+/* ESTILOS PARA MÓDULOS BLOQUEADOS (NUEVO) */
+.sidebar-module-group.locked-module {
+    opacity: 0.6;
+    pointer-events: none; /* Evita clicks */
+    filter: grayscale(100%);
+}
+
+.sidebar-module-group.locked-module .sidebar-module-title {
+    background-color: #f0f0f0;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.sidebar-module-group.locked-module .sidebar-module-title::after {
+    content: '\f023'; /* Icono Candado FontAwesome */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    transform: none; /* No rotar */
+}
+
+/* ... resto del código ... */
+
 /* ==========================================================================
    8. EXAMEN (PREGUNTAS)
    ========================================================================== */

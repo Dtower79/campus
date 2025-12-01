@@ -35,20 +35,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const PARAMS = new URLSearchParams(window.location.search);
     const SLUG = PARAMS.get('slug');
 
-    // --- CORRECCIÓN CRÍTICA (BUCLE INFINITO) ---
-    // Si no hay SLUG, significa que estamos en el Dashboard.
-    // Detenemos la ejecución de este script AQUÍ para no interferir.
+    // --- PROTECCIÓN BUCLE INFINITO ---
     if (!SLUG) return; 
 
     const USER = JSON.parse(localStorage.getItem('user'));
     const TOKEN = localStorage.getItem('jwt');
 
-    // Si hay SLUG (estamos intentando ver un curso) pero no hay usuario logueado:
     if (!USER || !TOKEN) {
         window.location.href = 'index.html';
         return;
     }
-    // -------------------------------------------
 
     // ESTADO
     let state = {
@@ -66,24 +62,21 @@ document.addEventListener('DOMContentLoaded', () => {
         flashcardsSession: new Set() 
     };
 
-    // Configuración visual inicial (Solo si estamos en modo examen/slug)
+    // UI Inicial
     const loginOverlay = document.getElementById('login-overlay');
     if(loginOverlay) loginOverlay.style.display = 'none';
     
     document.getElementById('app-container').style.display = 'block';
     
-    // Ocultamos dashboard y mostramos examen
     const dashView = document.getElementById('dashboard-view');
     if(dashView) dashView.style.display = 'none';
     
     const examView = document.getElementById('exam-view');
     if(examView) examView.style.display = 'flex';
 
-    // Footer visible
     const footer = document.getElementById('app-footer');
     if(footer) footer.style.display = 'block';
 
-    // Scroll Top Button
     if(!document.getElementById('scroll-top-btn')) {
         const btn = document.createElement('button');
         btn.id = 'scroll-top-btn';
@@ -107,11 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMainContent();
         } catch (e) {
             console.error(e);
-            if(container) container.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
+            if(container) container.innerHTML = `<div class="alert alert-danger" style="color:red; padding:20px;">Error: ${e.message}</div>`;
         }
     }
 
     async function cargarDatos() {
+        // Query compleja para traer todo
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
@@ -124,24 +118,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const json = await res.json();
-        if (!json.data || json.data.length === 0) throw new Error("No estàs matriculat.");
+        if (!json.data || json.data.length === 0) throw new Error("No s'ha trobat la matrícula o el curs.");
         
         const mat = json.data[0];
         state.matriculaId = mat.documentId || mat.id;
         state.curso = mat.curs;
+        
+        // --- PROTECCIÓN CONTRA MÓDULOS NULL ---
+        if (!state.curso.moduls) state.curso.moduls = [];
+        
         state.progreso = mat.progres_detallat || {};
     }
 
     async function inicializarProgresoEnStrapi() {
+        // Usamos el array seguro || []
+        const modulos = state.curso.moduls || [];
         const nuevoProgreso = {
-            modulos: state.curso.moduls.map(() => ({ aprobado: false, nota: 0, intentos: 0, flashcards_done: false })),
+            modulos: modulos.map(() => ({ aprobado: false, nota: 0, intentos: 0, flashcards_done: false })),
             examen_final: { aprobado: false, nota: 0, intentos: 0 }
         };
         await guardarProgreso(nuevoProgreso);
     }
 
     async function guardarProgreso(progresoObj) {
-        let totalModulos = state.curso.modulos ? state.curso.modulos.length : 0;
+        let totalModulos = state.curso.moduls ? state.curso.modulos.length : 0;
         let aprobados = 0;
         if (progresoObj.modulos) aprobados = progresoObj.modulos.filter(m => m.aprobado).length;
         let porcentaje = totalModulos > 0 ? Math.round((aprobados / totalModulos) * 100) : 0;
@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify(payload)
         });
         state.progreso = progresoObj;
-        renderSidebar(); // Actualizar checks visuales
+        renderSidebar(); 
     }
 
     // --- Persistencia Local ---
@@ -180,22 +180,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 4. LÓGICA DE BLOQUEO (MODIFICADO: PIDE TEST + FLASHCARDS)
+    // 4. LÓGICA DE BLOQUEO
     // ------------------------------------------------------------------------
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
         
-        const moduloAnterior = state.progreso.modulos[indexModulo - 1];
-        if (!moduloAnterior) return true; // Si no existe progreso anterior, bloqueado
+        const moduloAnterior = state.progreso.modulos ? state.progreso.modulos[indexModulo - 1] : null;
+        if (!moduloAnterior) return true;
         
-        // CONDICIÓN DOBLE: Test Aprobado Y Flashcards Hechas
         const testSuperado = moduloAnterior.aprobado === true;
         const flashcardsSuperado = moduloAnterior.flashcards_done === true;
         
-        // Si el módulo anterior NO tenía flashcards, consideramos flashcardsSuperado como true
-        const prevModuleObj = state.curso.modulos[indexModulo - 1];
-        const tieneFlashcards = prevModuleObj.targetes_memoria && prevModuleObj.targetes_memoria.length > 0;
+        const prevModuleObj = state.curso.moduls[indexModulo - 1];
+        const tieneFlashcards = prevModuleObj && prevModuleObj.targetes_memoria && prevModuleObj.targetes_memoria.length > 0;
         
         if (tieneFlashcards) {
             return !(testSuperado && flashcardsSuperado);
@@ -207,16 +205,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function puedeHacerExamenFinal() {
         if (state.godMode) return true; 
         if (!state.progreso.modulos) return false;
-        // Todos los módulos deben tener test aprobado Y flashcards hechas
         return state.progreso.modulos.every((m, idx) => {
-            const modObj = state.curso.modulos[idx];
-            const tieneFlash = modObj.targetes_memoria && modObj.targetes_memoria.length > 0;
+            const modObj = state.curso.moduls[idx];
+            const tieneFlash = modObj && modObj.targetes_memoria && modObj.targetes_memoria.length > 0;
             if(tieneFlash) return m.aprobado && m.flashcards_done;
             return m.aprobado;
         });
     }
 
-    // Toggle Acordeón
     window.toggleAccordion = function(headerElement) {
         const group = headerElement.parentElement;
         if (group.classList.contains('group-locked') && !state.godMode) return;
@@ -234,7 +230,6 @@ document.addEventListener('DOMContentLoaded', () => {
         state.currentView = view;
         state.respuestasTemp = {}; 
         state.testEnCurso = false;
-        // Reset de flashcards session al cambiar
         state.flashcardsSession.clear();
         
         renderSidebar();
@@ -253,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // RENDER SIDEBAR
+    // RENDER SIDEBAR (CORREGIDO ERROR FOREACH)
     // ------------------------------------------------------------------------
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
@@ -279,51 +274,56 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>`;
 
-        // Módulos
-        state.curso.modulos.forEach((mod, idx) => {
-            const isLocked = estaBloqueado(idx);
-            const modProgreso = state.progreso.modulos ? state.progreso.modulos[idx] : null;
-            
-            // Check verde si TODO está hecho (Test + Flashcards)
-            const tieneFlash = mod.targetes_memoria && mod.targetes_memoria.length > 0;
-            const flashDone = modProgreso ? modProgreso.flashcards_done : false;
-            const testDone = modProgreso ? modProgreso.aprobado : false;
-            
-            const moduloCompleto = tieneFlash ? (testDone && flashDone) : testDone;
-            const check = moduloCompleto ? '<i class="fa-solid fa-check" style="color:green"></i>' : '';
-            
-            const isOpen = (state.currentModuleIndex === idx);
-            const lockedClass = (isLocked && !state.godMode) ? 'group-locked' : '';
-            const openClass = isOpen ? 'open' : '';
+        // Módulos (PROTEGIDO CON || [])
+        const modulosSeguros = state.curso.moduls || [];
+        
+        if (modulosSeguros.length === 0) {
+            html += `<div style="padding:15px; color:#666; font-style:italic;">No hi ha mòduls definits.</div>`;
+        } else {
+            modulosSeguros.forEach((mod, idx) => {
+                const isLocked = estaBloqueado(idx);
+                const modProgreso = state.progreso.modulos ? state.progreso.modulos[idx] : null;
+                
+                const tieneFlash = mod.targetes_memoria && mod.targetes_memoria.length > 0;
+                const flashDone = modProgreso ? modProgreso.flashcards_done : false;
+                const testDone = modProgreso ? modProgreso.aprobado : false;
+                
+                const moduloCompleto = tieneFlash ? (testDone && flashDone) : testDone;
+                const check = moduloCompleto ? '<i class="fa-solid fa-check" style="color:green"></i>' : '';
+                
+                const isOpen = (state.currentModuleIndex === idx);
+                const lockedClass = (isLocked && !state.godMode) ? 'group-locked' : '';
+                const openClass = isOpen ? 'open' : '';
 
-            html += `<div class="sidebar-module-group ${lockedClass} ${openClass}">
-                    <div class="sidebar-module-title" onclick="toggleAccordion(this)">
-                        <span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span>
-                    </div>
-                    <div class="sidebar-sub-menu">`;
-            
-            html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
+                html += `<div class="sidebar-module-group ${lockedClass} ${openClass}">
+                        <div class="sidebar-module-title" onclick="toggleAccordion(this)">
+                            <span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span>
+                        </div>
+                        <div class="sidebar-sub-menu">`;
+                
+                html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
 
-            if ((!isLocked || state.godMode) && mod.material_pdf) {
-                const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
-                if (archivos.length > 0) {
-                    archivos.forEach(pdf => {
-                        const pdfUrl = pdf.url.startsWith('/') ? STRAPI_URL + pdf.url : pdf.url;
-                        html += `<a href="${pdfUrl}" target="_blank" class="sidebar-file-item"><i class="fa-solid fa-file-pdf"></i> ${pdf.name}</a>`;
-                    });
+                if ((!isLocked || state.godMode) && mod.material_pdf) {
+                    const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
+                    if (archivos.length > 0) {
+                        archivos.forEach(pdf => {
+                            const pdfUrl = pdf.url.startsWith('/') ? STRAPI_URL + pdf.url : pdf.url;
+                            html += `<a href="${pdfUrl}" target="_blank" class="sidebar-file-item"><i class="fa-solid fa-file-pdf"></i> ${pdf.name}</a>`;
+                        });
+                    }
                 }
-            }
 
-            if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
-                const fCheck = flashDone ? '✓' : '';
-                html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);
-            }
-            
-            const intentos = modProgreso ? modProgreso.intentos : 0;
-            const tCheck = testDone ? '✓' : '';
-            html += renderSubLink(idx, 'test', `📝 Test Avaluació ${tCheck} (${intentos}/2)`, isLocked);
-            html += `</div></div>`;
-        });
+                if (tieneFlash) {
+                    const fCheck = flashDone ? '✓' : '';
+                    html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);
+                }
+                
+                const intentos = modProgreso ? modProgreso.intentos : 0;
+                const tCheck = testDone ? '✓' : '';
+                html += renderSubLink(idx, 'test', `📝 Test Avaluació ${tCheck} (${intentos}/2)`, isLocked);
+                html += `</div></div>`;
+            });
+        }
 
         // Extras
         const isGlossaryActive = state.currentModuleIndex === 1000;
@@ -399,7 +399,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const mod = state.curso.moduls[state.currentModuleIndex];
+        // --- PROTECCIÓN MÓDULOS ---
+        const modulos = state.curso.moduls || [];
+        const mod = modulos[state.currentModuleIndex];
+        
+        if (!mod) {
+            container.innerHTML = `<div class="alert alert-warning">Mòdul no trobat o índex invàlid.</div>`;
+            return;
+        }
         
         if (state.currentView === 'teoria') {
             renderTeoria(container, mod);
@@ -412,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (state.currentView === 'test') {
             const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
             const hayDatosGuardados = Object.keys(savedData).length > 0;
-            const moduloAprobado = state.progreso.modulos[state.currentModuleIndex].aprobado;
+            const moduloAprobado = state.progreso.modulos[state.currentModuleIndex] ? state.progreso.modulos[state.currentModuleIndex].aprobado : false;
             
             if ((state.testEnCurso || hayDatosGuardados) && !moduloAprobado) {
                 gridRight.className = 'grid-container';
@@ -426,9 +433,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ------------------------------------------------------------------------
-    // RENDER SIDEBAR RIGHT (BREADCRUMBS CORREGIDOS)
-    // ------------------------------------------------------------------------
     function renderSidebarTools(container, mod) {
         let breadcrumbs = [];
         breadcrumbs.push(`<a href="#" onclick="window.tornarAlDashboard(); return false;">Inici</a>`);
@@ -443,11 +447,9 @@ document.addEventListener('DOMContentLoaded', () => {
             breadcrumbs.push(`<span class="breadcrumb-current">Examen Final</span>`);
         }
         else {
-            // MÓDULO: SIEMPRE ENLACE (SOLUCIÓN PUNTO 3)
             let moduleName = mod.titol || 'Mòdul';
             if(moduleName.length > 25) moduleName = moduleName.substring(0, 22) + '...';
             
-            // Forzamos que siempre sea clickeable y lleve a la raíz del módulo (teoria)
             breadcrumbs.push(`<a href="#" onclick="window.cambiarVista(${state.currentModuleIndex}, 'teoria'); return false;">${moduleName}</a>`);
             
             let subSection = '';
@@ -461,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const breadcrumbsHtml = `<div class="breadcrumbs">${breadcrumbs.join('<span class="breadcrumb-separator"><i class="fa-solid fa-angle-right"></i></span>')}</div>`;
         const noteKey = `sicap_notes_${USER.id}_${state.curso.slug}`;
         const savedNote = localStorage.getItem(noteKey) || '';
-        const modTitleSafe = mod.titol ? mod.titol.replace(/'/g, "\\'") : 'General';
+        const modTitleSafe = mod && mod.titol ? mod.titol.replace(/'/g, "\\'") : 'General';
 
         container.innerHTML = `
             ${breadcrumbsHtml}
@@ -474,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="tools-box" style="border-color: var(--brand-blue);">
                 <div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div>
                 <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">
-                    Tens alguna pregunta sobre <strong>"${mod.titol || 'aquest apartat'}"</strong>?
+                    Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquí'}"</strong>?
                 </p>
                 <button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')">
                     <i class="fa-regular fa-paper-plane"></i> Enviar Dubte
@@ -487,9 +489,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ------------------------------------------------------------------------
-    // FLASHCARDS CON LÓGICA DE COMPLETADO
-    // ------------------------------------------------------------------------
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
         
@@ -502,7 +501,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
 
         cards.forEach((card, idx) => {
-            // Lógica de texto (igual que antes)
             let tempDiv = document.createElement("div");
             try {
                 if (typeof card.resposta === 'object') tempDiv.innerHTML = parseStrapiRichText(card.resposta);
@@ -551,18 +549,14 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
-    // Manejador de Flip para guardar progreso
     window.handleFlip = function(cardIdx, modIdx, cardElement) {
         cardElement.classList.toggle('flipped');
         
-        // Si no está completado, rastrear flips
-        if (!state.progreso.modulos[modIdx].flashcards_done) {
+        if (state.progreso.modulos && !state.progreso.modulos[modIdx].flashcards_done) {
             state.flashcardsSession.add(cardIdx);
             
-            // Comprobar si todas han sido giradas
             const totalCards = state.curso.modulos[modIdx].targetes_memoria.length;
             if (state.flashcardsSession.size >= totalCards) {
-                // MARCAR COMO COMPLETADO
                 const p = state.progreso;
                 if (!p.modulos[modIdx].flashcards_done) {
                     p.modulos[modIdx].flashcards_done = true;
@@ -595,7 +589,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Funciones restantes (Teoria, Test, Examen) se mantienen igual que la versión anterior...
     function renderTeoria(container, mod) {
         let html = `<h2>${mod.titol}</h2>`;
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
@@ -613,8 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
     
-    // ... (El resto de funciones renderTestIntro, renderTestQuestions, entregarTest, examenFinal son idénticas a la versión anterior estable)
-    function renderTestIntro(container, mod, modIdx) { /* ... código previo ... */ 
+    function renderTestIntro(container, mod, modIdx) { 
         const progreso = state.progreso.modulos[modIdx] || { aprobado: false, intentos: 0, nota: 0 };
         if (progreso.aprobado) {
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Mòdul Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="revisarTest(${modIdx}, true)">Veure resultats anteriors</button></div></div>`;
@@ -693,7 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         container.innerHTML = html; window.scrollTo(0,0);
     }
-    function renderExamenFinal(container) { /* ... Identico a versión anterior ... */ 
+    function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
         if (finalData.aprobado) {
@@ -715,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.testEnCurso = true; state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime);
         state.respuestasTemp = {}; renderExamenFinal(document.getElementById('moduls-container'));
     }
-    function renderFinalQuestions(container, savedData) { /* ... Identico ... */ 
+    function renderFinalQuestions(container, savedData) {
         const storedOrder = JSON.parse(localStorage.getItem(`sicap_exam_order_${USER.id}_${SLUG}`));
         if (storedOrder && state.curso.examen_final) { state.preguntasExamenFinal = []; storedOrder.forEach(id => { const found = state.curso.examen_final.find(p => (p.id || p.documentId) === id); if(found) state.preguntasExamenFinal.push(found); }); if(state.preguntasExamenFinal.length === 0) state.preguntasExamenFinal = state.curso.examen_final; } else if (state.preguntasExamenFinal.length === 0) { state.preguntasExamenFinal = state.curso.examen_final; }
         const storedStartTime = localStorage.getItem(`sicap_timer_start_${USER.id}_${SLUG}`); if(storedStartTime) state.testStartTime = parseInt(storedStartTime); else { state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime); }
@@ -754,5 +746,65 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         if(forzado) { doDelivery(); } else { window.mostrarModalConfirmacion("Entregar Examen", "Segur que vols entregar?", () => { document.getElementById('custom-modal').style.display = 'none'; doDelivery(); }); }
     }
-    window.imprimirDiploma = function(nota) { /* ... Identico ... */ const nombreCurso = state.curso.titol; const fechaHoy = new Date().toLocaleDateString('ca-ES', { year: 'numeric', month: 'long', day: 'numeric' }); const alumno = USER; const nombreAlumno = `${alumno.nombre} ${alumno.apellidos || ''}`.toUpperCase(); const ventana = window.open('', '_blank'); ventana.document.write(`<!DOCTYPE html><html><head><title>Diploma</title><style>@page { size: A4 landscape; margin: 0; } body { margin: 0; padding: 0; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: white; font-family: sans-serif; } .page { width: 95%; height: 95%; border: 1px solid #fff; text-align: center; } .student { font-size: 24pt; font-weight: bold; margin: 20px auto; border-bottom: 2px solid #333; display: inline-block; padding: 0 40px; } </style></head><body><div class="page"><h1>Certificat</h1><p>SICAP certifica que</p><div class="student">${nombreAlumno}</div><p>Ha superat:</p><h2>${nombreCurso}</h2><p>Nota: ${nota} - Data: ${fechaHoy}</p></div><script>window.onload = function() { setTimeout(() => window.print(), 500); }</script></body></html>`); ventana.document.close(); };
+    window.imprimirDiploma = function(nota) { const nombreCurso = state.curso.titol; const fechaHoy = new Date().toLocaleDateString('ca-ES', { year: 'numeric', month: 'long', day: 'numeric' }); const alumno = USER; const nombreAlumno = `${alumno.nombre} ${alumno.apellidos || ''}`.toUpperCase(); const ventana = window.open('', '_blank'); ventana.document.write(`<!DOCTYPE html><html><head><title>Diploma</title><style>@page { size: A4 landscape; margin: 0; } body { margin: 0; padding: 0; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: white; font-family: sans-serif; } .page { width: 95%; height: 95%; border: 1px solid #fff; text-align: center; } .student { font-size: 24pt; font-weight: bold; margin: 20px auto; border-bottom: 2px solid #333; display: inline-block; padding: 0 40px; } </style></head><body><div class="page"><h1>Certificat</h1><p>SICAP certifica que</p><div class="student">${nombreAlumno}</div><p>Ha superat:</p><h2>${nombreCurso}</h2><p>Nota: ${nota} - Data: ${fechaHoy}</p></div><script>window.onload = function() { setTimeout(() => window.print(), 500); }</script></body></html>`); ventana.document.close(); };
+    
+    // --- MODAL DUBTES ---
+    window.obrirFormulariDubte = function(moduloTitulo) {
+        const modal = document.getElementById('custom-modal');
+        const titleEl = document.getElementById('modal-title');
+        const msgEl = document.getElementById('modal-msg');
+        const btnConfirm = document.getElementById('modal-btn-confirm');
+        const btnCancel = document.getElementById('modal-btn-cancel');
+        titleEl.innerText = "Enviar Dubte";
+        titleEl.style.color = "var(--brand-blue)";
+        msgEl.innerHTML = `
+            <p>Escriu la teva pregunta sobre: <strong>${moduloTitulo}</strong></p>
+            <textarea id="modal-doubt-text" class="modal-textarea" placeholder="Explica el teu dubte detalladament..."></textarea>
+            <small>El professor rebrà una notificació instantània.</small>
+        `;
+        btnCancel.style.display = 'block';
+        btnConfirm.innerText = "Enviar";
+        btnConfirm.disabled = false;
+        btnConfirm.style.background = "var(--brand-blue)";
+        const newConfirm = btnConfirm.cloneNode(true);
+        const newCancel = btnCancel.cloneNode(true);
+        btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+        btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+        newCancel.onclick = () => modal.style.display = 'none';
+        newConfirm.onclick = async () => {
+            const text = document.getElementById('modal-doubt-text').value.trim();
+            if(!text) return alert("Escriu alguna cosa!");
+            newConfirm.innerText = "Enviant...";
+            newConfirm.disabled = true;
+            try {
+                const payload = {
+                    data: {
+                        missatge: text,
+                        tema: moduloTitulo,
+                        curs: state.curso.titol,
+                        alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`,
+                        users_permissions_user: USER.id,
+                        estat: 'pendent',
+                        data_envio: new Date().toISOString()
+                    }
+                };
+                const res = await fetch(`${STRAPI_URL}/api/missatges`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+                    body: JSON.stringify(payload)
+                });
+                if(res.ok) {
+                    modal.style.display = 'none';
+                    window.mostrarModalError("Dubte enviat correctament! Rebràs la resposta a l'apartat de missatges.");
+                } else {
+                    throw new Error("Error API");
+                }
+            } catch(e) {
+                console.error(e);
+                modal.style.display = 'none';
+                window.mostrarModalError("Error al connectar amb el servidor.");
+            }
+        };
+        modal.style.display = 'flex';
+    };
 });

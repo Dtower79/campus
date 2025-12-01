@@ -67,7 +67,9 @@ document.addEventListener('DOMContentLoaded', () => {
         testEnCurso: false,
         godMode: false,
         preguntasExamenFinal: [],
-        timerInterval: null
+        timerInterval: null,
+        // CACHÉ NUEVA PARA EVITAR ERRORES DE COMILLAS EN HTML
+        flashcardCache: {} 
     };
 
     // UI Inicial
@@ -97,13 +99,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 await inicializarProgresoEnStrapi();
             }
 
-            // Sincronización proactiva al cargar (Arregla el bloqueo entre módulos)
+            // Sincronización proactiva al cargar
             await sincronizarAvanceLocal(); 
 
             renderSidebar();
             renderMainContent();
             
-            // Inyección de seguridad CSS para evitar problemas de clicks en 3D
+            // Inyectar CSS de seguridad para los clicks 3D
             injectSafeCSS();
 
         } catch (e) {
@@ -112,15 +114,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // CSS CRÍTICO PARA QUE LOS BOTONES FUNCIONEN
     function injectSafeCSS() {
-        // Esto asegura que cuando la carta gira, la parte de atrás sea la única que recibe clicks
         if (!document.getElementById('flashcard-fix-css')) {
             const style = document.createElement('style');
             style.id = 'flashcard-fix-css';
             style.innerHTML = `
+                /* Asegura que el contenedor preserve el 3D */
+                .flashcard-inner { transform-style: preserve-3d; }
+                
+                /* Cuando gira, la parte frontal no debe recibir clicks, la trasera sí */
                 .flashcard.flipped .flashcard-front { pointer-events: none; }
-                .flashcard.flipped .flashcard-back { pointer-events: auto; }
-                .flashcard .flashcard-back { pointer-events: none; }
+                .flashcard.flipped .flashcard-back { pointer-events: auto; z-index: 10; transform: rotateY(180deg); }
+                
+                /* Cuando NO gira, la trasera no recibe clicks */
+                .flashcard:not(.flipped) .flashcard-back { pointer-events: none; }
+                
+                /* Los botones deben estar siempre por encima */
+                .btn-flash-option { position: relative; z-index: 20; pointer-events: auto !important; }
             `;
             document.head.appendChild(style);
         }
@@ -491,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // FLASHCARDS (CORREGIDO: EVENTOS Y SINTAXIS SEGURA)
+    // FLASHCARDS (SOLUCIÓN DEFINITIVA A PRUEBA DE COMILLAS Y Z-INDEX)
     // ------------------------------------------------------------------------
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
@@ -517,10 +528,14 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = `${headerHtml}<div class="flashcards-grid-view">`;
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
 
+        // Limpiamos caché de esta vista
+        state.flashcardCache = {};
+
         cards.forEach((card, idx) => {
             const isDone = isReallyCompleted || flippedIndices.includes(idx) || state.godMode;
             const flipClass = isDone ? 'flipped' : '';
 
+            // Texto de la respuesta
             let tempDiv = document.createElement("div");
             try {
                 if (typeof card.resposta === 'object') tempDiv.innerHTML = parseStrapiRichText(card.resposta);
@@ -545,6 +560,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             options.sort(() => Math.random() - 0.5);
 
+            // GUARDAMOS EN CACHÉ PARA NO PASAR TEXTO EN HTML
+            state.flashcardCache[idx] = {
+                correct: targetClean,
+                options: options
+            };
+
             let backContent = '';
             if (isDone) {
                 backContent = `
@@ -554,16 +575,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             } else {
                 let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
-                let buttonsHtml = options.map(opt => {
-                    // USO encodeURIComponent PARA EVITAR QUE COMILLAS ROMPAN EL HTML
-                    const optEncoded = encodeURIComponent(opt);
-                    const targetEncoded = encodeURIComponent(targetClean);
-                    return `<button class="btn-flash-option" onclick="checkFlashcard(event, this, '${optEncoded}', '${targetEncoded}', ${idx}, ${modIdx})">${opt}</button>`;
+                // GENERAMOS BOTONES CON INDICES (0, 1, 2) EN LUGAR DE TEXTO
+                let buttonsHtml = options.map((opt, optIdx) => {
+                    return `<button class="btn-flash-option" onclick="checkFlashcard(event, this, ${idx}, ${optIdx}, ${modIdx})">${opt}</button>`;
                 }).join('');
                 backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
             }
 
-            // Click permitido siempre para repasar (UX)
             const clickAttr = `onclick="handleFlip(this)"`; 
 
             html += `<div class="flashcard ${flipClass}" ${clickAttr}>
@@ -585,16 +603,20 @@ document.addEventListener('DOMContentLoaded', () => {
         cardElement.classList.toggle('flipped');
     }
 
-    // CORREGIDO: Decodificar los strings y usar stopPropagation
-    window.checkFlashcard = function(e, btn, encodedSelected, encodedCorrect, cardIdx, modIdx) {
+    // CHECK USANDO CACHÉ (SIN COMILLAS EN HTML)
+    window.checkFlashcard = function(e, btn, cardIdx, optIdx, modIdx) {
         if (e) {
-            e.stopPropagation(); // Detener el giro
+            e.stopPropagation(); 
             e.preventDefault();
         }
-        
-        const selected = decodeURIComponent(encodedSelected);
-        const correct = decodeURIComponent(encodedCorrect);
 
+        // RECUPERAMOS EL TEXTO REAL DE LA MEMORIA
+        const data = state.flashcardCache[cardIdx];
+        if (!data) return;
+
+        const selected = data.options[optIdx];
+        const correct = data.correct;
+        
         const totalCards = state.curso.modulos[modIdx].targetes_memoria.length;
         const count = addFlippedCard(modIdx, cardIdx);
         
@@ -604,7 +626,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         buttons.forEach(b => b.disabled = true);
 
-        // Lógica de validación
         if (selected.toLowerCase() === correct.toLowerCase()) {
             btn.classList.add('correct');
             blankSpan.innerText = selected;

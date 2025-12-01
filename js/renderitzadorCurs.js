@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Definimos el estado globalmente dentro del closure
     let state = {
         matriculaId: null,
         curso: null,
@@ -68,16 +69,23 @@ document.addEventListener('DOMContentLoaded', () => {
         godMode: false,
         preguntasExamenFinal: [],
         timerInterval: null,
-        // CACHÉ NUEVA PARA EVITAR ERRORES DE COMILLAS EN HTML
-        flashcardCache: {} 
+        flashcardCache: {} // Caché crítica para las opciones
     };
 
     // UI Inicial
-    document.getElementById('login-overlay').style.display = 'none';
-    document.getElementById('app-container').style.display = 'block';
-    document.getElementById('dashboard-view').style.display = 'none';
-    document.getElementById('exam-view').style.display = 'flex';
-    document.getElementById('app-footer').style.display = 'block';
+    const elems = {
+        loginOverlay: document.getElementById('login-overlay'),
+        appContainer: document.getElementById('app-container'),
+        dashboardView: document.getElementById('dashboard-view'),
+        examView: document.getElementById('exam-view'),
+        appFooter: document.getElementById('app-footer')
+    };
+    
+    if(elems.loginOverlay) elems.loginOverlay.style.display = 'none';
+    if(elems.appContainer) elems.appContainer.style.display = 'block';
+    if(elems.dashboardView) elems.dashboardView.style.display = 'none';
+    if(elems.examView) elems.examView.style.display = 'flex';
+    if(elems.appFooter) elems.appFooter.style.display = 'block';
 
     if(!document.getElementById('scroll-top-btn')) {
         const btn = document.createElement('button');
@@ -88,7 +96,38 @@ document.addEventListener('DOMContentLoaded', () => {
         window.onscroll = () => { btn.style.display = (document.body.scrollTop > 300) ? "flex" : "none"; };
     }
 
+    // Inyectamos CSS crítico para solucionar el problema de clicks en 3D
+    injectSafeCSS();
     init();
+
+    function injectSafeCSS() {
+        if (!document.getElementById('flashcard-fix-css')) {
+            const style = document.createElement('style');
+            style.id = 'flashcard-fix-css';
+            style.innerHTML = `
+                /* Cuando la carta gira, ocultamos la cara frontal para que no intercepte clicks */
+                .flashcard.flipped .flashcard-front { 
+                    visibility: hidden; 
+                    pointer-events: none; 
+                }
+                /* La cara trasera se vuelve visible y clickable */
+                .flashcard.flipped .flashcard-back { 
+                    visibility: visible; 
+                    pointer-events: auto; 
+                }
+                /* Botones siempre por encima y clickables */
+                .btn-flash-option {
+                    position: relative;
+                    z-index: 1000;
+                    pointer-events: auto !important;
+                    user-select: none; /* Evita seleccionar texto al hacer clic */
+                }
+                /* Arreglo para Safari/Mobile */
+                .flashcard-inner { transform-style: preserve-3d; }
+            `;
+            document.head.appendChild(style);
+        }
+    }
 
     async function init() {
         const container = document.getElementById('moduls-container');
@@ -99,41 +138,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 await inicializarProgresoEnStrapi();
             }
 
-            // Sincronización proactiva al cargar
             await sincronizarAvanceLocal(); 
 
             renderSidebar();
             renderMainContent();
-            
-            // Inyectar CSS de seguridad para los clicks 3D
-            injectSafeCSS();
-
         } catch (e) {
             console.error(e);
             if(container) container.innerHTML = `<div class="alert alert-danger" style="color:red; padding:20px;">Error: ${e.message}</div>`;
-        }
-    }
-
-    // CSS CRÍTICO PARA QUE LOS BOTONES FUNCIONEN
-    function injectSafeCSS() {
-        if (!document.getElementById('flashcard-fix-css')) {
-            const style = document.createElement('style');
-            style.id = 'flashcard-fix-css';
-            style.innerHTML = `
-                /* Asegura que el contenedor preserve el 3D */
-                .flashcard-inner { transform-style: preserve-3d; }
-                
-                /* Cuando gira, la parte frontal no debe recibir clicks, la trasera sí */
-                .flashcard.flipped .flashcard-front { pointer-events: none; }
-                .flashcard.flipped .flashcard-back { pointer-events: auto; z-index: 10; transform: rotateY(180deg); }
-                
-                /* Cuando NO gira, la trasera no recibe clicks */
-                .flashcard:not(.flipped) .flashcard-back { pointer-events: none; }
-                
-                /* Los botones deben estar siempre por encima */
-                .btn-flash-option { position: relative; z-index: 20; pointer-events: auto !important; }
-            `;
-            document.head.appendChild(style);
         }
     }
 
@@ -148,7 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const estadoRemoto = state.progreso.modulos[idx] ? state.progreso.modulos[idx].flashcards_done : false;
 
                 if (localmenteCompletado && !estadoRemoto) {
-                    console.log(`[Auto-Sync] Sincronitzant flashcards mòdul ${idx + 1}...`);
                     if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
                     state.progreso.modulos[idx].flashcards_done = true;
                     huboCambios = true;
@@ -210,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify(payload)
         });
         state.progreso = progresoObj;
-        if (document.getElementById('course-index').innerHTML !== '') {
+        if (document.getElementById('course-index') && document.getElementById('course-index').innerHTML !== '') {
             renderSidebar(); 
         }
     }
@@ -236,8 +246,6 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.removeItem(`sicap_exam_order_${USER.id}_${SLUG}`); 
         }
     }
-
-    // --- Persistencia Flashcards (Local) ---
     function getFlippedCards(modIdx) {
         const key = `sicap_flipped_${USER.id}_${state.curso.slug}_mod_${modIdx}`;
         return JSON.parse(localStorage.getItem(key)) || [];
@@ -252,9 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return current.length;
     }
 
-    // ------------------------------------------------------------------------
-    // 3. LÓGICA DE BLOQUEO
-    // ------------------------------------------------------------------------
+    // --- LÓGICA DE BLOQUEO ---
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
@@ -283,6 +289,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- FUNCIONES GLOBALES (Window) ---
+    // Las definimos aquí para que tengan acceso al closure 'state' pero sean accesibles desde el HTML onclick
     window.toggleAccordion = function(headerElement) {
         const group = headerElement.parentElement;
         if (group.classList.contains('locked-module') && !state.godMode) return;
@@ -303,7 +311,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSidebar();
         renderMainContent();
         window.scrollTo(0,0);
-        
         setTimeout(() => {
             const activeItem = document.querySelector('.sidebar-subitem.active');
             if(activeItem) {
@@ -313,9 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 100);
     }
 
-    // ------------------------------------------------------------------------
-    // RENDER SIDEBAR
-    // ------------------------------------------------------------------------
+    // --- RENDERIZADORES ---
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
         const tituloEl = document.getElementById('curs-titol');
@@ -346,14 +351,11 @@ document.addEventListener('DOMContentLoaded', () => {
             modulosSeguros.forEach((mod, idx) => {
                 const isLocked = estaBloqueado(idx);
                 const modProgreso = state.progreso.modulos ? state.progreso.modulos[idx] : null;
-                
                 const tieneFlash = mod.targetes_memoria && mod.targetes_memoria.length > 0;
                 const flashDone = modProgreso ? modProgreso.flashcards_done : false;
                 const testDone = modProgreso ? modProgreso.aprobado : false;
-                
                 const moduloCompleto = tieneFlash ? (testDone && flashDone) : testDone;
                 const check = moduloCompleto ? '<i class="fa-solid fa-check" style="color:green"></i>' : '';
-                
                 const isOpen = (state.currentModuleIndex === idx);
                 const lockedClass = (isLocked && !state.godMode) ? 'locked-module' : '';
                 const openClass = isOpen ? 'open' : '';
@@ -365,7 +367,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="sidebar-sub-menu">`;
                 
                 html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
-
                 if ((!isLocked || state.godMode) && mod.material_pdf) {
                     const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
                     if (archivos.length > 0) {
@@ -375,12 +376,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                 }
-
                 if (tieneFlash) {
                     const fCheck = flashDone ? '✓' : '';
                     html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);
                 }
-                
                 const intentos = modProgreso ? modProgreso.intentos : 0;
                 const tCheck = testDone ? '✓' : '';
                 html += renderSubLink(idx, 'test', `📝 Test Avaluació ${tCheck} (${intentos}/2)`, isLocked);
@@ -424,9 +423,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<div class="sidebar-subitem ${activeClass} ${specialClass}" onclick="${clickFn}">${label}</div>`;
     }
 
-    // ------------------------------------------------------------------------
-    // RENDER MAIN CONTENT
-    // ------------------------------------------------------------------------
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
@@ -502,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // FLASHCARDS (SOLUCIÓN DEFINITIVA A PRUEBA DE COMILLAS Y Z-INDEX)
+    // FLASHCARDS: Lógica robusta anti-errores
     // ------------------------------------------------------------------------
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
@@ -560,7 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             options.sort(() => Math.random() - 0.5);
 
-            // GUARDAMOS EN CACHÉ PARA NO PASAR TEXTO EN HTML
+            // GUARDAMOS EN CACHÉ PARA EVITAR PROBLEMAS DE PARSING EN HTML
             state.flashcardCache[idx] = {
                 correct: targetClean,
                 options: options
@@ -575,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             } else {
                 let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
-                // GENERAMOS BOTONES CON INDICES (0, 1, 2) EN LUGAR DE TEXTO
+                // GENERAMOS BOTONES CON ÍNDICES, NO CON TEXTO, PARA EVITAR ERRORES DE SINTAXIS
                 let buttonsHtml = options.map((opt, optIdx) => {
                     return `<button class="btn-flash-option" onclick="checkFlashcard(event, this, ${idx}, ${optIdx}, ${modIdx})">${opt}</button>`;
                 }).join('');
@@ -599,11 +595,11 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
+    // Funciones globales para las Flashcards
     window.handleFlip = function(cardElement) {
         cardElement.classList.toggle('flipped');
     }
 
-    // CHECK USANDO CACHÉ (SIN COMILLAS EN HTML)
     window.checkFlashcard = function(e, btn, cardIdx, optIdx, modIdx) {
         if (e) {
             e.stopPropagation(); 
@@ -628,14 +624,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (selected.toLowerCase() === correct.toLowerCase()) {
             btn.classList.add('correct');
-            blankSpan.innerText = selected;
-            blankSpan.classList.remove('cloze-blank');
-            blankSpan.classList.add('cloze-blank', 'filled-correct');
+            if(blankSpan) {
+                blankSpan.innerText = selected;
+                blankSpan.classList.remove('cloze-blank');
+                blankSpan.classList.add('cloze-blank', 'filled-correct');
+            }
             btn.innerHTML = `✅ ${btn.innerText}`;
         } else {
             btn.classList.add('wrong');
-            blankSpan.innerText = selected;
-            blankSpan.classList.add('filled-wrong');
+            if(blankSpan) {
+                blankSpan.innerText = selected;
+                blankSpan.classList.add('filled-wrong');
+            }
             btn.innerHTML = `❌ ${btn.innerText}`;
         }
 

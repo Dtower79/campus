@@ -412,125 +412,129 @@ ul { list-style: none; padding: 0; margin: 0; }
     .grid-item { padding: 10px; font-size: 1rem; }
 }
 
-/* --- MEJORAS BLOQUE 5.2: FLASHCARDS INTEGRADAS Y BREADCRUMBS --- */
+/* --- BLOQUE 5.2: FLASHCARDS INTEGRADAS Y BREADCRUMBS --- */
 
-/* 1. FLASHCARDS INTEGRACIÓN */
+/* FLASHCARDS INTEGRACIÓN */
 .flashcard-game-container {
-    background: rgba(0,0,0,0.3); /* Un poco más oscuro para contraste */
-    padding: 15px;
+    background: rgba(0,0,0,0.4); 
+    padding: 20px;
     border-radius: 8px;
-    margin-top: 5px;
+    margin-top: 10px;
     width: 100%;
-    text-align: left; /* Alinear texto a la izquierda para lectura natural */
+    text-align: left;
 }
 
 .flashcard-question-text {
-    font-size: 1.1rem; /* Texto base un poco más grande */
-    line-height: 1.8;  /* Más separación entre líneas */
+    font-size: 1.15rem; 
+    line-height: 1.8;
     color: white;
-    margin-bottom: 15px;
-    display: inline; /* Para que fluya */
+    margin-bottom: 20px;
+    display: inline;
 }
 
-/* El hueco o la palabra rellenada */
+/* El hueco vacío */
 .cloze-blank {
     display: inline-block;
-    min-width: 60px;
+    min-width: 50px;
     border-bottom: 2px solid #ffeb3b;
-    color: #ffeb3b;
-    font-weight: bold;
-    text-align: center;
-    padding: 0 5px;
-    transition: all 0.3s ease;
+    color: transparent; /* Ocultar texto placeholder */
+    margin: 0 5px;
+    vertical-align: bottom;
+    cursor: default;
 }
 
+/* El hueco rellenado (CORRECTO) - Se integra en la frase */
 .cloze-blank.filled-correct {
-    color: #4caf50; /* Verde */
-    border-bottom-color: #4caf50;
-    transform: scale(1.1); /* Pequeño pop al acertar */
+    color: #4caf50; /* Verde brillante */
+    border-bottom: none; /* Quitamos la línea */
+    font-weight: bold;
+    background-color: rgba(76, 175, 80, 0.1);
+    padding: 0 5px;
+    border-radius: 4px;
+    animation: popIn 0.3s ease;
 }
 
+/* El hueco rellenado (INCORRECTO) */
 .cloze-blank.filled-wrong {
-    color: #f44336; /* Rojo */
-    border-bottom-color: #f44336;
+    color: #ff5252;
+    border-bottom: 2px solid #ff5252;
     text-decoration: line-through;
 }
 
-/* Botones de opciones más discretos */
+@keyframes popIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Botones de opciones MÁS PEQUEÑOS Y DISCRETOS */
 .flashcard-options {
     display: flex;
-    flex-wrap: wrap; /* Permitir que se pongan al lado si caben */
-    gap: 8px;
-    margin-top: 15px;
+    flex-wrap: wrap; 
+    gap: 10px;
+    margin-top: 20px;
     justify-content: center;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 15px;
 }
 
 .btn-flash-option {
-    padding: 6px 12px; /* Más pequeños */
+    padding: 6px 14px; /* Tamaño reducido */
     font-size: 0.85rem;
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.4);
     color: white;
-    border-radius: 20px; /* Bordes redondeados tipo "pill" */
+    border-radius: 30px; /* Estilo píldora */
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .btn-flash-option:hover {
-    background: rgba(255,255,255,0.3);
-    transform: translateY(-1px);
+    background: rgba(255,255,255,0.2);
+    border-color: white;
+    transform: translateY(-2px);
 }
 
 .btn-flash-option.correct {
     background-color: #28a745 !important;
     border-color: #28a745 !important;
-    box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.4);
 }
 
 .btn-flash-option.wrong {
     background-color: #dc3545 !important;
     border-color: #dc3545 !important;
-    opacity: 0.5;
+    opacity: 0.4;
 }
 
-/* 2. BREADCRUMBS (NAVEGACIÓ) MEJORADO */
+/* BREADCRUMBS ARREGLADOS */
 .breadcrumbs {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--text-secondary);
     margin-bottom: 20px;
-    padding: 10px 15px;
-    background-color: var(--bg-body); /* Fondo suave */
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 8px;
 }
 
 .breadcrumbs a {
     color: var(--brand-blue);
     text-decoration: none;
     font-weight: 500;
-    padding: 2px 5px;
-    border-radius: 4px;
-    transition: background 0.2s;
 }
 
 .breadcrumbs a:hover {
-    background-color: rgba(0, 75, 135, 0.1);
-    text-decoration: none;
+    text-decoration: underline;
 }
 
 .breadcrumb-separator {
-    color: #999;
-    font-size: 0.7rem;
+    color: #ccc;
+    font-size: 0.8rem;
 }
 
 .breadcrumb-current {
     font-weight: bold;
     color: var(--text-main);
-    padding: 2px 5px;
-    background-color: rgba(0,0,0,0.05); /* Destacar el actual */
-    border-radius: 4px;
 }

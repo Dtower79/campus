@@ -1,11 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // ------------------------------------------------------------------------
-    // 1. HELPER: TRADUCTOR DE TEXTO (ROBUSTO PARA STRAPI V5)
-    // ------------------------------------------------------------------------
+    // ========================================================================
+    // 1. HELPER: TRADUCTOR DE TEXTO (Soporte Strapi v5)
+    // ========================================================================
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
-        
+
+        // Función recursiva para extraer texto de bloques anidados
         const extractText = (nodes) => {
             if (!nodes) return "";
             if (typeof nodes === "string") return nodes;
@@ -18,10 +19,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Array.isArray(content)) {
             return content.map(block => {
                 const text = extractText(block.children);
-                if (block.type === 'heading') return `<h${block.level || 3}>${text}</h${block.level || 3}>`;
+                if (block.type === 'heading') {
+                    return `<h${block.level || 3}>${text}</h${block.level || 3}>`;
+                }
                 if (block.type === 'list') {
                     const tag = block.format === 'ordered' ? 'ol' : 'ul';
-                    return `<${tag}>${block.children.map(li => `<li>${extractText(li)}</li>`).join('')}</${tag}>`;
+                    const items = block.children.map(li => `<li>${extractText(li)}</li>`).join('');
+                    return `<${tag}>${items}</${tag}>`;
+                }
+                if (block.type === 'paragraph') {
+                    return `<p>${text}</p>`;
                 }
                 return `<p>${text}</p>`;
             }).join('');
@@ -33,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getPlainText(content) {
         if (!content) return "";
         if (typeof content === 'string') return content;
-        
+
         const extractText = (nodes) => {
             if (!nodes) return "";
             if (typeof nodes === "string") return nodes;
@@ -45,9 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return extractText(content);
     }
 
-    // ------------------------------------------------------------------------
+    // ========================================================================
     // 2. CONFIGURACIÓN Y ESTADO
-    // ------------------------------------------------------------------------
+    // ========================================================================
     const PARAMS = new URLSearchParams(window.location.search);
     const SLUG = PARAMS.get('slug');
     const USER = JSON.parse(localStorage.getItem('user'));
@@ -58,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         curso: null,
         progreso: {},
         currentModuleIndex: -1, // -1 = Intro/Programa
-        currentView: 'intro',   
+        currentView: 'intro',
         respuestasTemp: {},
         testStartTime: 0,
         testEnCurso: false,
@@ -67,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         timerInterval: null
     };
 
-    if (!SLUG) return; 
+    if (!SLUG) return;
 
     if (!USER || !TOKEN) {
         window.location.href = 'index.html';
@@ -76,22 +83,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Configuración visual inicial
     const loginOverlay = document.getElementById('login-overlay');
-    if(loginOverlay) loginOverlay.style.display = 'none';
+    if (loginOverlay) loginOverlay.style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.getElementById('dashboard-view').style.display = 'none';
     document.getElementById('exam-view').style.display = 'flex';
 
     // Forzar Footer visible
     const footer = document.getElementById('app-footer');
-    if(footer) footer.style.display = 'block';
+    if (footer) footer.style.display = 'block';
 
     // Inyectar botón Scroll Top
-    if(!document.getElementById('scroll-top-btn')) {
+    if (!document.getElementById('scroll-top-btn')) {
         const btn = document.createElement('button');
         btn.id = 'scroll-top-btn';
         btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
-        btn.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
+        btn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
         document.body.appendChild(btn);
+
         window.onscroll = () => {
             if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
                 btn.style.display = "flex";
@@ -101,11 +109,12 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // Iniciar Aplicación
     init();
 
     async function init() {
         const container = document.getElementById('moduls-container');
-        if(container) container.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
+        if (container) container.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
         try {
             await cargarDatos();
             if (!state.progreso || Object.keys(state.progreso).length === 0) {
@@ -115,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMainContent();
         } catch (e) {
             console.error(e);
-            if(container) container.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
+            if (container) container.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`;
         }
     }
 
@@ -123,10 +132,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
-            `populate[curs][populate][moduls][populate][preguntes][populate][opcions]=true`, 
+            `populate[curs][populate][moduls][populate][preguntes][populate][opcions]=true`,
             `populate[curs][populate][moduls][populate][material_pdf]=true`,
             `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
-            `populate[curs][populate][examen_final][populate][opcions]=true`, 
+            `populate[curs][populate][examen_final][populate][opcions]=true`,
             `populate[curs][populate][imatge]=true`
         ].join('&');
 
@@ -173,41 +182,50 @@ document.addEventListener('DOMContentLoaded', () => {
         state.progreso = progresoObj;
     }
 
-    // --- Persistencia Local ---
+    // ========================================================================
+    // 3. PERSISTENCIA LOCAL (localStorage)
+    // ========================================================================
     function getStorageKey(tipo) { return `sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`; }
+
     function guardarRespuestaLocal(tipo, preguntaId, opcionIdx) {
         const key = getStorageKey(tipo);
         let data = JSON.parse(localStorage.getItem(key)) || {};
-        data[preguntaId] = opcionIdx; data.timestamp = Date.now();
+        data[preguntaId] = opcionIdx;
+        data.timestamp = Date.now();
         localStorage.setItem(key, JSON.stringify(data));
     }
+
     function cargarRespuestasLocales(tipo) {
         const key = getStorageKey(tipo);
         const data = JSON.parse(localStorage.getItem(key));
-        if (data) { delete data.timestamp; return data; }
+        if (data) {
+            delete data.timestamp;
+            return data;
+        }
         return {};
     }
+
     function limpiarRespuestasLocales(tipo) {
         localStorage.removeItem(getStorageKey(tipo));
-        if(tipo === 'examen_final') {
+        if (tipo === 'examen_final') {
             localStorage.removeItem(`sicap_timer_start_${USER.id}_${SLUG}`);
-            localStorage.removeItem(`sicap_exam_order_${USER.id}_${SLUG}`); 
+            localStorage.removeItem(`sicap_exam_order_${USER.id}_${SLUG}`);
         }
     }
 
-    // ------------------------------------------------------------------------
-    // 4. LÓGICA DEL UI (SIDEBAR + ACORDEÓN)
-    // ------------------------------------------------------------------------
+    // ========================================================================
+    // 4. LÓGICA DEL UI (SIDEBAR + ACORDEÓN + NAVEGACIÓN)
+    // ========================================================================
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
-        if (indexModulo === 0) return false; 
+        if (indexModulo === 0) return false;
         const moduloAnterior = state.progreso.modulos[indexModulo - 1];
-        if (!moduloAnterior) return false; 
+        if (!moduloAnterior) return false;
         return !moduloAnterior.aprobado;
     }
 
     function puedeHacerExamenFinal() {
-        if (state.godMode) return true; 
+        if (state.godMode) return true;
         if (!state.progreso.modulos) return false;
         return state.progreso.modulos.every(m => m.aprobado === true);
     }
@@ -220,28 +238,28 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Toggle Modo Dios / Profesor
-    window.toggleGodMode = function(checkbox) { 
-        state.godMode = checkbox.checked; 
-        renderSidebar(); 
-        renderMainContent(); // Recargar para ver respuestas en tests/flashcards
+    window.toggleGodMode = function(checkbox) {
+        state.godMode = checkbox.checked;
+        renderSidebar();
+        renderMainContent(); // Recargar para ver respuestas marcadas
     }
 
     // Navegación Principal
     window.cambiarVista = function(idx, view) {
         state.currentModuleIndex = parseInt(idx); // Asegurar número
         state.currentView = view;
-        state.respuestasTemp = {}; 
+        state.respuestasTemp = {};
         state.testEnCurso = false;
         renderSidebar();
         renderMainContent();
-        window.scrollTo(0,0);
+        window.scrollTo(0, 0);
 
-        // Auto-expandir menú
+        // Auto-expandir el menú donde acabamos de clicar
         setTimeout(() => {
             const activeItem = document.querySelector('.sidebar-subitem.active');
-            if(activeItem) {
+            if (activeItem) {
                 const parentGroup = activeItem.closest('.sidebar-module-group');
-                if(parentGroup && !parentGroup.classList.contains('open')) {
+                if (parentGroup && !parentGroup.classList.contains('open')) {
                     parentGroup.classList.add('open');
                 }
             }
@@ -254,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
         const tituloEl = document.getElementById('curs-titol');
-        if(tituloEl) tituloEl.innerText = state.curso.titol;
+        if (tituloEl) tituloEl.innerText = state.curso.titol;
 
         let html = '';
 
@@ -264,8 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <input type="checkbox" ${state.godMode ? 'checked' : ''} onchange="toggleGodMode(this)"> 🕵️ Mode Professor
                     </label></div>`;
         }
-        
-        // 1. PROGRAMA (Intro)
+
+        // 1. PROGRAMA
         const isIntroActive = state.currentModuleIndex === -1;
         html += `<div class="sidebar-module-group ${isIntroActive ? 'open' : ''}">
             <div class="sidebar-module-title" onclick="toggleAccordion(this)">
@@ -290,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span>
                     </div>
                     <div class="sidebar-sub-menu">`;
-            
+
             html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
 
             if ((!isLocked || state.godMode) && mod.material_pdf) {
@@ -306,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
                 html += renderSubLink(idx, 'flashcards', '🔄 Targetes de Repàs', isLocked);
             }
-            
+
             const intentos = modProgreso ? modProgreso.intentos : 0;
             html += renderSubLink(idx, 'test', `📝 Test Avaluació (${intentos}/2)`, isLocked);
             html += `</div></div>`;
@@ -324,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>`;
 
         // 4. EXAMEN FINAL
-        const finalIsLocked = !puedeHacerExamenFinal(); 
+        const finalIsLocked = !puedeHacerExamenFinal();
         const isFinalActive = state.currentModuleIndex === 999;
         const lockedFinalClass = (finalIsLocked && !state.godMode) ? 'group-locked' : '';
         const openFinalClass = isFinalActive ? 'open' : '';
@@ -344,30 +362,31 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSubLink(modIdx, viewName, label, locked, isSpecial = false) {
         const reallyLocked = locked && !state.godMode;
         
-        // CORRECCIÓN CRÍTICA: Comparación como String
+        // Convertimos a String para comparar seguro (arregla menú Programa y Glossari)
         let isActive = (String(state.currentModuleIndex) === String(modIdx) && state.currentView === viewName);
-        
+
         const lockedClass = reallyLocked ? 'locked' : '';
         const activeClass = isActive ? 'active' : '';
         const specialClass = isSpecial ? 'special-item' : '';
         const clickFn = reallyLocked ? '' : `window.cambiarVista(${modIdx}, '${viewName}')`;
-        
+
         return `<div class="sidebar-subitem ${lockedClass} ${activeClass} ${specialClass}" onclick="${clickFn}">
                     ${label} ${reallyLocked ? '<i class="fa-solid fa-lock" style="font-size:0.7em;"></i>' : ''}
                 </div>`;
     }
 
-    // ------------------------------------------------------------------------
-    // RENDER MAIN CONTENT
-    // ------------------------------------------------------------------------
+    // ========================================================================
+    // 5. RENDER MAIN CONTENT
+    // ========================================================================
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
-        gridRight.innerHTML = ''; 
-        gridRight.className = ''; 
-        detenerCronometro(); 
+        gridRight.innerHTML = '';
+        gridRight.className = '';
+        detenerCronometro();
         document.body.classList.remove('exam-active');
 
+        // VISTA: PROGRAMA
         if (state.currentView === 'intro') {
             container.innerHTML = `
                 <h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2>
@@ -375,13 +394,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}
                 </div>
             `;
-            renderSidebarTools(gridRight, { titol: 'Programa' }); 
+            renderSidebarTools(gridRight, { titol: 'Programa' });
             return;
         }
 
+        // VISTA: GLOSARIO
         if (state.currentView === 'glossary') {
-            const contenidoGlossari = state.curso.glossari 
-                ? parseStrapiRichText(state.curso.glossari) 
+            const contenidoGlossari = state.curso.glossari
+                ? parseStrapiRichText(state.curso.glossari)
                 : "<p>No hi ha entrades al glossari.</p>";
             container.innerHTML = `
                 <h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2>
@@ -389,30 +409,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="module-content-text">${contenidoGlossari}</div>
                 </div>
             `;
-            renderSidebarTools(gridRight, { titol: 'Glossari' }); 
+            renderSidebarTools(gridRight, { titol: 'Glossari' });
             return;
         }
 
+        // VISTA: EXAMEN FINAL
         if (state.currentView === 'examen_final') {
             renderExamenFinal(container);
             return;
         }
 
+        // VISTAS MÓDULO NORMAL
         const mod = state.curso.moduls[state.currentModuleIndex];
-        
+
         if (state.currentView === 'teoria') {
             renderTeoria(container, mod);
-            renderSidebarTools(gridRight, mod); 
-        }
-        else if (state.currentView === 'flashcards') {
+            renderSidebarTools(gridRight, mod);
+        } else if (state.currentView === 'flashcards') {
             renderFlashcards(container, mod.targetes_memoria);
-            renderSidebarTools(gridRight, mod); 
-        }
-        else if (state.currentView === 'test') {
+            renderSidebarTools(gridRight, mod);
+        } else if (state.currentView === 'test') {
             const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
             const hayDatosGuardados = Object.keys(savedData).length > 0;
             const moduloAprobado = state.progreso.modulos[state.currentModuleIndex].aprobado;
-            
+
             if ((state.testEnCurso || hayDatosGuardados) && !moduloAprobado) {
                 gridRight.className = 'grid-container';
                 state.respuestasTemp = savedData;
@@ -426,7 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // RENDER SIDEBAR RIGHT (BREADCRUMBS)
+    // RENDER SIDEBAR TOOLS (BREADCRUMBS)
     // ------------------------------------------------------------------------
     function renderSidebarTools(container, mod) {
         let breadcrumbs = [];
@@ -445,15 +465,17 @@ document.addEventListener('DOMContentLoaded', () => {
             breadcrumbs.push(`<span class="breadcrumb-current">Examen Final</span>`);
         }
         else {
-            // Caso Módulo: Enlace si no estamos en teoría
             let moduleName = mod.titol || 'Mòdul';
             if(moduleName.length > 25) moduleName = moduleName.substring(0, 22) + '...';
+
+            let moduleLink = `<span>${moduleName}</span>`;
             
-            if (state.currentView !== 'teoria') {
-                breadcrumbs.push(`<a href="#" onclick="window.cambiarVista(${state.currentModuleIndex}, 'teoria'); return false;">${moduleName}</a>`);
-            } else {
-                breadcrumbs.push(`<span>${moduleName}</span>`);
+            // Hacemos linkable si NO estamos en esa vista ya
+            if (state.currentModuleIndex >= 0 && state.currentModuleIndex < 900) {
+                 moduleLink = `<a href="#" onclick="window.cambiarVista(${state.currentModuleIndex}, 'teoria'); return false;">${moduleName}</a>`;
             }
+
+            breadcrumbs.push(moduleLink);
             
             let subSection = '';
             if (state.currentView === 'teoria') subSection = 'Temari';
@@ -491,7 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = toolsHtml;
 
         const noteArea = document.getElementById('quick-notes');
-        if(noteArea) {
+        if (noteArea) {
             noteArea.addEventListener('input', (e) => {
                 localStorage.setItem(noteKey, e.target.value);
             });
@@ -523,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
         newCancel.onclick = () => modal.style.display = 'none';
         newConfirm.onclick = async () => {
             const text = document.getElementById('modal-doubt-text').value.trim();
-            if(!text) return alert("Escriu alguna cosa!");
+            if (!text) return alert("Escriu alguna cosa!");
             newConfirm.innerText = "Enviant...";
             newConfirm.disabled = true;
             try {
@@ -543,13 +565,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
                     body: JSON.stringify(payload)
                 });
-                if(res.ok) {
+                if (res.ok) {
                     modal.style.display = 'none';
                     window.mostrarModalError("Dubte enviat correctament! Rebràs la resposta a l'apartat de missatges.");
                 } else {
                     throw new Error("Error API");
                 }
-            } catch(e) {
+            } catch (e) {
                 console.error(e);
                 modal.style.display = 'none';
                 window.mostrarModalError("Error al connectar amb el servidor.");
@@ -563,7 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
         if (mod.material_pdf) {
             const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
-            if(archivos.length > 0) {
+            if (archivos.length > 0) {
                 html += `<div class="materials-section"><span class="materials-title">Material Descarregable</span>`;
                 archivos.forEach(a => {
                     let pdfUrl = a.url.startsWith('/') ? STRAPI_URL + a.url : a.url;
@@ -576,13 +598,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // FLASHCARDS GAMIFICADAS (VERSIÓN ROBUSTA)
+    // FLASHCARDS GAMIFICADAS (VERSIÓN FINAL INTEGRADA)
     // ------------------------------------------------------------------------
     function renderFlashcards(container, cards) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
-        
+
         let html = `<h3>Targetes de Repàs (Gamificat)</h3><div class="flashcards-grid-view">`;
-        
+
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
 
         cards.forEach((card, idx) => {
@@ -597,28 +619,28 @@ document.addEventListener('DOMContentLoaded', () => {
             // Eliminamos saltos de línea múltiples
             answerText = answerText.replace(/\s\s+/g, ' ');
 
-            let words = answerText.split(" ");
+            let words = answerText.split(/\s+/);
             let targetWord = "";
             let hiddenIndex = -1;
 
-            // Buscar palabra larga
+            // Buscar palabra larga (>4 letras)
             for (let i = 0; i < words.length; i++) {
                 let cleanWord = words[i].replace(/[.,;:"'()]/g, '');
                 if (cleanWord.length > 4) {
-                    targetWord = words[i]; 
+                    targetWord = words[i];
                     hiddenIndex = i;
-                    break; 
+                    break;
                 }
             }
-            if(hiddenIndex === -1 && words.length > 0) {
-                targetWord = words[words.length-1];
-                hiddenIndex = words.length-1;
+            if (hiddenIndex === -1 && words.length > 0) {
+                targetWord = words[words.length - 1];
+                hiddenIndex = words.length - 1;
             }
 
             let options = [targetWord.replace(/[.,;:"'()]/g, '')];
-            while(options.length < 3) {
+            while (options.length < 3) {
                 let rand = distractors[Math.floor(Math.random() * distractors.length)];
-                if(!options.includes(rand)) options.push(rand);
+                if (!options.includes(rand)) options.push(rand);
             }
             options.sort(() => Math.random() - 0.5);
 
@@ -629,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Hueco para rellenar
                 let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
                 let targetClean = targetWord.replace(/[.,;:"'()]/g, '');
-                
+
                 let buttonsHtml = options.map(opt => {
                     let optSafe = opt.replace(/'/g, "\\'");
                     let targetSafe = targetClean.replace(/'/g, "\\'");
@@ -662,12 +684,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Verificar respuesta Flashcard e integrar palabra
     window.checkFlashcard = function(btn, selected, correct) {
-        event.stopPropagation(); 
-        
+        event.stopPropagation();
+
         const container = btn.closest('.flashcard-game-container');
         const blankSpan = container.querySelector('.cloze-blank');
         const buttons = container.querySelectorAll('.btn-flash-option');
-        
+
         buttons.forEach(b => b.disabled = true);
 
         if (selected === correct) {
@@ -690,20 +712,20 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTestIntro(container, mod, modIdx) {
         const progreso = state.progreso.modulos[modIdx] || { aprobado: false, intentos: 0, nota: 0 };
         if (progreso.aprobado) {
-             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;">
+            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;">
                     <h2 style="color:green">Mòdul Superat! ✅</h2>
                     <div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div>
                     <div class="btn-centered-container">
                         <button class="btn-primary" onclick="revisarTest(${modIdx}, true)">Veure resultats anteriors</button>
                     </div>
                 </div>`;
-             return;
+            return;
         }
         if (progreso.intentos >= 2 && !state.godMode) {
-             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;">
+            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;">
                     <h2 style="color:red">Bloquejat ⛔</h2><p>Has esgotat els 2 intents.</p>
                 </div>`;
-             return;
+            return;
         }
         container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;">
                 <h2>📝 Test d'Avaluació: ${mod.titol}</h2>
@@ -726,22 +748,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
     function renderTestQuestions(container, mod, modIdx) {
         const gridRight = document.getElementById('quiz-grid');
-        gridRight.innerHTML = ''; 
-        gridRight.className = 'grid-container'; 
-        
+        gridRight.innerHTML = '';
+        gridRight.className = 'grid-container';
+
         mod.preguntes.forEach((p, i) => {
             const div = document.createElement('div');
             div.className = 'grid-item'; div.id = `grid-q-${i}`; div.innerText = i + 1;
-            div.onclick = () => document.getElementById(`card-q-${i}`).scrollIntoView({behavior:'smooth', block:'center'});
+            div.onclick = () => document.getElementById(`card-q-${i}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
             if (state.respuestasTemp[`q-${i}`] !== undefined) div.classList.add('answered');
             gridRight.appendChild(div);
         });
 
         let html = `<h3>Test en Curs...</h3>`;
-        
+
         mod.preguntes.forEach((preg, idx) => {
-            const qId = `q-${idx}`; 
-            
+            const qId = `q-${idx}`;
+
             // LÓGICA MODO PROFESOR (Auto-seleccionar)
             if (state.godMode && state.respuestasTemp[qId] === undefined) {
                 const correctIdx = preg.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
@@ -749,7 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     state.respuestasTemp[qId] = correctIdx;
                     setTimeout(() => {
                         const gridItem = document.getElementById(`grid-q-${idx}`);
-                        if(gridItem) gridItem.classList.add('answered');
+                        if (gridItem) gridItem.classList.add('answered');
                     }, 0);
                 }
             }
@@ -760,11 +782,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="q-header">Pregunta ${idx + 1}</div>
                     <div class="q-text">${preg.text}</div>
                     <div class="options-list">`;
-            
+
             preg.opcions.forEach((opt, oIdx) => {
-                const isSelected = (savedVal == oIdx) ? 'selected' : ''; 
+                const isSelected = (savedVal == oIdx) ? 'selected' : '';
                 const checked = (savedVal == oIdx) ? 'checked' : '';
-                
+
                 html += `<div class="option-item ${isSelected}" onclick="selectTestOption('${qId}', ${oIdx}, 'test_mod_${modIdx}')">
                         <input type="radio" name="${qId}" value="${oIdx}" ${checked}>
                         <span>${opt.text}</span>
@@ -775,24 +797,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const btnText = state.godMode ? "⚡ PROFESSOR: ENTREGAR ARA" : "FINALITZAR I ENTREGAR";
         html += `<div class="btn-centered-container"><button class="btn-primary" onclick="entregarTest(${modIdx})">${btnText}</button></div>`;
-        
+
         container.innerHTML = html;
-        window.currentQuestions = mod.preguntes; 
+        window.currentQuestions = mod.preguntes;
     }
 
     window.selectTestOption = function(qId, valIdx, storageKeyType) {
         state.respuestasTemp[qId] = valIdx;
         const card = document.getElementById(`card-${qId}`);
-        if(card) {
+        if (card) {
             card.querySelectorAll('.option-item').forEach((el, idx) => {
-                if (idx === valIdx) { el.classList.add('selected'); el.querySelector('input').checked = true; } 
+                if (idx === valIdx) { el.classList.add('selected'); el.querySelector('input').checked = true; }
                 else { el.classList.remove('selected'); el.querySelector('input').checked = false; }
             });
         }
-        const gridIdx = qId.split('-')[1]; 
+        const gridIdx = qId.split('-')[1];
         let gridItemId = storageKeyType === 'examen_final' ? `grid-final-q-${gridIdx}` : `grid-q-${gridIdx}`;
         const gridItem = document.getElementById(gridItemId);
-        if(gridItem) gridItem.classList.add('answered');
+        if (gridItem) gridItem.classList.add('answered');
         guardarRespuestaLocal(storageKeyType, qId, valIdx);
     }
 
@@ -833,70 +855,70 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="btn-primary" onclick="window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')">Continuar</button>
                 </div>
             </div><h3>Revisió de Respostes:</h3>`;
-        
+
         preguntas.forEach((preg, idx) => {
             const qId = esFinal ? `final-${idx}` : `q-${idx}`;
             const userRes = respuestasUsuario[qId];
             const cardId = esFinal ? `card-final-${idx}` : `card-q-${idx}`;
-            
+
             html += `<div class="question-card review-mode" id="${cardId}">
                         <div class="q-header">Pregunta ${idx + 1}</div>
                         <div class="q-text">${preg.text}</div>
                         <div class="options-list">`;
-            
+
             preg.opcions.forEach((opt, oIdx) => {
                 let classes = 'option-item ';
                 const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
-                
+
                 if (isCorrect) classes += 'correct-answer ';
-                if (userRes == oIdx) { 
-                    classes += 'selected '; 
-                    if (!isCorrect) classes += 'user-wrong '; 
+                if (userRes == oIdx) {
+                    classes += 'selected ';
+                    if (!isCorrect) classes += 'user-wrong ';
                 }
-                
+
                 html += `<div class="${classes}">
                             <input type="radio" ${userRes == oIdx ? 'checked' : ''} disabled>
                             <span>${opt.text}</span>
                          </div>`;
             });
-            
+
             if (preg.explicacio) html += `<div class="explanation-box"><strong><i class="fa-solid fa-circle-info"></i> Explicació:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
             html += `</div></div>`;
         });
-        
+
         container.innerHTML = html;
-        window.scrollTo(0,0);
+        window.scrollTo(0, 0);
     }
 
     function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
         if (finalData.aprobado) {
-             let puedeDescargar = true; let mensajeFecha = '';
-             if (state.curso.data_fi) {
-                 const fechaFin = new Date(state.curso.data_fi); const hoy = new Date();
-                 if (hoy < fechaFin) { puedeDescargar = false; mensajeFecha = `El certificat estarà disponible a partir del: <strong>${fechaFin.toLocaleDateString('ca-ES')}</strong>.`; }
-             }
-             let botonHtml = puedeDescargar ? `<button class="btn-primary" onclick="imprimirDiploma('${finalData.nota}')">Descarregar Diploma</button>` : `<div class="alert-info" style="margin-top:15px; color:#856404; background:#fff3cd; padding:10px; border-radius:4px;"><i class="fa-solid fa-clock"></i> ${mensajeFecha}</div>`;
-             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h1 style="color:green;">🎉 ENHORABONA!</h1><p>Curs Completat.</p><div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div><div class="btn-centered-container">${botonHtml}</div></div>`;
-             return;
+            let puedeDescargar = true; let mensajeFecha = '';
+            if (state.curso.data_fi) {
+                const fechaFin = new Date(state.curso.data_fi); const hoy = new Date();
+                if (hoy < fechaFin) { puedeDescargar = false; mensajeFecha = `El certificat estarà disponible a partir del: <strong>${fechaFin.toLocaleDateString('ca-ES')}</strong>.`; }
+            }
+            let botonHtml = puedeDescargar ? `<button class="btn-primary" onclick="imprimirDiploma('${finalData.nota}')">Descarregar Diploma</button>` : `<div class="alert-info" style="margin-top:15px; color:#856404; background:#fff3cd; padding:10px; border-radius:4px;"><i class="fa-solid fa-clock"></i> ${mensajeFecha}</div>`;
+            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h1 style="color:green;">🎉 ENHORABONA!</h1><p>Curs Completat.</p><div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div><div class="btn-centered-container">${botonHtml}</div></div>`;
+            return;
         }
         if (finalData.intentos >= 2 && !state.godMode) {
-             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Has esgotat els 2 intents.</p><div class="btn-centered-container"><button class="btn-primary" onclick="window.location.href='mailto:sicap@sicap.cat'">Contactar Secretaria</button></div></div>`;
-             return;
+            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Has esgotat els 2 intents.</p><div class="btn-centered-container"><button class="btn-primary" onclick="window.location.href='mailto:sicap@sicap.cat'">Contactar Secretaria</button></div></div>`;
+            return;
         }
         const savedData = cargarRespuestasLocales('examen_final');
         const isActive = (Object.keys(savedData).length > 0) || state.testEnCurso;
-        if (isActive) { state.testEnCurso = true; renderFinalQuestions(container, savedData); } 
+        if (isActive) { state.testEnCurso = true; renderFinalQuestions(container, savedData); }
         else { container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2 style="color:var(--brand-blue);">🏆 Examen Final</h2><div class="exam-info-box"><p>⏱️ <strong>Temps:</strong> 30 minuts (Compte enrere).</p><p>🎯 <strong>Nota tall:</strong> 7.5 (75%).</p><p>⚠️ <strong>Intents:</strong> ${finalData.intentos + 1} de 2.</p></div><br><div class="btn-centered-container"><button class="btn-primary" onclick="iniciarExamenFinal()">COMENÇAR EXAMEN FINAL</button></div></div>`; }
     }
 
     window.iniciarExamenFinal = function() {
         if (!state.curso.examen_final || state.curso.examen_final.length === 0) { alert("Error: No s'han carregat preguntes."); return; }
         state.preguntasExamenFinal = [...state.curso.examen_final].sort(() => 0.5 - Math.random());
-        const orderIds = state.preguntasExamenFinal.map(p => p.id || p.documentId); 
+        const orderIds = state.preguntasExamenFinal.map(p => p.id || p.documentId);
         localStorage.setItem(`sicap_exam_order_${USER.id}_${SLUG}`, JSON.stringify(orderIds));
-        state.testEnCurso = true; state.testStartTime = Date.now(); 
+        state.testEnCurso = true; state.testStartTime = Date.now();
         localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime);
         state.respuestasTemp = {}; renderExamenFinal(document.getElementById('moduls-container'));
     }
@@ -904,29 +926,29 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderFinalQuestions(container, savedData) {
         const storedOrder = JSON.parse(localStorage.getItem(`sicap_exam_order_${USER.id}_${SLUG}`));
         if (storedOrder && state.curso.examen_final) {
-             state.preguntasExamenFinal = [];
-             storedOrder.forEach(id => { const found = state.curso.examen_final.find(p => (p.id || p.documentId) === id); if(found) state.preguntasExamenFinal.push(found); });
-             if(state.preguntasExamenFinal.length === 0) state.preguntasExamenFinal = state.curso.examen_final;
+            state.preguntasExamenFinal = [];
+            storedOrder.forEach(id => { const found = state.curso.examen_final.find(p => (p.id || p.documentId) === id); if (found) state.preguntasExamenFinal.push(found); });
+            if (state.preguntasExamenFinal.length === 0) state.preguntasExamenFinal = state.curso.examen_final;
         } else if (state.preguntasExamenFinal.length === 0) { state.preguntasExamenFinal = state.curso.examen_final; }
         const storedStartTime = localStorage.getItem(`sicap_timer_start_${USER.id}_${SLUG}`);
-        if(storedStartTime) state.testStartTime = parseInt(storedStartTime);
+        if (storedStartTime) state.testStartTime = parseInt(storedStartTime);
         else { state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime); }
-        const gridRight = document.getElementById('quiz-grid'); gridRight.className = ''; 
+        const gridRight = document.getElementById('quiz-grid'); gridRight.className = '';
         gridRight.innerHTML = `<div id="exam-timer-container"><div id="exam-timer" class="timer-box">30:00</div></div><div id="grid-inner-numbers"></div>`;
         iniciarCronometro();
         const gridInner = document.getElementById('grid-inner-numbers');
         state.preguntasExamenFinal.forEach((p, i) => {
             const div = document.createElement('div'); div.className = 'grid-item'; div.id = `grid-final-q-${i}`; div.innerText = i + 1;
-            div.onclick = () => document.getElementById(`card-final-${i}`).scrollIntoView({behavior:'smooth', block:'center'});
+            div.onclick = () => document.getElementById(`card-final-${i}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
             if (state.respuestasTemp[`final-${i}`] !== undefined || (savedData && savedData[`final-${i}`] !== undefined)) div.classList.add('answered');
             gridInner.appendChild(div);
         });
-        if(savedData) state.respuestasTemp = savedData;
+        if (savedData) state.respuestasTemp = savedData;
         if (state.godMode) {
             state.preguntasExamenFinal.forEach((p, i) => {
                 if (state.respuestasTemp[`final-${i}`] === undefined) {
                     const correctIdx = p.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
-                    if(correctIdx !== -1) state.respuestasTemp[`final-${i}`] = correctIdx;
+                    if (correctIdx !== -1) state.respuestasTemp[`final-${i}`] = correctIdx;
                 }
             });
         }
@@ -947,15 +969,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function iniciarCronometro() {
-        const display = document.getElementById('exam-timer'); if(!display) return;
+        const display = document.getElementById('exam-timer'); if (!display) return;
         const LIMIT_MS = 30 * 60 * 1000;
         clearInterval(state.timerInterval);
         state.timerInterval = setInterval(() => {
             const now = Date.now(); const elapsed = now - state.testStartTime; const remaining = LIMIT_MS - elapsed;
             if (remaining <= 0) { detenerCronometro(); display.innerText = "00:00"; alert("S'ha acabat el temps!"); entregarExamenFinal(true); return; }
             const min = Math.floor(remaining / 60000); const sec = Math.floor((remaining % 60000) / 1000);
-            display.innerText = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
-            if(min < 5) display.classList.add('warning'); if(min < 1) display.classList.add('danger');
+            display.innerText = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+            if (min < 5) display.classList.add('warning'); if (min < 1) display.classList.add('danger');
         }, 1000);
     }
     function detenerCronometro() { clearInterval(state.timerInterval); }
@@ -971,7 +993,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (userRes == correctaIdx) aciertos++;
             });
             const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2));
-            const aprobado = nota >= 7.5; 
+            const aprobado = nota >= 7.5;
             state.progreso.examen_final.intentos += 1;
             state.progreso.examen_final.nota = Math.max(state.progreso.examen_final.nota, nota);
             if (aprobado) state.progreso.examen_final.aprobado = true;
@@ -984,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.testEnCurso = false; document.body.classList.remove('exam-active');
             mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, 999, true);
         };
-        if(forzado) { doDelivery(); } 
+        if (forzado) { doDelivery(); }
         else { window.mostrarModalConfirmacion("Entregar Examen", "Segur que vols entregar?", () => { document.getElementById('custom-modal').style.display = 'none'; doDelivery(); }); }
     }
 

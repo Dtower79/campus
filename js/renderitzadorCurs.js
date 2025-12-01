@@ -1,36 +1,50 @@
 document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
-    // 1. HELPER: TRADUCTOR DE TEXTO
+    // 1. HELPER: TRADUCTOR DE TEXTO (ROBUSTO)
     // ------------------------------------------------------------------------
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
-        if (content.type === 'paragraph' || content.type === 'text') {
-             return content.children?.map(c => c.text).join('') || '';
-        }
+        
+        // Función recursiva para extraer texto de bloques anidados de Strapi v5
+        const extractText = (nodes) => {
+            if (!nodes) return "";
+            if (typeof nodes === "string") return nodes;
+            if (Array.isArray(nodes)) return nodes.map(extractText).join(" ");
+            if (nodes.type === "text" && nodes.text) return nodes.text;
+            if (nodes.children) return extractText(nodes.children);
+            return "";
+        };
+
         if (Array.isArray(content)) {
             return content.map(block => {
-                if (block.type === 'paragraph' && block.children) {
-                    return `<p>${block.children.map(c => {
-                        let text = c.text;
-                        if (c.bold) text = `<b>${text}</b>`;
-                        if (c.italic) text = `<i>${text}</i>`;
-                        if (c.underline) text = `<u>${text}</u>`;
-                        return text;
-                    }).join('')}</p>`;
-                }
+                const text = extractText(block.children);
+                if (block.type === 'heading') return `<h${block.level || 3}>${text}</h${block.level || 3}>`;
                 if (block.type === 'list') {
-                     const tag = block.format === 'ordered' ? 'ol' : 'ul';
-                     const items = block.children.map(li => `<li>${li.children.map(c => c.text).join('')}</li>`).join('');
-                     return `<${tag}>${items}</${tag}>`;
+                    const tag = block.format === 'ordered' ? 'ol' : 'ul';
+                    return `<${tag}>${block.children.map(li => `<li>${extractText(li)}</li>`).join('')}</${tag}>`;
                 }
-                if (block.type === 'heading') {
-                    return `<h${block.level}>${block.children[0].text}</h${block.level}>`;
-                }
-                return '';
+                return `<p>${text}</p>`;
             }).join('');
         }
+        
         return JSON.stringify(content);
+    }
+
+    // Helper específico para texto plano (Flashcards)
+    function getPlainText(content) {
+        if (!content) return "";
+        if (typeof content === 'string') return content;
+        
+        const extractText = (nodes) => {
+            if (!nodes) return "";
+            if (typeof nodes === "string") return nodes;
+            if (Array.isArray(nodes)) return nodes.map(extractText).join(" ");
+            if (nodes.text) return nodes.text;
+            if (nodes.children) return extractText(nodes.children);
+            return "";
+        };
+        return extractText(content);
     }
 
     // ------------------------------------------------------------------------
@@ -62,18 +76,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Configuración visual inicial
     const loginOverlay = document.getElementById('login-overlay');
     if(loginOverlay) loginOverlay.style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.getElementById('dashboard-view').style.display = 'none';
     document.getElementById('exam-view').style.display = 'flex';
 
-    // Forzar Footer visible
     const footer = document.getElementById('app-footer');
     if(footer) footer.style.display = 'block';
 
-    // Inyectar botón Scroll Top
     if(!document.getElementById('scroll-top-btn')) {
         const btn = document.createElement('button');
         btn.id = 'scroll-top-btn';
@@ -161,7 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
         state.progreso = progresoObj;
     }
 
-    // --- Persistencia Local ---
     function getStorageKey(tipo) { return `sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`; }
     function guardarRespuestaLocal(tipo, preguntaId, opcionIdx) {
         const key = getStorageKey(tipo);
@@ -183,9 +193,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ------------------------------------------------------------------------
-    // 4. LÓGICA DEL UI (SIDEBAR + ACORDEÓN)
-    // ------------------------------------------------------------------------
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
@@ -200,23 +207,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return state.progreso.modulos.every(m => m.aprobado === true);
     }
 
-    // Toggle Acordeón
     window.toggleAccordion = function(headerElement) {
         const group = headerElement.parentElement;
         if (group.classList.contains('group-locked') && !state.godMode) return;
         group.classList.toggle('open');
     };
 
-    // Toggle Modo Dios / Profesor
     window.toggleGodMode = function(checkbox) { 
         state.godMode = checkbox.checked; 
         renderSidebar(); 
-        renderMainContent(); // Recargar para ver respuestas en tests/flashcards
+        renderMainContent();
     }
 
-    // Navegación Principal
     window.cambiarVista = function(idx, view) {
-        state.currentModuleIndex = idx;
+        state.currentModuleIndex = parseInt(idx); // Asegurar número
         state.currentView = view;
         state.respuestasTemp = {}; 
         state.testEnCurso = false;
@@ -226,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // RENDER SIDEBAR (MENÚ LATERAL)
+    // RENDER SIDEBAR
     // ------------------------------------------------------------------------
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
@@ -242,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </label></div>`;
         }
         
-        // 1. PROGRAMA (Intro)
+        // 1. PROGRAMA
         const isIntroActive = state.currentModuleIndex === -1;
         html += `<div class="sidebar-module-group ${isIntroActive ? 'open' : ''}">
             <div class="sidebar-module-title" onclick="toggleAccordion(this)">
@@ -258,8 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const isLocked = estaBloqueado(idx);
             const modProgreso = state.progreso.modulos ? state.progreso.modulos[idx] : null;
             const check = modProgreso && modProgreso.aprobado ? '<i class="fa-solid fa-check" style="color:green"></i>' : '';
-            
-            // Abierto si es el módulo actual
             const isOpen = (state.currentModuleIndex === idx);
             const lockedClass = (isLocked && !state.godMode) ? 'group-locked' : '';
             const openClass = isOpen ? 'open' : '';
@@ -270,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="sidebar-sub-menu">`;
             
-            // Sub-items
             html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
 
             if ((!isLocked || state.godMode) && mod.material_pdf) {
@@ -321,17 +322,14 @@ document.addEventListener('DOMContentLoaded', () => {
         indexContainer.innerHTML = html;
     }
 
-    // Helper para generar enlaces del menú
     function renderSubLink(modIdx, viewName, label, locked, isSpecial = false) {
         const reallyLocked = locked && !state.godMode;
-        
-        // Comparamos como String para evitar errores de tipo
+        // CORREGIDO: Conversión a string para asegurar comparación
         let isActive = (String(state.currentModuleIndex) === String(modIdx) && state.currentView === viewName);
         
         const lockedClass = reallyLocked ? 'locked' : '';
         const activeClass = isActive ? 'active' : '';
         const specialClass = isSpecial ? 'special-item' : '';
-        
         const clickFn = reallyLocked ? '' : `window.cambiarVista(${modIdx}, '${viewName}')`;
         
         return `<div class="sidebar-subitem ${lockedClass} ${activeClass} ${specialClass}" onclick="${clickFn}">
@@ -339,9 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
     }
 
-    // ------------------------------------------------------------------------
-    // RENDER MAIN CONTENT (CONTENIDO CENTRAL)
-    // ------------------------------------------------------------------------
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
@@ -350,7 +345,6 @@ document.addEventListener('DOMContentLoaded', () => {
         detenerCronometro(); 
         document.body.classList.remove('exam-active');
 
-        // VISTA: PROGRAMA
         if (state.currentView === 'intro') {
             container.innerHTML = `
                 <h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2>
@@ -362,7 +356,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // VISTA: GLOSARIO
         if (state.currentView === 'glossary') {
             const contenidoGlossari = state.curso.glossari 
                 ? parseStrapiRichText(state.curso.glossari) 
@@ -377,13 +370,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // VISTA: EXAMEN FINAL
         if (state.currentView === 'examen_final') {
             renderExamenFinal(container);
             return;
         }
 
-        // VISTAS DE MÓDULO (Teoría, Flashcards, Test)
         const mod = state.curso.moduls[state.currentModuleIndex];
         
         if (state.currentView === 'teoria') {
@@ -411,11 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ------------------------------------------------------------------------
-    // RENDER SIDEBAR RIGHT (HERRAMIENTAS + BREADCRUMBS)
-    // ------------------------------------------------------------------------
     function renderSidebarTools(container, mod) {
-        // Breadcrumbs Interactivos
         let viewLabel = '';
         if (state.currentView === 'intro') viewLabel = 'Programa';
         else if (state.currentView === 'glossary') viewLabel = 'Glossari';
@@ -474,7 +461,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Modal Duda (Ya definido pero necesario)
     window.obrirFormulariDubte = function(moduloTitulo) {
         const modal = document.getElementById('custom-modal');
         const titleEl = document.getElementById('modal-title');
@@ -559,62 +545,43 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let html = `<h3>Targetes de Repàs (Gamificat)</h3><div class="flashcards-grid-view">`;
         
-        // Diccionario de distracciones (palabras penitenciarias típicas para rellenar)
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
 
         cards.forEach((card, idx) => {
-            // 1. Limpieza de texto (Strapi a veces manda objetos Rich Text)
-            let rawResp = card.resposta;
-            let answerText = "";
-            
-            if (typeof rawResp === 'string') answerText = rawResp;
-            else if (Array.isArray(rawResp)) answerText = rawResp.map(b => b.children?.map(c => c.text).join('') || '').join(' ');
-            else answerText = "Text no disponible";
+            // CORREGIDO: Uso de helper getPlainText para limpiar cualquier estructura de Strapi
+            let answerText = getPlainText(card.resposta).replace(/<[^>]*>?/gm, '').trim();
+            if(!answerText) answerText = "Resposta oculta";
 
-            // Quitar etiquetas HTML si las hay
-            answerText = answerText.replace(/<[^>]*>?/gm, '');
-
-            // 2. Lógica del juego
             let words = answerText.split(" ");
             let targetWord = "";
             let hiddenIndex = -1;
 
-            // Buscar palabra candidata (larga)
             for (let i = 0; i < words.length; i++) {
-                // Limpiar puntuación para contar letras
                 let cleanWord = words[i].replace(/[.,;]/g, '');
                 if (cleanWord.length > 4) {
-                    targetWord = words[i]; // Guardamos con puntuación original
+                    targetWord = words[i]; 
                     hiddenIndex = i;
                     break;
                 }
             }
-            // Si no hay larga, cogemos la última
             if(hiddenIndex === -1 && words.length > 0) {
                 targetWord = words[words.length-1];
                 hiddenIndex = words.length-1;
             }
 
-            // Crear opciones
             let options = [targetWord];
-            // Añadir 2 falsas
             while(options.length < 3) {
                 let rand = distractors[Math.floor(Math.random() * distractors.length)];
                 if(!options.includes(rand)) options.push(rand);
             }
             options.sort(() => Math.random() - 0.5);
 
-            // HTML de la parte trasera
             let backContent = '';
             if (state.godMode) {
                 backContent = `<div style="padding:15px; color:white;">${answerText}</div>`;
             } else {
-                // Reconstruir frase con hueco
                 let questionText = words.map((w, i) => i === hiddenIndex ? "<b style='color:#ffeb3b'>_______</b>" : w).join(" ");
-                
-                // Escapar comillas para el onclick
                 let targetSafe = targetWord.replace(/'/g, "\\'");
-                
                 let buttonsHtml = options.map(opt => {
                     let optSafe = opt.replace(/'/g, "\\'");
                     return `<button class="btn-flash-option" onclick="checkFlashcard(this, '${optSafe}', '${targetSafe}')">${opt}</button>`;
@@ -644,20 +611,16 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
-    // Función global para verificar respuesta flashcard
     window.checkFlashcard = function(btn, selected, correct) {
         event.stopPropagation(); 
         const parent = btn.parentElement;
         const buttons = parent.querySelectorAll('.btn-flash-option');
-        
         buttons.forEach(b => b.disabled = true);
-
         if (selected === correct) {
             btn.classList.add('correct');
             btn.innerHTML += ' <i class="fa-solid fa-check"></i>';
         } else {
             btn.classList.add('wrong');
-            // Marcar la correcta
             buttons.forEach(b => {
                 if (b.innerText === correct) b.classList.add('correct');
             });
@@ -698,9 +661,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.iniciarTest = function() { state.testEnCurso = true; renderMainContent(); }
 
-    // ------------------------------------------------------------------------
-    // MODO PROFESOR EN TEST (AUTO-RESPONDER)
-    // ------------------------------------------------------------------------
     function renderTestQuestions(container, mod, modIdx) {
         const gridRight = document.getElementById('quiz-grid');
         gridRight.innerHTML = ''; 
@@ -719,13 +679,11 @@ document.addEventListener('DOMContentLoaded', () => {
         mod.preguntes.forEach((preg, idx) => {
             const qId = `q-${idx}`; 
             
-            // LÓGICA MODO PROFESOR (Auto-seleccionar)
+            // CORREGIDO: Lógica Modo Profesor
             if (state.godMode && state.respuestasTemp[qId] === undefined) {
-                // Busca la opción correcta (soporta varios nombres de campo)
                 const correctIdx = preg.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
                 if (correctIdx !== -1) {
                     state.respuestasTemp[qId] = correctIdx;
-                    // Actualizar grid
                     setTimeout(() => {
                         const gridItem = document.getElementById(`grid-q-${idx}`);
                         if(gridItem) gridItem.classList.add('answered');
@@ -782,7 +740,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let aciertos = 0;
             preguntas.forEach((preg, idx) => {
                 const userRes = state.respuestasTemp[`q-${idx}`];
-                // Soporte robusto para nombre del campo
                 const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
                 if (userRes == correctaIdx) aciertos++;
             });
@@ -818,32 +775,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const qId = esFinal ? `final-${idx}` : `q-${idx}`;
             const userRes = respuestasUsuario[qId];
             const cardId = esFinal ? `card-final-${idx}` : `card-q-${idx}`;
-            
-            html += `<div class="question-card review-mode" id="${cardId}">
-                        <div class="q-header">Pregunta ${idx + 1}</div>
-                        <div class="q-text">${preg.text}</div>
-                        <div class="options-list">`;
-            
+            html += `<div class="question-card review-mode" id="${cardId}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
             preg.opcions.forEach((opt, oIdx) => {
                 let classes = 'option-item ';
                 const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
-                
                 if (isCorrect) classes += 'correct-answer ';
-                if (userRes == oIdx) { 
-                    classes += 'selected '; 
-                    if (!isCorrect) classes += 'user-wrong '; 
-                }
-                
-                html += `<div class="${classes}">
-                            <input type="radio" ${userRes == oIdx ? 'checked' : ''} disabled>
-                            <span>${opt.text}</span>
-                         </div>`;
+                if (userRes == oIdx) { classes += 'selected '; if (!isCorrect) classes += 'user-wrong '; }
+                html += `<div class="${classes}"><input type="radio" ${userRes == oIdx ? 'checked' : ''} disabled><span>${opt.text}</span></div>`;
             });
-            
             if (preg.explicacio) html += `<div class="explanation-box"><strong><i class="fa-solid fa-circle-info"></i> Explicació:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
             html += `</div></div>`;
         });
-        
         container.innerHTML = html;
         window.scrollTo(0,0);
     }
@@ -888,15 +830,12 @@ document.addEventListener('DOMContentLoaded', () => {
              storedOrder.forEach(id => { const found = state.curso.examen_final.find(p => (p.id || p.documentId) === id); if(found) state.preguntasExamenFinal.push(found); });
              if(state.preguntasExamenFinal.length === 0) state.preguntasExamenFinal = state.curso.examen_final;
         } else if (state.preguntasExamenFinal.length === 0) { state.preguntasExamenFinal = state.curso.examen_final; }
-        
         const storedStartTime = localStorage.getItem(`sicap_timer_start_${USER.id}_${SLUG}`);
         if(storedStartTime) state.testStartTime = parseInt(storedStartTime);
         else { state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime); }
-        
         const gridRight = document.getElementById('quiz-grid'); gridRight.className = ''; 
         gridRight.innerHTML = `<div id="exam-timer-container"><div id="exam-timer" class="timer-box">30:00</div></div><div id="grid-inner-numbers"></div>`;
         iniciarCronometro();
-        
         const gridInner = document.getElementById('grid-inner-numbers');
         state.preguntasExamenFinal.forEach((p, i) => {
             const div = document.createElement('div'); div.className = 'grid-item'; div.id = `grid-final-q-${i}`; div.innerText = i + 1;
@@ -904,9 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.respuestasTemp[`final-${i}`] !== undefined || (savedData && savedData[`final-${i}`] !== undefined)) div.classList.add('answered');
             gridInner.appendChild(div);
         });
-        
         if(savedData) state.respuestasTemp = savedData;
-        
         if (state.godMode) {
             state.preguntasExamenFinal.forEach((p, i) => {
                 if (state.respuestasTemp[`final-${i}`] === undefined) {
@@ -915,7 +852,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
-
         let html = `<h3 style="color:var(--brand-red);">Examen Final en Curs...</h3>`;
         state.preguntasExamenFinal.forEach((preg, idx) => {
             const qId = `final-${idx}`; const userRes = state.respuestasTemp[qId];
@@ -926,8 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             html += `</div></div>`;
         });
-        
-        const btnText = state.godMode ? "⚡ PROFESSOR: ENTREGAR EXAMEN ARA" : "ENTREGAR EXAMEN FINAL";
+        const btnText = state.godMode ? "⚡ PROFESSOR: ENTREGAR ARA" : "ENTREGAR EXAMEN FINAL";
         html += `<div class="btn-centered-container"><button class="btn-primary" onclick="entregarExamenFinal()">${btnText}</button></div>`;
         container.innerHTML = html;
         window.currentQuestions = state.preguntasExamenFinal;

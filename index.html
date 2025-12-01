@@ -242,30 +242,59 @@
         </div>
     </div>
 
-    <!-- FOOTER -->
+    <!-- FOOTER CORREGIDO -->
     <footer class="main-footer" style="display: none;" id="app-footer">
         <div class="footer-content">
             <div class="footer-logo">
                 <img src="img/logo-sicap.png" alt="SICAP">
-                <p>&copy; 2025 Sindicat Català de Presons. Tots els drets reservats.</p>
+                <!-- CAMBIO 1: Texto Copyright -->
+                <p>&copy; 2025 SICAP. Tots els drets reservats.</p>
             </div>
             <div class="footer-links">
-                <!-- Enlaces reales al sindicato -->
-                <a href="https://sicap.cat/avis-legal/" target="_blank">Avís Legal</a>
-                <a href="https://sicap.cat/politica-de-privacitat/" target="_blank">Política de Privacitat</a>
-                <a href="mailto:secretaria@sicap.cat">Contacte</a>
+                <a href="#" onclick="document.getElementById('modal-avis').style.display='flex'; return false;">Avís Legal</a>
+                <a href="#" onclick="document.getElementById('modal-privacitat').style.display='flex'; return false;">Política de Privacitat</a>
+                <a href="mailto:sicap@sicap.cat">Contacte</a>
             </div>
             <div class="footer-social">
-                <!-- Icono Web en lugar de redes -->
-                <a href="https://sicap.cat" target="_blank" title="Web Oficial SICAP">
+                <!-- CAMBIO: Solo web y quitamos iconos -->
+                <a href="https://sicap.cat" target="_blank" title="Web Oficial SICAP" style="font-weight:bold;">
                     <i class="fa-solid fa-globe"></i> sicap.cat
                 </a>
-                <!-- Redes sociales reales si las tienen, si no, quitamos las demás -->
-                <a href="https://twitter.com/sicap_cat" target="_blank"><i class="fa-brands fa-twitter"></i></a>
-                <a href="https://t.me/sicap_cat" target="_blank"><i class="fa-brands fa-telegram"></i></a>
             </div>
         </div>
     </footer>
+
+    <!-- MODAL AVÍS LEGAL -->
+    <div id="modal-avis" class="modal-overlay" style="display: none;">
+        <div class="modal-card" style="max-width: 600px; text-align: left;">
+            <h3 style="color:var(--brand-blue);">Avís Legal</h3>
+            <div style="max-height: 400px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6;">
+                <p><strong>Titularitat del lloc web:</strong><br>
+                Sindicat Català de Presons (SICAP)<br>
+                Contacte: sicap@sicap.cat</p>
+                <p><strong>Propietat Intel·lectual:</strong><br>
+                Tots els continguts d'aquest campus virtual (textos, vídeos, PDF, tests) són propietat exclusiva del SICAP. Queda prohibida la seva reproducció o difusió sense autorització.</p>
+                <p><strong>Ús del Campus:</strong><br>
+                L'accés és personal i intransferible per als afiliats. L'usuari es compromet a fer un ús responsable de les credencials.</p>
+            </div>
+            <button class="btn-primary" onclick="document.getElementById('modal-avis').style.display='none'" style="margin-top:20px;">Tancar</button>
+        </div>
+    </div>
+
+    <!-- MODAL POLÍTICA DE PRIVACITAT -->
+    <div id="modal-privacitat" class="modal-overlay" style="display: none;">
+        <div class="modal-card" style="max-width: 600px; text-align: left;">
+            <h3 style="color:var(--brand-blue);">Política de Privacitat</h3>
+            <div style="max-height: 400px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6;">
+                <p><strong>Responsable del tractament:</strong> SICAP.</p>
+                <p><strong>Finalitat:</strong> Gestió de la formació, seguiment acadèmic i emissió de certificats.</p>
+                <p><strong>Dades tractades:</strong> DNI, Nom, Cognoms, Correu electrònic i dades de progrés al curs.</p>
+                <p><strong>Drets:</strong> Pots exercir els teus drets d'accés, rectificació o supressió enviant un correu a sicap@sicap.cat.</p>
+                <p><strong>Conservació:</strong> Les dades de les qualificacions es conservaran per garantir l'emissió històrica de certificats.</p>
+            </div>
+            <button class="btn-primary" onclick="document.getElementById('modal-privacitat').style.display='none'" style="margin-top:20px;">Tancar</button>
+        </div>
+    </div>
 
     <!-- MODAL GENÉRICO (Confirmación) - AÑADIDO BLOQUE 1 -->
     <div id="custom-modal" class="modal-overlay" style="display: none;">

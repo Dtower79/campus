@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
                 const flippedIndices = getFlippedCards(idx);
                 const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
-                const estadoRemoto = state.progreso.modulos && state.progreso.modulos[idx] ? state.progreso.modulos[idx].flashcards_done : false;
+                const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx].flashcards_done : false;
                 if (localmenteCompletado && !estadoRemoto) {
                     if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
                     state.progreso.modulos[idx].flashcards_done = true;
@@ -464,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // FLASHCARDS: LOGICA ROBUSTA CON DATA ATTRIBUTES
+    // FLASHCARDS: LOGICA ROBUSTA CON ACTUALIZACIÓN INSTANTÁNEA (DOM)
     // ------------------------------------------------------------------------
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
@@ -473,7 +473,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const flippedIndices = getFlippedCards(modIdx);
         const isReallyCompleted = isCompletedDB || (flippedIndices.length >= cards.length);
 
-        let headerHtml = `<h3>Targetes de Repàs (Gamificat)</h3>`;
+        // AQUÍ AÑADO EL ID AL CONTENEDOR PARA PODER CAMBIARLO DESDE JS
+        let headerHtml = `<div id="fc-header-container">`;
+        
         if(isReallyCompleted) {
             headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:green; background:#d4edda; border:1px solid #c3e6cb; padding:15px; border-radius:4px;">
                 <i class="fa-solid fa-check-circle"></i> <strong>Activitat Completada!</strong>
@@ -482,12 +484,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             const count = flippedIndices.length;
             const total = cards.length;
+            // AÑADO ID AL CONTADOR PARA ACTUALIZAR EL NÚMERO
             headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:4px;">
-                <i class="fa-solid fa-circle-exclamation"></i> Progrés: <strong>${count}/${total}</strong> targetes contestades. Has de fer-les totes per avançar.
+                <i class="fa-solid fa-circle-exclamation"></i> Progrés: <strong id="fc-counter-text">${count}/${total}</strong> targetes contestades. Has de fer-les totes per avançar.
             </div>`;
         }
+        headerHtml += `</div>`; // Cierro contenedor
 
-        let html = `${headerHtml}<div class="flashcards-grid-view">`;
+        let html = `<h3>Targetes de Repàs (Gamificat)</h3>${headerHtml}<div class="flashcards-grid-view">`;
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
 
         cards.forEach((card, idx) => {
@@ -564,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cardElement.classList.toggle('flipped');
     }
 
-    // NUEVA FUNCIÓN QUE LEE DEL DOM DIRECTAMENTE (INFALIBLE)
+    // NUEVA FUNCIÓN QUE LEE DEL DOM Y ACTUALIZA UI AL MOMENTO
     window.checkFlashcardFromDOM = function(e, btn) {
         if (e) {
             e.stopPropagation(); 
@@ -575,17 +579,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const encodedCorrect = btn.getAttribute('data-correct');
         const cardIdx = parseInt(btn.getAttribute('data-idx'));
         const modIdx = parseInt(btn.getAttribute('data-mod'));
-        const totalCards = parseInt(btn.getAttribute('data-total')); // LEEMOS TOTAL DESDE EL DOM PARA EVITAR ERROR DE STATE
+        const totalCards = parseInt(btn.getAttribute('data-total'));
 
         const selected = decodeURIComponent(encodedSelected);
         const correct = decodeURIComponent(encodedCorrect);
         
+        // Obtenemos el nuevo conteo de completadas
         const count = addFlippedCard(modIdx, cardIdx);
         
+        // ACTUALIZACIÓN DINÁMICA DEL CONTADOR (AMARILLO)
+        const counterEl = document.getElementById('fc-counter-text');
+        if (counterEl) {
+            counterEl.innerText = `${count}/${totalCards}`;
+        }
+
+        // Lógica visual de la carta (Tick o X)
         const container = btn.closest('.flashcard-game-container');
         const blankSpan = container.querySelector('.cloze-blank');
         const buttons = container.querySelectorAll('.btn-flash-option');
-        
         buttons.forEach(b => b.disabled = true);
 
         if (selected.toLowerCase() === correct.toLowerCase()) {
@@ -605,7 +616,19 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = `❌ ${btn.innerText}`;
         }
 
+        // SI HEMOS COMPLETADO TODAS: CAMBIAR A VERDE AL MOMENTO
         if (count >= totalCards) {
+            // Cambio visual inmediato del header
+            const headerContainer = document.getElementById('fc-header-container');
+            if (headerContainer) {
+                headerContainer.innerHTML = `
+                    <div class="alert-info" style="margin-bottom:15px; color:green; background:#d4edda; border:1px solid #c3e6cb; padding:15px; border-radius:4px;">
+                        <i class="fa-solid fa-check-circle"></i> <strong>Activitat Completada!</strong>
+                        <br><small>Ja pots accedir al següent mòdul (si has aprovat el test).</small>
+                    </div>
+                `;
+            }
+            // Llamamos al guardado que también desbloqueará la sidebar
             actualizarProgresoFlashcards(modIdx);
         }
     };
@@ -618,13 +641,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!p.modulos[modIdx].flashcards_done) {
             p.modulos[modIdx].flashcards_done = true;
             
+            // Guardamos en DB y actualizamos sidebar
             guardarProgreso(p).then(() => {
-                window.mostrarModalError("🎉 Has completat totes les targetes! Mòdul següent desbloquejat.");
-                setTimeout(() => {
-                    renderSidebar(); 
-                    // No llamamos a renderFlashcards de nuevo para no perder el feedback visual instantáneo
-                    // Pero la sidebar ya estará verde
-                }, 500);
+                // Quitamos el modal de alerta, ahora la UI verde es suficiente feedback
+                console.log("Progreso guardado y sidebar desbloqueada.");
+                renderSidebar(); 
             });
         }
     }

@@ -97,14 +97,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 await inicializarProgresoEnStrapi();
             }
 
-            // Sincronización proactiva al cargar
+            // Sincronización proactiva al cargar (Arregla el bloqueo entre módulos)
             await sincronizarAvanceLocal(); 
 
             renderSidebar();
             renderMainContent();
+            
+            // Inyección de seguridad CSS para evitar problemas de clicks en 3D
+            injectSafeCSS();
+
         } catch (e) {
             console.error(e);
             if(container) container.innerHTML = `<div class="alert alert-danger" style="color:red; padding:20px;">Error: ${e.message}</div>`;
+        }
+    }
+
+    function injectSafeCSS() {
+        // Esto asegura que cuando la carta gira, la parte de atrás sea la única que recibe clicks
+        if (!document.getElementById('flashcard-fix-css')) {
+            const style = document.createElement('style');
+            style.id = 'flashcard-fix-css';
+            style.innerHTML = `
+                .flashcard.flipped .flashcard-front { pointer-events: none; }
+                .flashcard.flipped .flashcard-back { pointer-events: auto; }
+                .flashcard .flashcard-back { pointer-events: none; }
+            `;
+            document.head.appendChild(style);
         }
     }
 
@@ -473,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // FLASHCARDS (CORREGIDO EVENTOS)
+    // FLASHCARDS (CORREGIDO: EVENTOS Y SINTAXIS SEGURA)
     // ------------------------------------------------------------------------
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
@@ -537,14 +555,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
                 let buttonsHtml = options.map(opt => {
-                    let optSafe = opt.replace(/'/g, "\\'");
-                    let targetSafe = targetClean.replace(/'/g, "\\'");
-                    // Corrección aquí: pasamos 'event' explícitamente
-                    return `<button class="btn-flash-option" onclick="checkFlashcard(event, this, '${optSafe}', '${targetSafe}', ${idx}, ${modIdx})">${opt}</button>`;
+                    // USO encodeURIComponent PARA EVITAR QUE COMILLAS ROMPAN EL HTML
+                    const optEncoded = encodeURIComponent(opt);
+                    const targetEncoded = encodeURIComponent(targetClean);
+                    return `<button class="btn-flash-option" onclick="checkFlashcard(event, this, '${optEncoded}', '${targetEncoded}', ${idx}, ${modIdx})">${opt}</button>`;
                 }).join('');
                 backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
             }
 
+            // Click permitido siempre para repasar (UX)
             const clickAttr = `onclick="handleFlip(this)"`; 
 
             html += `<div class="flashcard ${flipClass}" ${clickAttr}>
@@ -566,10 +585,16 @@ document.addEventListener('DOMContentLoaded', () => {
         cardElement.classList.toggle('flipped');
     }
 
-    // Corrección aquí: recibimos 'e' y usamos e.stopPropagation()
-    window.checkFlashcard = function(e, btn, selected, correct, cardIdx, modIdx) {
-        e.stopPropagation(); // Ahora 'e' existe y detiene el giro
+    // CORREGIDO: Decodificar los strings y usar stopPropagation
+    window.checkFlashcard = function(e, btn, encodedSelected, encodedCorrect, cardIdx, modIdx) {
+        if (e) {
+            e.stopPropagation(); // Detener el giro
+            e.preventDefault();
+        }
         
+        const selected = decodeURIComponent(encodedSelected);
+        const correct = decodeURIComponent(encodedCorrect);
+
         const totalCards = state.curso.modulos[modIdx].targetes_memoria.length;
         const count = addFlippedCard(modIdx, cardIdx);
         
@@ -579,7 +604,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         buttons.forEach(b => b.disabled = true);
 
-        if (selected === correct) {
+        // Lógica de validación
+        if (selected.toLowerCase() === correct.toLowerCase()) {
             btn.classList.add('correct');
             blankSpan.innerText = selected;
             blankSpan.classList.remove('cloze-blank');

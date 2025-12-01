@@ -34,8 +34,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
     const PARAMS = new URLSearchParams(window.location.search);
     const SLUG = PARAMS.get('slug');
+
+    // --- CORRECCIÓN CRÍTICA (BUCLE INFINITO) ---
+    // Si no hay SLUG, significa que estamos en el Dashboard.
+    // Detenemos la ejecución de este script AQUÍ para no interferir.
+    if (!SLUG) return; 
+
     const USER = JSON.parse(localStorage.getItem('user'));
     const TOKEN = localStorage.getItem('jwt');
+
+    // Si hay SLUG (estamos intentando ver un curso) pero no hay usuario logueado:
+    if (!USER || !TOKEN) {
+        window.location.href = 'index.html';
+        return;
+    }
+    // -------------------------------------------
 
     // ESTADO
     let state = {
@@ -50,18 +63,23 @@ document.addEventListener('DOMContentLoaded', () => {
         godMode: false,
         preguntasExamenFinal: [],
         timerInterval: null,
-        // NUEVO: Control de flashcards giradas en la sesión actual
         flashcardsSession: new Set() 
     };
 
-    if (!SLUG || !USER || !TOKEN) { window.location.href = 'index.html'; return; }
-
-    // Init UI
+    // Configuración visual inicial (Solo si estamos en modo examen/slug)
     const loginOverlay = document.getElementById('login-overlay');
     if(loginOverlay) loginOverlay.style.display = 'none';
+    
     document.getElementById('app-container').style.display = 'block';
-    document.getElementById('dashboard-view').style.display = 'none';
-    document.getElementById('exam-view').style.display = 'flex';
+    
+    // Ocultamos dashboard y mostramos examen
+    const dashView = document.getElementById('dashboard-view');
+    if(dashView) dashView.style.display = 'none';
+    
+    const examView = document.getElementById('exam-view');
+    if(examView) examView.style.display = 'flex';
+
+    // Footer visible
     const footer = document.getElementById('app-footer');
     if(footer) footer.style.display = 'block';
 

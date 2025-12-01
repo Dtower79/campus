@@ -1,12 +1,9 @@
-/* --- SUSTITUIR TODO EL CONTENIDO DE js/renderitzadorCurs.js POR ESTE --- */
-
 document.addEventListener('DOMContentLoaded', () => {
 
     // ========================================================================
     // 1. HELPERS: PROCESAMIENTO DE TEXTO (Strapi v5)
     // ========================================================================
     
-    // Convierte Rich Text de Strapi a HTML para mostrar (Teoría/Programa)
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
@@ -29,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Array.isArray(content)) {
             return content.map(block => {
                 const text = extractText(block.children);
-                if (!text.trim()) return ''; // Saltar bloques vacíos
+                if (!text.trim()) return ''; 
                 
                 if (block.type === 'heading') return `<h${block.level || 3}>${text}</h${block.level || 3}>`;
                 if (block.type === 'list') {
@@ -41,30 +38,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<p>${text}</p>`;
             }).join('');
         }
-        return JSON.stringify(content); // Fallback
+        return JSON.stringify(content); 
     }
 
-    // NUEVO: Extractor estricto de texto plano para Flashcards
     function extraerTextoPlano(content) {
         if (!content) return "Text no disponible";
-        if (typeof content === 'string') return content; // Ya es texto
-
-        // Si es array de bloques de Strapi
+        if (typeof content === 'string') return content; 
         if (Array.isArray(content)) {
             return content.map(block => {
                 if (block.children) {
-                    return block.children
-                        .map(child => child.text || '')
-                        .join('');
+                    return block.children.map(child => child.text || '').join('');
                 }
                 return '';
             }).join(' ').replace(/\s+/g, ' ').trim();
         }
-        
-        // Si es objeto
-        if (typeof content === 'object') {
-            return JSON.stringify(content);
-        }
+        if (typeof content === 'object') return JSON.stringify(content);
         return String(content);
     }
 
@@ -80,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         matriculaId: null,
         curso: null,
         progreso: {},
-        currentModuleIndex: -1, // -1: Intro, 1000: Glossari, 999: Examen Final
+        currentModuleIndex: -1,
         currentView: 'intro',
         respuestasTemp: {},
         testEnCurso: false,
@@ -95,13 +83,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Inicialización UI
     const loginOverlay = document.getElementById('login-overlay');
     if (loginOverlay) loginOverlay.style.display = 'none';
     document.getElementById('app-container').style.display = 'block';
     document.getElementById('dashboard-view').style.display = 'none';
     document.getElementById('exam-view').style.display = 'flex';
-    document.getElementById('app-footer').style.display = 'block'; // Footer visible
+    document.getElementById('app-footer').style.display = 'block';
 
     init();
 
@@ -110,6 +97,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (container) container.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
         try {
             await cargarDatos();
+            // Corrección defensiva: Asegurar que modulos existe antes de inicializar progreso
+            if (!state.curso.modulos) state.curso.modulos = [];
+
             if (!state.progreso || Object.keys(state.progreso).length === 0) {
                 await inicializarProgresoEnStrapi();
             }
@@ -117,12 +107,11 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMainContent();
         } catch (e) {
             console.error(e);
-            if (container) container.innerHTML = `<div class="dashboard-card" style="border-top:4px solid red; text-align:center;"><h3>Error</h3><p>${e.message}</p><button class="btn-secondary" onclick="window.location.href='index.html'">Tornar</button></div>`;
+            if (container) container.innerHTML = `<div class="dashboard-card" style="border-top:4px solid red; text-align:center;"><h3>Error al carregar</h3><p>${e.message}</p><button class="btn-secondary" onclick="window.location.href='index.html'">Tornar a l'inici</button></div>`;
         }
     }
 
     async function cargarDatos() {
-        // Query optimizada para Strapi v5
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
@@ -136,37 +125,48 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, {
             headers: { 'Authorization': `Bearer ${TOKEN}` }
         });
+        
+        if (!res.ok) throw new Error(`Error API: ${res.status}`);
+        
         const json = await res.json();
 
-        if (!json.data || json.data.length === 0) throw new Error("No estàs matriculat en aquest curs.");
+        if (!json.data || json.data.length === 0) throw new Error("No s'ha trobat la matrícula o el curs.");
 
         const mat = json.data[0];
         state.matriculaId = mat.documentId || mat.id;
         state.curso = mat.curs;
+        
+        // CORRECCIÓN: Si el curso existe pero no tiene módulos, Strapi puede devolver null. Forzamos array vacío.
+        if (!state.curso.modulos) state.curso.modulos = [];
+        
         state.progreso = mat.progres_detallat || {};
     }
 
     async function inicializarProgresoEnStrapi() {
+        // CORRECCIÓN: Protección contra undefined
+        const modulosSafe = state.curso.modulos || [];
+        
         const nuevoProgreso = {
-            modulos: state.curso.modulos.map(() => ({ aprobado: false, nota: 0, intentos: 0 })),
+            modulos: modulosSafe.map(() => ({ aprobado: false, nota: 0, intentos: 0 })),
             examen_final: { aprobado: false, nota: 0, intentos: 0 }
         };
         await guardarProgreso(nuevoProgreso);
     }
 
     async function guardarProgreso(progresoObj) {
-        let totalModulos = state.curso.modulos ? state.curso.modulos.length : 0;
+        // CORRECCIÓN: Protección contra undefined
+        const modulosSafe = state.curso.modulos || [];
+        let totalModulos = modulosSafe.length;
+        
         let aprobados = 0;
         if (progresoObj.modulos) {
             aprobados = progresoObj.modulos.filter(m => m.aprobado).length;
         }
-        // Cálculo de %: 90% módulos + 10% examen final (simplificado)
+        
         let porcentaje = totalModulos > 0 ? Math.round((aprobados / totalModulos) * 100) : 0;
         if (progresoObj.examen_final && progresoObj.examen_final.aprobado) porcentaje = 100;
 
         const payload = { data: { progres_detallat: progresoObj, progres: porcentaje } };
-        
-        // Si llega al 100%, marcamos como completado
         if(porcentaje === 100) payload.data.estat = 'completat';
 
         await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, {
@@ -206,17 +206,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. LÓGICA UI & SIDEBAR
     // ========================================================================
     
-    // Toggle para el acordeón del menú lateral
     window.toggleAccordion = function(headerElement) {
         const group = headerElement.parentElement;
-        // Si está bloqueado y no es profesor, no hace nada
         if (group.classList.contains('group-locked') && !state.godMode) return;
-        
-        // Cerrar otros (opcional, estilo acordeón estricto)
-        /* document.querySelectorAll('.sidebar-module-group').forEach(g => {
-            if(g !== group) g.classList.remove('open');
-        }); */
-        
         group.classList.toggle('open');
     };
 
@@ -250,7 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </label></div>`;
         }
 
-        // 1. PROGRAMA
         const isIntroActive = state.currentModuleIndex === -1;
         html += `<div class="sidebar-module-group ${isIntroActive ? 'open' : ''}">
             <div class="sidebar-module-title" onclick="toggleAccordion(this)">
@@ -261,40 +252,49 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>`;
 
-        // 2. MÓDULOS
-        state.curso.modulos.forEach((mod, idx) => {
-            // Lógica de bloqueo: Bloqueado si el anterior no está aprobado (excepto el 1º)
-            let isLocked = false;
-            if (idx > 0) {
-                const prevMod = state.progreso.modulos[idx - 1];
-                if (!prevMod || !prevMod.aprobado) isLocked = true;
-            }
-            if (state.godMode) isLocked = false;
+        // CORRECCIÓN CRÍTICA: Asegurarse de que modulos existe antes de hacer forEach
+        const modulosSafe = state.curso.modulos || [];
 
-            const modProgreso = state.progreso.modulos[idx];
-            const check = (modProgreso && modProgreso.aprobado) ? '<i class="fa-solid fa-check" style="color:green; margin-left:5px;"></i>' : '';
-            const isOpen = (state.currentModuleIndex === idx);
-            const groupClass = isLocked ? 'group-locked' : '';
+        if (modulosSafe.length === 0) {
+            html += `<div class="sidebar-module-group">
+                <div class="sidebar-module-title" style="color:#999; cursor:default;">
+                    <span><i class="fa-regular fa-folder"></i> Sense contingut</span>
+                </div>
+            </div>`;
+        } else {
+            modulosSafe.forEach((mod, idx) => {
+                let isLocked = false;
+                if (idx > 0) {
+                    const prevMod = state.progreso.modulos ? state.progreso.modulos[idx - 1] : null;
+                    if (!prevMod || !prevMod.aprobado) isLocked = true;
+                }
+                if (state.godMode) isLocked = false;
 
-            html += `<div class="sidebar-module-group ${groupClass} ${isOpen ? 'open' : ''}">
-                    <div class="sidebar-module-title" onclick="toggleAccordion(this)">
-                        <span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span>
-                    </div>
-                    <div class="sidebar-sub-menu">`;
+                const modProgreso = state.progreso.modulos ? state.progreso.modulos[idx] : null;
+                const check = (modProgreso && modProgreso.aprobado) ? '<i class="fa-solid fa-check" style="color:green; margin-left:5px;"></i>' : '';
+                const isOpen = (state.currentModuleIndex === idx);
+                const groupClass = isLocked ? 'group-locked' : '';
 
-            html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
-            
-            if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
-                html += renderSubLink(idx, 'flashcards', '🔄 Targetes de Repàs', isLocked);
-            }
+                html += `<div class="sidebar-module-group ${groupClass} ${isOpen ? 'open' : ''}">
+                        <div class="sidebar-module-title" onclick="toggleAccordion(this)">
+                            <span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span>
+                        </div>
+                        <div class="sidebar-sub-menu">`;
 
-            const intentos = modProgreso ? modProgreso.intentos : 0;
-            html += renderSubLink(idx, 'test', `📝 Test Avaluació (${intentos}/2)`, isLocked);
-            
-            html += `</div></div>`;
-        });
+                html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
+                
+                if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
+                    html += renderSubLink(idx, 'flashcards', '🔄 Targetes de Repàs', isLocked);
+                }
 
-        // 3. GLOSARI
+                const intentos = modProgreso ? modProgreso.intentos : 0;
+                html += renderSubLink(idx, 'test', `📝 Test Avaluació (${intentos}/2)`, isLocked);
+                
+                html += `</div></div>`;
+            });
+        }
+
+        // GLOSARI
         html += `<div class="sidebar-module-group ${state.currentModuleIndex === 1000 ? 'open' : ''}" style="border-top:1px solid #eee; margin-top:10px;">
             <div class="sidebar-module-title" onclick="toggleAccordion(this)">
                 <span><i class="fa-solid fa-book-bookmark"></i> Recursos</span>
@@ -304,10 +304,10 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>`;
 
-        // 4. EXAMEN FINAL
-        // Se desbloquea si todos los módulos están aprobados
-        const allModulesPassed = state.progreso.modulos.every(m => m.aprobado);
-        const finalLocked = !state.godMode && !allModulesPassed;
+        // EXAMEN FINAL
+        // Corrección: protección si no hay módulos
+        const allModulesPassed = (modulosSafe.length > 0) && (state.progreso.modulos && state.progreso.modulos.every(m => m.aprobado));
+        const finalLocked = !state.godMode && !allModulesPassed && (modulosSafe.length > 0);
 
         html += `<div class="sidebar-module-group ${finalLocked ? 'group-locked' : ''} ${state.currentModuleIndex === 999 ? 'open' : ''}" style="margin-top:20px; border-top:2px solid var(--brand-blue);">
                 <div class="sidebar-module-title" onclick="toggleAccordion(this)">
@@ -322,9 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderSubLink(modIdx, viewName, label, locked) {
-        // Corrección de comparación de tipos (String vs Number)
         const isActive = (String(state.currentModuleIndex) === String(modIdx) && state.currentView === viewName);
-        
         let classes = 'sidebar-subitem ';
         if (locked) classes += 'locked ';
         if (isActive) classes += 'active ';
@@ -343,27 +341,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderMainContent() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
-        
-        // Reset
         gridRight.innerHTML = '';
         gridRight.className = '';
         document.body.classList.remove('exam-active');
         detenerCronometro();
 
-        // --- VISTAS ESPECIALES ---
-        
-        // 1. PROGRAMA
         if (state.currentView === 'intro') {
             container.innerHTML = `
                 <h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2>
                 <div class="module-content-text" style="margin-top:20px;">
-                    ${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}
+                    ${parseStrapiRichText(state.curso.descripcio || "Benvingut al curs. Selecciona un mòdul al menú lateral per començar.")}
                 </div>`;
             renderTools(gridRight, { titol: 'Inici' }, false);
             return;
         }
 
-        // 2. GLOSARIO
         if (state.currentView === 'glossary') {
             const glossariTxt = state.curso.glossari ? parseStrapiRichText(state.curso.glossari) : "<p>No hi ha termes definits.</p>";
             container.innerHTML = `
@@ -375,17 +367,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 3. EXAMEN FINAL
         if (state.currentView === 'examen_final') {
             renderExamenFinal(container);
-            renderTools(gridRight, { titol: 'Examen Final' }, true); // True para mostrar solo breadcrumbs mínimos
+            renderTools(gridRight, { titol: 'Examen Final' }, true);
             return;
         }
 
-        // --- VISTAS DE MÓDULO (TEORIA, FLASHCARDS, TEST) ---
+        // PROTECCIÓN MÓDULOS VACÍOS
+        const modulosSafe = state.curso.modulos || [];
+        const mod = modulosSafe[state.currentModuleIndex];
         
-        const mod = state.curso.modulos[state.currentModuleIndex];
-        if(!mod) { container.innerHTML = "<p>Error al carregar mòdul.</p>"; return; }
+        if(!mod) { 
+            container.innerHTML = "<p>Contingut no disponible.</p>"; 
+            return; 
+        }
 
         if (state.currentView === 'teoria') {
             renderTeoria(container, mod);
@@ -398,7 +393,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (state.currentView === 'test') {
             const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
             const hayDatos = Object.keys(savedData).length > 0;
-            const aprobado = state.progreso.modulos[state.currentModuleIndex].aprobado;
+            // Protección por si progres.modulos no está sincronizado
+            const modProg = (state.progreso.modulos && state.progreso.modulos[state.currentModuleIndex]) 
+                             ? state.progreso.modulos[state.currentModuleIndex] 
+                             : { aprobado: false, nota: 0, intentos: 0 };
+                             
+            const aprobado = modProg.aprobado;
 
             if ((state.testEnCurso || hayDatos) && !aprobado) {
                 state.testEnCurso = true;
@@ -411,12 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ========================================================================
-    // 6. RENDERIZADORES DE CONTENIDO
-    // ========================================================================
-
     function renderTools(container, mod, hideTools) {
-        // Breadcrumbs
         let breadHtml = `<div class="breadcrumbs">
             <a href="#" onclick="window.tornarAlDashboard(); return false;">Inici</a>
             <span class="breadcrumb-separator"><i class="fa-solid fa-angle-right"></i></span>
@@ -441,20 +436,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             </div>`;
         }
-
         container.innerHTML = breadHtml + toolsHtml;
 
         if(!hideTools) {
-            document.getElementById('quick-notes').addEventListener('input', (e) => {
-                localStorage.setItem(`sicap_notes_${USER.id}_${state.curso.slug}`, e.target.value);
-            });
+            const txt = document.getElementById('quick-notes');
+            if(txt) txt.addEventListener('input', (e) => localStorage.setItem(`sicap_notes_${USER.id}_${state.curso.slug}`, e.target.value));
         }
     }
 
     function renderTeoria(container, mod) {
         let html = `<h2>${mod.titol}</h2>`;
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
-        
         if (mod.material_pdf && mod.material_pdf.length > 0) {
             html += `<div class="materials-section"><span class="materials-title">Documents</span>`;
             mod.material_pdf.forEach(pdf => {
@@ -466,7 +458,6 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
-    /* --- FLASHCARDS GAMIFICADAS CORREGIDAS --- */
     function renderFlashcards(container, cards) {
         if (!cards || cards.length === 0) {
             container.innerHTML = '<p>No hi ha targetes de repàs en aquest mòdul.</p>';
@@ -474,60 +465,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let html = `<h3><i class="fa-solid fa-layer-group"></i> Targetes de Repàs</h3><div class="flashcards-grid-view">`;
-        
-        // Palabras para rellenar (distractores)
         const commonDistractors = ["Protocol", "Seguretat", "Règim", "Junta", "Director", "Informe", "Article", "Llei", "Decret", "Centre", "DERT", "Aïllament"];
 
         cards.forEach((card, idx) => {
-            // 1. Limpiar texto de respuesta (Quitar HTML, saltos de línea)
             let rawText = extraerTextoPlano(card.resposta);
-            let cleanText = rawText.replace(/\s+/g, ' ').trim(); // Unificar espacios
+            let cleanText = rawText.replace(/\s+/g, ' ').trim();
             
-            // 2. Lógica de hueco (Cloze)
             let words = cleanText.split(' ');
             let targetWord = "";
             let targetIndex = -1;
 
-            // Buscar palabra candidata (>4 letras, evitar artículos cortos)
             for(let i=0; i<words.length; i++) {
-                let w = words[i].replace(/[.,;:"'()]/g, ''); // Limpiar puntuación
+                let w = words[i].replace(/[.,;:"'()]/g, '');
                 if(w.length > 4) {
-                    targetWord = words[i]; // Guardar con puntuación original si la tiene
+                    targetWord = words[i];
                     targetIndex = i;
                     break; 
                 }
             }
-            // Fallback si no hay palabras largas
             if(targetIndex === -1 && words.length > 0) {
                 targetWord = words[words.length-1];
                 targetIndex = words.length-1;
             }
 
-            let wordClean = targetWord.replace(/[.,;:"'()]/g, ''); // La palabra limpia para comparar
+            let wordClean = targetWord.replace(/[.,;:"'()]/g, '');
             
-            // 3. Crear frase con hueco
-            // Construimos el HTML de la pregunta poniendo el span en el lugar de la palabra
             let questionHtml = words.map((w, i) => {
                 if(i === targetIndex) return `<span class="cloze-blank">_______</span>`;
                 return w;
             }).join(' ');
 
-            // 4. Generar Opciones
             let options = [wordClean];
-            // Añadir 2 distractores
             while(options.length < 3) {
                 let rand = commonDistractors[Math.floor(Math.random() * commonDistractors.length)];
                 if(!options.includes(rand)) options.push(rand);
             }
-            options.sort(() => Math.random() - 0.5); // Barajar
+            options.sort(() => Math.random() - 0.5);
 
-            // 5. Generar HTML Botones
-            // Usamos escape para evitar problemas con comillas
             let btnsHtml = options.map(opt => {
                 return `<button class="btn-flash-option" onclick="checkFlashcard(this, '${opt.replace(/'/g, "\\'")}', '${wordClean.replace(/'/g, "\\'")}')">${opt}</button>`;
             }).join('');
 
-            // 6. Contenido de la cara trasera
             let backContent = '';
             if(state.godMode) {
                 backContent = `<div style="padding:20px; color:white;">${cleanText}</div>`;
@@ -553,22 +531,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>`;
         });
-
         html += `</div>`;
         container.innerHTML = html;
     }
 
-    // Función global para verificar respuesta (necesita estar en window)
     window.checkFlashcard = function(btn, selected, correct) {
-        event.stopPropagation(); // Evitar que la carta gire
-        
+        event.stopPropagation();
         const container = btn.closest('.flashcard-game-container');
         const blank = container.querySelector('.cloze-blank');
         const allBtns = container.querySelectorAll('.btn-flash-option');
-
-        // Desactivar botones
         allBtns.forEach(b => b.disabled = true);
-
         if(selected === correct) {
             btn.classList.add('correct');
             blank.innerText = selected;
@@ -576,12 +548,9 @@ document.addEventListener('DOMContentLoaded', () => {
             blank.classList.add('cloze-blank', 'filled-correct');
         } else {
             btn.classList.add('wrong');
-            // Marcar la correcta
             allBtns.forEach(b => { if(b.innerText === correct) b.classList.add('correct'); });
-            
             blank.innerText = selected;
             blank.classList.add('filled-wrong');
-            // Después de un momento, mostrar la real
             setTimeout(() => {
                 blank.innerText = correct;
                 blank.style.color = '#fff';
@@ -590,9 +559,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- TEST NORMAL ---
     function renderTestIntro(container, mod, modIdx) {
-        const prog = state.progreso.modulos[modIdx];
+        const prog = (state.progreso.modulos && state.progreso.modulos[modIdx]) 
+                      ? state.progreso.modulos[modIdx] 
+                      : { aprobado: false, nota: 0, intentos: 0 };
+
         if(prog.aprobado) {
             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;">
                 <h2 style="color:green">Aprovat! ✅</h2>
@@ -626,11 +597,8 @@ document.addEventListener('DOMContentLoaded', () => {
         mod.preguntes.forEach((preg, i) => {
             const qId = `q-${i}`;
             const savedVal = state.respuestasTemp[qId];
-            
-            // Grid lateral
             gridHtml += `<div class="grid-item ${savedVal !== undefined ? 'answered' : ''}" onclick="document.getElementById('card-${qId}').scrollIntoView({behavior:'smooth'})">${i+1}</div>`;
 
-            // Card Pregunta
             html += `<div class="question-card" id="card-${qId}">
                 <div class="q-header">Pregunta ${i+1}</div>
                 <div class="q-text">${preg.text}</div>
@@ -656,13 +624,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.selectOption = function(qId, valIdx, storageKey) {
         state.respuestasTemp[qId] = valIdx;
         guardarRespuestaLocal(storageKey, qId, valIdx);
-        // Actualizar visual
         const card = document.getElementById(`card-${qId}`);
         card.querySelectorAll('.option-item').forEach((el, idx) => {
             if(idx === valIdx) { el.classList.add('selected'); el.querySelector('input').checked = true; }
             else { el.classList.remove('selected'); el.querySelector('input').checked = false; }
         });
-        // Actualizar grid
         const qNum = parseInt(qId.split('-')[1]);
         const gridItems = document.querySelectorAll('.grid-item');
         if(gridItems[qNum]) gridItems[qNum].classList.add('answered');
@@ -671,7 +637,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.entregarTest = function() {
         window.mostrarModalConfirmacion("Entregar", "Segur que vols finalitzar?", async () => {
             document.getElementById('custom-modal').style.display = 'none';
-            
             const pregs = window.currentQuestions;
             let hits = 0;
             pregs.forEach((p, i) => {
@@ -682,9 +647,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const nota = parseFloat(((hits / pregs.length) * 10).toFixed(2));
             const aprobado = nota >= 7.0;
-
-            // Guardar
             const modIdx = state.currentModuleIndex;
+            
+            // Asegurar objeto de progreso
+            if(!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { intentos:0, nota:0, aprobado:false };
+
             state.progreso.modulos[modIdx].intentos++;
             state.progreso.modulos[modIdx].nota = Math.max(state.progreso.modulos[modIdx].nota, nota);
             if(aprobado) state.progreso.modulos[modIdx].aprobado = true;
@@ -692,8 +659,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await guardarProgreso(state.progreso);
             limpiarRespuestasLocales(`test_mod_${modIdx}`);
             state.testEnCurso = false;
-
-            // Feedback
             mostrarFeedback(pregs, state.respuestasTemp, nota, aprobado);
         });
     }
@@ -722,7 +687,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(idx == userAns && idx !== correctIdx) cls += ' user-wrong selected';
                 html += `<div class="${cls}"><span>${o.text}</span></div>`;
             });
-
             if(p.explicacio) html += `<div class="explanation-box">${parseStrapiRichText(p.explicacio)}</div>`;
             html += `</div></div>`;
         });
@@ -730,9 +694,8 @@ document.addEventListener('DOMContentLoaded', () => {
         window.scrollTo(0,0);
     }
 
-    // --- EXAMEN FINAL (Simplificado para brevedad, misma lógica que Test) ---
     function renderExamenFinal(container) {
-        const finalData = state.progreso.examen_final;
+        const finalData = state.progreso.examen_final || { aprobado:false, nota:0, intentos:0 };
         if(finalData.aprobado) {
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;">
                 <h1 style="color:green">ENHORABONA! 🎉</h1>
@@ -746,8 +709,6 @@ document.addEventListener('DOMContentLoaded', () => {
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red;"><h2 style="color:red">Suspens</h2></div>`;
              return;
         }
-
-        // Si no está aprobado ni bloqueado:
         if(state.testEnCurso) {
             renderFinalQuestions(container);
         } else {
@@ -761,21 +722,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.iniciarExamenFinal = function() {
         if(!state.curso.examen_final || state.curso.examen_final.length === 0) return alert("Error dades");
-        state.preguntasExamenFinal = state.curso.examen_final; // Aquí se podría barajar
+        state.preguntasExamenFinal = state.curso.examen_final; 
         state.testEnCurso = true;
         state.testStartTime = Date.now();
         renderMainContent();
     }
 
     function renderFinalQuestions(container) {
-        // Renderizado similar a renderTestQuestions pero usando state.preguntasExamenFinal
-        // Y activando el cronómetro en el sidebar
         let html = `<h3>Examen Final</h3>`;
         const qGrid = document.getElementById('quiz-grid');
         qGrid.innerHTML = `<div id="exam-timer" class="timer-box">30:00</div><div id="grid-inner"></div>`;
-        
         iniciarCronometro();
-
         state.preguntasExamenFinal.forEach((p, i) => {
             html += `<div class="question-card" id="card-final-${i}">
                 <div class="q-header">P${i+1}</div>
@@ -791,8 +748,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         html += `<div class="btn-centered-container"><button class="btn-primary" onclick="entregarExamenFinal()">Finalitzar</button></div>`;
         container.innerHTML = html;
-        
-        // Grid numbers
         const gridInner = document.getElementById('grid-inner');
         state.preguntasExamenFinal.forEach((_, i) => {
              const d = document.createElement('div');
@@ -838,13 +793,11 @@ document.addEventListener('DOMContentLoaded', () => {
         await guardarProgreso(state.progreso);
         state.testEnCurso = false;
         limpiarRespuestasLocales('examen_final');
-        renderMainContent(); // Mostrará pantalla de éxito o fallo
+        renderMainContent(); 
     }
 
-    // Modal de dudas
     window.obrirFormulariDubte = function(tema) {
         window.mostrarModalConfirmacion("Dubte", `Enviar dubte sobre: ${tema}?`, () => {
-             // Lógica de envío simulada
              document.getElementById('custom-modal').style.display = 'none';
              alert("Dubte enviat al professor.");
         });

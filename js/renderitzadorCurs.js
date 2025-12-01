@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
                 const flippedIndices = getFlippedCards(idx);
                 const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
-                const estadoRemoto = state.progreso.modulos[idx] ? state.progreso.modulos[idx].flashcards_done : false;
+                const estadoRemoto = state.progreso.modulos && state.progreso.modulos[idx] ? state.progreso.modulos[idx].flashcards_done : false;
                 if (localmenteCompletado && !estadoRemoto) {
                     if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
                     state.progreso.modulos[idx].flashcards_done = true;
@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (indexModulo === 0) return false; 
         const prevIdx = indexModulo - 1;
         const prevProgreso = state.progreso.modulos ? state.progreso.modulos[prevIdx] : null;
-        const prevModuloData = state.curso.moduls[prevIdx];
+        const prevModuloData = (state.curso.moduls || [])[prevIdx];
         if (!prevProgreso) return true; 
         const testOk = prevProgreso.aprobado === true;
         const tieneFlashcards = prevModuloData && prevModuloData.targetes_memoria && prevModuloData.targetes_memoria.length > 0;
@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.godMode) return true; 
         if (!state.progreso.modulos) return false;
         return state.progreso.modulos.every((m, idx) => {
-            const modObj = state.curso.moduls[idx];
+            const modObj = (state.curso.moduls || [])[idx];
             const tieneFlash = modObj && modObj.targetes_memoria && modObj.targetes_memoria.length > 0;
             const flashOk = tieneFlash ? m.flashcards_done : true;
             return m.aprobado && flashOk;
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
         
-        const isCompletedDB = state.progreso.modulos[modIdx].flashcards_done === true;
+        const isCompletedDB = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx].flashcards_done === true : false;
         const flippedIndices = getFlippedCards(modIdx);
         const isReallyCompleted = isCompletedDB || (flippedIndices.length >= cards.length);
 
@@ -536,6 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             data-correct="${safeTarget}" 
                             data-idx="${idx}"
                             data-mod="${modIdx}"
+                            data-total="${cards.length}"
                             onclick="checkFlashcardFromDOM(event, this)">${opt}</button>`;
                 }).join('');
                 backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
@@ -574,11 +575,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const encodedCorrect = btn.getAttribute('data-correct');
         const cardIdx = parseInt(btn.getAttribute('data-idx'));
         const modIdx = parseInt(btn.getAttribute('data-mod'));
+        const totalCards = parseInt(btn.getAttribute('data-total')); // LEEMOS TOTAL DESDE EL DOM PARA EVITAR ERROR DE STATE
 
         const selected = decodeURIComponent(encodedSelected);
         const correct = decodeURIComponent(encodedCorrect);
         
-        const totalCards = state.curso.modulos[modIdx].targetes_memoria.length;
         const count = addFlippedCard(modIdx, cardIdx);
         
         const container = btn.closest('.flashcard-game-container');
@@ -611,6 +612,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function actualizarProgresoFlashcards(modIdx) {
         const p = state.progreso;
+        if (!p.modulos) p.modulos = [];
+        if (!p.modulos[modIdx]) p.modulos[modIdx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
+
         if (!p.modulos[modIdx].flashcards_done) {
             p.modulos[modIdx].flashcards_done = true;
             
@@ -618,7 +622,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.mostrarModalError("🎉 Has completat totes les targetes! Mòdul següent desbloquejat.");
                 setTimeout(() => {
                     renderSidebar(); 
-                    renderFlashcards(document.getElementById('moduls-container'), state.curso.modulos[modIdx].targetes_memoria, modIdx);
+                    // No llamamos a renderFlashcards de nuevo para no perder el feedback visual instantáneo
+                    // Pero la sidebar ya estará verde
                 }, 500);
             });
         }

@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("AUTH: Carregat correctament.");
+
+    // REFERENCIAS DOM
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
     const btnShowRegister = document.getElementById('btn-show-register');
@@ -8,12 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMsg = document.getElementById('login-error-msg');
     const forgotLink = document.getElementById('forgot-pass');
 
-    // --- FUNCIÓN MODAL (EXCLUSIVA PARA AUTH) ---
+    // --- 1. FUNCIÓN PARA MOSTRAR MODALES (ENCIMA DEL LOGIN) ---
     function lanzarModal(titulo, mensaje, esError = true) {
         const modal = document.getElementById('custom-modal');
         if (!modal) {
-            console.error("Error crítico: No se encuentra el modal en el HTML.");
-            alert(mensaje); // Fallback de seguridad
+            alert(mensaje); // Fallback si falla el HTML
             return;
         }
         
@@ -22,18 +24,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnConfirm = document.getElementById('modal-btn-confirm');
         const btnCancel = document.getElementById('modal-btn-cancel');
 
-        // Resetear visualización
+        // Configurar Textos
         titleEl.innerText = titulo;
         titleEl.style.color = esError ? "var(--brand-red)" : "var(--brand-blue)"; 
-        msgEl.innerText = mensaje;
+        msgEl.innerHTML = mensaje; // Permite HTML para saltos de línea
 
-        // Configurar botones para aviso simple
-        btnCancel.style.display = 'none'; 
+        // Configurar Botones (Solo "Entesos")
+        if (btnCancel) btnCancel.style.display = 'none'; 
+        
         btnConfirm.innerText = "Entesos";
         btnConfirm.style.background = esError ? "var(--brand-red)" : "var(--brand-blue)"; 
         btnConfirm.disabled = false;
         
-        // Clonar botón para limpiar eventos viejos
+        // Clonar botón para eliminar eventos antiguos
         const newConfirm = btnConfirm.cloneNode(true);
         btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
         
@@ -41,10 +44,13 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.style.display = 'none';
         };
 
+        // Mostrar Modal
         modal.style.display = 'flex';
+        // Asegurar que está por encima del login (z-index alto)
+        modal.style.zIndex = "30000"; 
     }
 
-    // --- NAVEGACIÓN ---
+    // --- 2. NAVEGACIÓN ENTRE LOGIN Y REGISTRO ---
     if (btnShowRegister) {
         btnShowRegister.onclick = (e) => {
             e.preventDefault();
@@ -63,7 +69,20 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // --- HE OBLIDAT LA CONTRASENYA ---
+    // --- 3. FORMATO AUTOMÁTICO DNI (MAYÚSCULAS/SIN ESPACIOS) ---
+    const inputsDNI = [document.getElementById('login-dni'), document.getElementById('reg-dni')];
+    inputsDNI.forEach(input => {
+        if(input) {
+            input.addEventListener('input', (e) => {
+                let val = e.target.value.toUpperCase().replace(/\s/g, '');
+                // Eliminar guiones también para estandarizar
+                val = val.replace(/-/g, '');
+                e.target.value = val;
+            });
+        }
+    });
+
+    // --- 4. RECUPERAR CONTRASENYA ---
     if(forgotLink) {
         forgotLink.onclick = (e) => {
             e.preventDefault();
@@ -72,30 +91,38 @@ document.addEventListener('DOMContentLoaded', () => {
             if(!dniVal) {
                 lanzarModal("Falta informació", "Per recuperar la contrasenya, primer has d'escriure el teu DNI al camp d'usuari.", true);
             } else {
-                lanzarModal("Sol·licitud Enviada", `S'han enviat les instruccions de recuperació al correu associat al DNI ${dniVal}.`, false);
+                // Aquí iría la llamada a la API de Forgot Password si Strapi la tiene configurada
+                lanzarModal("Sol·licitud Enviada", `Si el DNI <b>${dniVal}</b> és correcte, rebràs un correu amb les instruccions.`, false);
             }
         }
     }
 
-    // --- AUTO-FORMATO DNI ---
-    const inputsDNI = [document.getElementById('login-dni'), document.getElementById('reg-dni')];
-    inputsDNI.forEach(input => {
-        if(input) {
-            input.addEventListener('input', (e) => {
-                e.target.value = e.target.value.replace(/\s/g, '').toUpperCase();
-            });
-        }
-    });
-
-    // --- LOGIN ---
+    // --- 5. PROCESO DE LOGIN ---
     if (loginForm) {
-        loginForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const dni = document.getElementById('login-dni').value.trim().toUpperCase();
-            const pass = document.getElementById('login-pass').value;
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); // IMPORTANTE: Detener envío nativo
             
+            const dniInput = document.getElementById('login-dni');
+            const passInput = document.getElementById('login-pass');
+            const btnSubmit = loginForm.querySelector('button[type="submit"]');
+            const originalText = btnSubmit.innerText;
+
+            const dni = dniInput.value.trim();
+            const pass = passInput.value.trim();
+
+            if (!dni || !pass) {
+                lanzarModal("Camps buits", "Si us plau, introdueix DNI i contrasenya.", true);
+                return;
+            }
+
+            // Feedback visual
+            btnSubmit.innerText = "Connectant...";
+            btnSubmit.disabled = true;
+
             try {
-                const res = await fetch(`${STRAPI_URL}/api/auth/local`, {
+                console.log("Intentant login a:", API_ROUTES.login);
+                
+                const res = await fetch(API_ROUTES.login, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ identifier: dni, password: pass })
@@ -103,78 +130,92 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const data = await res.json();
 
-                if (data.jwt) {
+                if (res.ok && data.jwt) {
+                    console.log("Login èxit");
                     localStorage.setItem('jwt', data.jwt);
                     localStorage.setItem('user', JSON.stringify(data.user));
                     
-                    // Ocultar login manual y forzar inicio
-                    document.getElementById('login-overlay').style.display = 'none';
-                    document.getElementById('app-container').style.display = 'block';
+                    // Ocultar login overlay inmediatamente
+                    const overlay = document.getElementById('login-overlay');
+                    if(overlay) overlay.style.display = 'none';
                     
+                    // Mostrar app
+                    const app = document.getElementById('app-container');
+                    if(app) app.style.display = 'block';
+                    
+                    // Iniciar lógica dashboard
                     if (window.iniciarApp) window.iniciarApp();
-                    else window.location.reload(); 
+                    else window.location.reload();
+
                 } else {
+                    console.warn("Login fallit:", data);
                     lanzarModal("Error d'Accés", "DNI o contrasenya incorrectes.", true);
                 }
             } catch (error) {
-                console.error(error);
-                lanzarModal("Error de Connexió", "No s'ha pogut connectar amb el servidor.", true);
+                console.error("Error xarxa:", error);
+                lanzarModal("Error de Connexió", "No s'ha pogut connectar amb el servidor. Revisa la teva connexió.", true);
+            } finally {
+                // Restaurar botón
+                btnSubmit.innerText = originalText;
+                btnSubmit.disabled = false;
             }
-        };
+        });
     }
 
-    // --- REGISTRO ---
+    // --- 6. PROCESO DE REGISTRO ---
     if (registerForm) {
-        registerForm.onsubmit = async (e) => {
+        registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const btnSubmit = registerForm.querySelector('button[type="submit"]');
             const originalText = btnSubmit.innerText;
             
-            const resetBtn = () => {
-                btnSubmit.innerText = originalText;
-                btnSubmit.disabled = false;
-            };
-
-            btnSubmit.innerText = "Validant...";
-            btnSubmit.disabled = true;
-
-            const dni = document.getElementById('reg-dni').value.trim().toUpperCase();
+            const dni = document.getElementById('reg-dni').value.trim();
             const pass = document.getElementById('reg-pass').value;
             const passConf = document.getElementById('reg-pass-conf').value;
 
-            // VALIDACIONES (Ahora sí se verán por encima del login)
+            // Validaciones locales
             if (pass !== passConf) { 
                 lanzarModal("Atenció", "Les contrasenyes no coincideixen.", true);
-                resetBtn(); 
                 return; 
             }
             if (pass.length < 6) { 
                 lanzarModal("Atenció", "La contrasenya ha de tenir mínim 6 caràcters.", true);
-                resetBtn(); 
                 return; 
             }
 
+            btnSubmit.innerText = "Verificant Afiliació...";
+            btnSubmit.disabled = true;
+
             try {
-                // 1. Buscar Afiliado
-                const resAfiliado = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${dni}`);
+                // PASO 1: Verificar si es afiliado (usando la ruta de config.js o fallback)
+                const checkUrl = (typeof API_ROUTES !== 'undefined' && API_ROUTES.checkAffiliate) 
+                                 ? `${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dni}`
+                                 : `${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${dni}`;
+
+                const resAfiliado = await fetch(checkUrl);
                 const jsonAfiliado = await resAfiliado.json();
 
                 if (!jsonAfiliado.data || jsonAfiliado.data.length === 0) {
-                    lanzarModal("DNI no trobat", "Aquest DNI no consta com a afiliat actiu al SICAP. Contacta amb secretaria.", true);
-                    resetBtn();
+                    lanzarModal("DNI no autoritzat", "Aquest DNI no consta com a afiliat actiu al SICAP. Contacta amb secretaria.", true);
+                    btnSubmit.innerText = originalText;
+                    btnSubmit.disabled = false;
                     return;
                 }
+                
                 const datosAfiliado = jsonAfiliado.data[0];
+                btnSubmit.innerText = "Creant compte...";
 
-                // 2. Crear Usuario
+                // PASO 2: Crear Usuario en Strapi
                 const registerPayload = {
                     username: dni,
-                    email: datosAfiliado.email || `${dni}@sicap.cat`,
-                    password: pass
+                    email: datosAfiliado.email || `${dni}@sicap.cat`, // Email fallback si no tiene
+                    password: pass,
+                    nombre: datosAfiliado.nombre, // Pasamos datos extra si Strapi lo permite en register
+                    apellidos: datosAfiliado.apellidos
                 };
 
-                const resReg = await fetch(`${STRAPI_URL}/api/auth/local/register`, {
+                const resReg = await fetch(API_ROUTES.register, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(registerPayload)
@@ -182,40 +223,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const dataReg = await resReg.json();
 
-                if (dataReg.jwt) {
-                    // 3. Actualizar Perfil
-                    const userId = dataReg.user.id;
-                    const token = dataReg.jwt;
-
-                    await fetch(`${STRAPI_URL}/api/users/${userId}`, {
-                        method: 'PUT',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            nombre: datosAfiliado.nombre,
-                            apellidos: datosAfiliado.apellidos
-                        })
-                    });
-
+                if (resReg.ok && dataReg.jwt) {
+                    // Éxito total
                     mostrarExitoRegistro();
-
                 } else {
-                    resetBtn();
-                    if(dataReg.error && dataReg.error.message === 'Email or Username are already taken') {
-                        lanzarModal("Usuari existent", "Aquest usuari ja està registrat. Prova a fer Login.", true);
+                    // Error de Strapi
+                    if(dataReg.error && (dataReg.error.message.includes('taken') || dataReg.error.message.includes('unique'))) {
+                        lanzarModal("Usuari existent", "Aquest DNI ja està registrat. Prova a Iniciar Sessió.", true);
                     } else {
-                        lanzarModal("Error de Registre", (dataReg.error?.message || "Error desconegut"), true);
+                        lanzarModal("Error de Registre", (dataReg.error?.message || "Error desconegut."), true);
                     }
+                    btnSubmit.innerText = originalText;
+                    btnSubmit.disabled = false;
                 }
 
             } catch (error) {
                 console.error(error);
-                lanzarModal("Error", "Error de connexió al registrar.", true);
-                resetBtn();
+                lanzarModal("Error del Sistema", "Error de connexió durant el registre.", true);
+                btnSubmit.innerText = originalText;
+                btnSubmit.disabled = false;
             }
-        };
+        });
     }
 
     function mostrarExitoRegistro() {

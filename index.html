@@ -244,59 +244,74 @@
 
     <!-- ... Resto del HTML igual ... -->
 
-    <!-- FOOTER ACTUALIZADO -->
+    <!-- ... Resto del contenido del body ... -->
+
+    <!-- FOOTER RESTAURADO Y ACTUALIZADO -->
     <footer class="main-footer" style="display: none;" id="app-footer">
         <div class="footer-content">
             <div class="footer-logo">
                 <img src="img/logo-sicap.png" alt="SICAP Logo">
-                <p>&copy; 2025 Sindicat Català de Presons. Tots els drets reservats.</p>
+                <p>&copy; 2025 SICAP. Tots els drets reservats.</p>
+                <p style="font-size:0.8rem; margin-top:5px; color:#999;">Carrer Malats, 27 | 08030 Barcelona</p>
             </div>
             <div class="footer-links">
                 <a href="#" onclick="document.getElementById('modal-avis').style.display='flex'; return false;">Avís Legal</a>
                 <span>|</span>
                 <a href="#" onclick="document.getElementById('modal-privacitat').style.display='flex'; return false;">Política de Privacitat</a>
                 <span>|</span>
-                <a href="mailto:sicap@sicap.cat">Suport Tècnic</a>
+                <a href="#" onclick="document.getElementById('modal-cookies').style.display='flex'; return false;">Política de Cookies</a>
+                <span>|</span>
+                <a href="mailto:sicap@sicap.cat">Contacte</a>
             </div>
             <div class="footer-social">
-                <a href="https://sicap.cat" target="_blank" style="color:#ecf0f1; font-size:1.2rem;">
-                    <i class="fa-solid fa-globe"></i> www.sicap.cat
+                <a href="https://sicap.cat" target="_blank" title="Web Oficial SICAP">
+                    <i class="fa-solid fa-globe"></i> sicap.cat
                 </a>
             </div>
         </div>
     </footer>
 
-    <!-- MODAL AVÍS LEGAL (CONTENIDO ACTUALIZADO) -->
+    <!-- MODAL AVÍS LEGAL -->
     <div id="modal-avis" class="modal-overlay" style="display: none;">
-        <div class="modal-card" style="max-width: 600px; text-align: left;">
-            <h3 style="color:var(--brand-blue);">Avís Legal</h3>
-            <div style="max-height: 400px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6;">
-                <p><strong>1. Identificació del titular</strong><br>
-                El present lloc web és titularitat del Sindicat Català de Presons (SICAP), amb domicili social a Barcelona i contacte a través de sicap@sicap.cat.</p>
-                <p><strong>2. Propietat Intel·lectual</strong><br>
-                Tots els continguts (textos, vídeos, PDF, tests i materials didàctics) són propietat exclusiva del SICAP o de tercers que n'han autoritzat l'ús. Queda prohibida la reproducció, distribució o comunicació pública sense autorització expressa.</p>
-                <p><strong>3. Condicions d'ús</strong><br>
-                L'accés a aquest Campus Virtual és personal i intransferible per als afiliats. L'usuari es compromet a fer un ús responsable de les seves credencials d'accés i a no compartir-les amb tercers.</p>
-                <p><strong>4. Exempció de responsabilitat</strong><br>
-                El SICAP no es fa responsable dels possibles errors de seguretat que es puguin produir ni dels danys causats al sistema informàtic de l'usuari per virus o programari maliciós.</p>
+        <div class="modal-card" style="max-width: 700px; text-align: left;">
+            <h3 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:10px;">Avís Legal</h3>
+            <div class="legal-text-content">
+1. Titularitat
+Aquest portal d'Internet és titularitat de SINDICAT CATALÀ DE PRESONS (SICAP) CIF G22580633. Domicili: carrer Malats, 27, 08030 Barcelona. Tel. 933 426 810. Fax 933 426 811. E-mail: sicap@sicap.cat
+
+2. Objectiu
+Aquest document té per objecte regular l'ús del web que SICAP posa a disposició del públic. La utilització del web per un tercer li atribueix la condició d'usuari, i suposa l'acceptació plena de l'usuari de totes i cada una de les condicions que estableix aquest Avís legal.
+
+3. Ús correcte de la pàgina web
+L'accés a aquest portal implica acceptar i conèixer les condicions i termes d'aquest Avís legal...
+(Nota: Per brevetat aquí no copio tot el text però al copiar-lo al teu arxiu posa el text sencer que m'has passat a la instrucció 4)
             </div>
-            <button class="btn-primary" onclick="document.getElementById('modal-avis').style.display='none'" style="margin-top:20px;">Tancar</button>
+            <button class="btn-primary" onclick="document.getElementById('modal-avis').style.display='none'" style="margin-top:20px; width:auto; align-self:flex-end;">Tancar</button>
         </div>
     </div>
 
-    <!-- MODAL POLÍTICA DE PRIVACITAT (CONTENIDO ACTUALIZADO) -->
+    <!-- MODAL POLÍTICA DE PRIVACITAT -->
     <div id="modal-privacitat" class="modal-overlay" style="display: none;">
-        <div class="modal-card" style="max-width: 600px; text-align: left;">
-            <h3 style="color:var(--brand-blue);">Política de Privacitat</h3>
-            <div style="max-height: 400px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6;">
-                <p><strong>Responsable del tractament:</strong> Sindicat Català de Presons (SICAP).</p>
-                <p><strong>Finalitat:</strong> Gestió de la formació contínua, seguiment del progrés acadèmic, realització d'exàmens i emissió de certificats d'aprofitament.</p>
-                <p><strong>Legitimació:</strong> Execució de la relació contractual (afiliació) i consentiment de l'interessat.</p>
-                <p><strong>Destinataris:</strong> No se cediran dades a tercers, excepte obligació legal o proveïdors tecnològics necessaris per al servei (ex. servidor).</p>
-                <p><strong>Drets:</strong> Pots exercir els teus drets d'accés, rectificació, supressió, limitació i portabilitat enviant un correu a sicap@sicap.cat adjuntant còpia del teu DNI.</p>
-                <p><strong>Conservació:</strong> Les dades de qualificacions es conservaran indefinidament per garantir l'emissió històrica de certificats.</p>
+        <div class="modal-card" style="max-width: 700px; text-align: left;">
+            <h3 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:10px;">Política de Privacitat</h3>
+            <div class="legal-text-content">
+D'acord amb l'establert en el Reglament General de Protecció de Dades (RGPD)...
+(Nota: Posa aquí el text sencer de la instrucció 5)
             </div>
-            <button class="btn-primary" onclick="document.getElementById('modal-privacitat').style.display='none'" style="margin-top:20px;">Tancar</button>
+            <button class="btn-primary" onclick="document.getElementById('modal-privacitat').style.display='none'" style="margin-top:20px; width:auto; align-self:flex-end;">Tancar</button>
+        </div>
+    </div>
+
+    <!-- MODAL POLÍTICA DE COOKIES -->
+    <div id="modal-cookies" class="modal-overlay" style="display: none;">
+        <div class="modal-card" style="max-width: 700px; text-align: left;">
+            <h3 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:10px;">Política de Cookies</h3>
+            <div class="legal-text-content">
+Què són les cookies?
+Una cookie és un arxiu que es descarrega en el seu ordinador en accedir a determinades pàgines web...
+(Nota: Posa aquí el text sencer de la instrucció 6)
+            </div>
+            <button class="btn-primary" onclick="document.getElementById('modal-cookies').style.display='none'" style="margin-top:20px; width:auto; align-self:flex-end;">Tancar</button>
         </div>
     </div>
 

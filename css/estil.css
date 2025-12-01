@@ -723,3 +723,112 @@ ul { list-style: none; padding: 0; margin: 0; }
     font-weight: bold;
     color: var(--text-main);
 }
+
+/* ==========================================================================
+   FOOTER (RESTAURADO ESTILO ORIGINAL CLARO)
+   ========================================================================== */
+.main-footer {
+    background-color: var(--bg-card); /* Color claro (blanco/gris claro) */
+    border-top: 1px solid var(--border-color);
+    padding: 30px 20px;
+    margin-top: auto; /* IMPORTANTE: Se queda abajo */
+    width: 100%;
+    color: var(--text-secondary);
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.footer-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.footer-logo img {
+    height: 40px;
+    margin-bottom: 8px;
+    filter: grayscale(100%);
+    opacity: 0.8;
+    transition: all 0.3s;
+}
+
+.footer-logo img:hover {
+    filter: none;
+    opacity: 1;
+}
+
+.footer-logo p {
+    font-size: 0.85rem;
+    color: #888;
+    margin: 0;
+}
+
+.footer-links {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.footer-links a {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.footer-links a:hover {
+    color: var(--brand-blue);
+    text-decoration: underline;
+}
+
+.footer-links span {
+    color: #ccc;
+    font-size: 0.8rem;
+}
+
+.footer-social a {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    transition: 0.2s;
+}
+
+.footer-social a:hover {
+    color: var(--brand-blue);
+}
+
+/* En modo oscuro, el footer se adapta */
+[data-theme="dark"] .main-footer {
+    background-color: #1e1e1e;
+    border-color: #333;
+}
+[data-theme="dark"] .footer-logo img {
+    filter: grayscale(100%) brightness(200%);
+}
+
+/* ESTILOS PARA MODALES DE TEXTO LEGAL */
+.legal-text-content {
+    max-height: 400px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    text-align: justify;
+    padding-right: 10px;
+    white-space: pre-wrap; /* Respeta los saltos de línea */
+    font-family: 'Roboto', sans-serif;
+    color: var(--text-main);
+}
+
+.legal-text-content h4, .legal-text-content strong {
+    color: var(--brand-blue);
+    display: block;
+    margin-top: 15px;
+    margin-bottom: 5px;
+}

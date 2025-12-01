@@ -21,11 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- NUEVO: MOSTRAR FOOTER SIEMPRE ---
+    // MOSTRAR FOOTER SIEMPRE
     const footer = document.getElementById('app-footer');
     if(footer) footer.style.display = 'block';
 
-    // --- NUEVO: BOTÓN SCROLL TOP ---
+    // BOTÓN SCROLL TOP
     if(!document.getElementById('scroll-top-btn')) {
         const btn = document.createElement('button');
         btn.id = 'scroll-top-btn';
@@ -44,12 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// PUNTO 9: CONTROL DE INACTIVIDAD (10 + 5 MIN)
+// 1. CONTROL DE INACTIVIDAD (10 + 5 MIN)
 // ==========================================
 let warningTimer;
 let logoutTimer;
 const WARNING_TIME = 10 * 60 * 1000; 
-const FINAL_TIMEOUT = 5 * 60 * 1000; 
+// const FINAL_TIMEOUT = 5 * 60 * 1000; // No se usa directamente, se maneja en el contador
 
 function startInactivityTimers() {
     if(!localStorage.getItem('jwt')) return;
@@ -64,9 +64,10 @@ function startInactivityTimers() {
 
 function resetInactivity() {
     const modal = document.getElementById('custom-modal');
-    const isInactivityModal = document.getElementById('modal-title')?.innerText === "Inactivitat Detectada";
+    const titleEl = document.getElementById('modal-title');
     
-    if (modal && modal.style.display === 'flex' && isInactivityModal) {
+    // Si el modal de inactividad está abierto, no reseteamos el timer automáticamente
+    if (modal && modal.style.display === 'flex' && titleEl && titleEl.innerText === "Inactivitat Detectada") {
         return; 
     }
     
@@ -83,7 +84,7 @@ function mostrarModalInactividad() {
     titleEl.innerText = "Inactivitat Detectada";
     titleEl.style.color = "var(--brand-red)";
     
-    let segundosRestantes = 300; 
+    let segundosRestantes = 300; // 5 minutos
     
     msgEl.innerHTML = `
         <p>Portes 10 minuts sense activitat.</p>
@@ -111,6 +112,7 @@ function mostrarModalInactividad() {
     modal.style.display = 'flex';
 
     const countdownInterval = setInterval(() => {
+        // Si el modal se cierra por cualquier razón, paramos el contador
         if(modal.style.display === 'none') {
             clearInterval(countdownInterval);
             return;
@@ -131,12 +133,13 @@ function mostrarModalInactividad() {
     }, 1000);
 }
 
+// Eventos para detectar actividad
 ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
     document.addEventListener(evt, resetInactivity);
 });
 
 // ==========================================
-// 1. SISTEMA DE MODALES PERSONALIZADOS
+// 2. SISTEMA DE MODALES PERSONALIZADOS
 // ==========================================
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
@@ -196,7 +199,7 @@ window.mostrarModalError = function(mensaje, onCloseAction) {
 };
 
 // ==========================================
-// 2. FUNCIONES PRINCIPALES APP
+// 3. FUNCIONES PRINCIPALES APP
 // ==========================================
 window.logoutApp = function() {
     window.mostrarModalConfirmacion("Tancar Sessió", "Estàs segur que vols sortir del campus?", () => {
@@ -416,6 +419,9 @@ window.toggleDesc = function(id) {
     }
 };
 
+// ==========================================
+// 4. LÓGICA DE CURSOS (DASHBOARD & CATÁLOGO)
+// ==========================================
 async function renderCoursesLogic(viewMode) {
     const listId = viewMode === 'dashboard' ? 'courses-list' : 'catalog-list';
     const list = document.getElementById(listId);
@@ -515,6 +521,9 @@ window.solicitarMatricula = function(courseId, courseTitle) {
 window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
 window.loadCatalog = async function() { await renderCoursesLogic('home'); };
 
+// ==========================================
+// 5. PERFIL & GRADES
+// ==========================================
 async function loadFullProfile() {
     const user = JSON.parse(localStorage.getItem('user')); const token = localStorage.getItem('jwt');
     const emailIn = document.getElementById('prof-email'); if(emailIn) emailIn.value = user.email || '-';
@@ -553,7 +562,7 @@ async function loadGrades() {
 }
 
 // ==========================================
-// NUEVO: GESTIÓN DE MENSAJERÍA
+// 6. MENSAJERÍA (DUDAS)
 // ==========================================
 async function abrirPanelMensajes() {
     const modal = document.getElementById('custom-modal');

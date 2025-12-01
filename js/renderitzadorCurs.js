@@ -6,38 +6,62 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!content) return '';
         if (typeof content === 'string') return content;
         
-        const extractText = (nodes) => {
-            if (!nodes) return "";
-            if (typeof nodes === "string") return nodes;
-            if (Array.isArray(nodes)) return nodes.map(extractText).join("");
-            
-            if (nodes.type === "text") {
-                let text = nodes.text || "";
-                if (nodes.bold) text = `<strong>${text}</strong>`;
-                if (nodes.italic) text = `<em>${text}</em>`;
-                if (nodes.underline) text = `<u>${text}</u>`;
-                if (nodes.strikethrough) text = `<strike>${text}</strike>`;
-                return text;
-            }
-            if (nodes.type === "link") return `<a href="${nodes.url}" target="_blank">${extractText(nodes.children)}</a>`;
-            if (nodes.children) return extractText(nodes.children);
-            return "";
+        // Función auxiliar para procesar nodos de texto internos (negrita, cursiva, links)
+        const extractText = (children) => {
+            if (!children) return "";
+            return children.map(node => {
+                if (node.type === "text") {
+                    let text = node.text || "";
+                    if (node.bold) text = `<strong>${text}</strong>`;
+                    if (node.italic) text = `<em>${text}</em>`;
+                    if (node.underline) text = `<u>${text}</u>`;
+                    if (node.strikethrough) text = `<strike>${text}</strike>`;
+                    if (node.code) text = `<code>${text}</code>`;
+                    return text;
+                }
+                if (node.type === "link") {
+                    return `<a href="${node.url}" target="_blank" rel="noopener noreferrer">${extractText(node.children)}</a>`;
+                }
+                return "";
+            }).join("");
         };
 
+        // Procesar bloques principales
         if (Array.isArray(content)) {
             return content.map(block => {
-                const text = extractText(block.children);
-                if (block.type === 'heading') return `<h${block.level || 3}>${text}</h${block.level || 3}>`;
-                if (block.type === 'list') {
-                    const tag = block.format === 'ordered' ? 'ol' : 'ul';
-                    const items = block.children.map(li => `<li>${extractText(li)}</li>`).join('');
-                    return `<${tag}>${items}</${tag}>`;
+                switch (block.type) {
+                    case 'heading':
+                        return `<h${block.level || 3}>${extractText(block.children)}</h${block.level || 3}>`;
+                    
+                    case 'paragraph':
+                        // Evitar párrafos vacíos
+                        const pText = extractText(block.children);
+                        return pText.trim() ? `<p>${pText}</p>` : '';
+
+                    case 'list':
+                        const tag = block.format === 'ordered' ? 'ol' : 'ul';
+                        const items = block.children.map(listItem => {
+                            // Los items de lista en Strapi v5 tienen 'children' que suelen ser párrafos o texto directo
+                            const liContent = listItem.children.map(child => {
+                                // A veces el hijo directo es texto, a veces un párrafo wrapper
+                                return extractText(child.children || [child]); 
+                            }).join(" ");
+                            return `<li>${liContent}</li>`;
+                        }).join('');
+                        return `<${tag}>${items}</${tag}>`;
+
+                    case 'quote':
+                        return `<blockquote style="border-left:4px solid #ccc; padding-left:10px; margin:10px 0; color:#555;">${extractText(block.children)}</blockquote>`;
+
+                    case 'image':
+                        return `<img src="${block.image.url}" alt="${block.image.alternativeText || ''}" style="max-width:100%; height:auto; margin:10px 0;">`;
+
+                    default:
+                        return extractText(block.children);
                 }
-                if (block.type === 'quote') return `<blockquote>${text}</blockquote>`;
-                return `<p>${text}</p>`;
             }).join('');
         }
-        return JSON.stringify(content);
+        return JSON.stringify(content); // Fallback
     }
 
     // ------------------------------------------------------------------------
@@ -226,26 +250,55 @@ document.addEventListener('DOMContentLoaded', () => {
         await guardarProgreso(nuevoProgreso);
     }
 
+    
     async function guardarProgreso(progresoObj) {
-        let totalModulos = (state.curso.moduls || []).length; 
-        
-        let aprobados = 0;
-        if (progresoObj && progresoObj.modulos && Array.isArray(progresoObj.modulos)) {
-            aprobados = progresoObj.modulos.filter(m => m.aprobado).length;
+        const modulos = state.curso.moduls || [];
+        let totalActividades = 0;
+        let actividadesCompletadas = 0;
+
+        // 1. Calcular actividades en Módulos
+        modulos.forEach((mod, idx) => {
+            const modProg = (progresoObj.modulos && progresoObj.modulos[idx]) ? progresoObj.modulos[idx] : {};
+            
+            // Actividad: Test
+            totalActividades++;
+            if (modProg.aprobado) actividadesCompletadas++;
+
+            // Actividad: Flashcards (si existen)
+            if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
+                totalActividades++;
+                if (modProg.flashcards_done) actividadesCompletadas++;
+            }
+        });
+
+        // 2. Calcular actividad Examen Final (si existe)
+        if (state.curso.examen_final && state.curso.examen_final.length > 0) {
+            totalActividades++;
+            if (progresoObj.examen_final && progresoObj.examen_final.aprobado) actividadesCompletadas++;
         }
+
+        // Cálculo porcentaje (evitar división por cero)
+        let porcentaje = totalActividades > 0 ? Math.round((actividadesCompletadas / totalActividades) * 100) : 0;
         
-        let porcentaje = totalModulos > 0 ? Math.round((aprobados / totalModulos) * 100) : 0;
+        // Forzar 100% si el examen final está aprobado (regla de negocio opcional, pero segura)
         if (progresoObj.examen_final && progresoObj.examen_final.aprobado) porcentaje = 100;
 
         const payload = { data: { progres_detallat: progresoObj, progres: porcentaje } };
-        await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
-            body: JSON.stringify(payload)
-        });
-        state.progreso = progresoObj;
-        if (document.getElementById('course-index') && document.getElementById('course-index').innerHTML !== '') {
-            renderSidebar(); 
+        
+        try {
+            await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+                body: JSON.stringify(payload)
+            });
+            state.progreso = progresoObj;
+            
+            // Actualizar UI si es necesario
+            if (document.getElementById('course-index') && document.getElementById('course-index').innerHTML !== '') {
+                renderSidebar(); 
+            }
+        } catch(e) {
+            console.error("Error guardando progreso:", e);
         }
     }
 
@@ -553,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         headerHtml += `</div>`; 
 
-        let html = `<h3>Targetes de Repàs (Gamificat)</h3>${headerHtml}<div class="flashcards-grid-view">`;
+        let html = `<h3>Targetes de Repàs</h3>${headerHtml}<div class="flashcards-grid-view">`;
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
 
         cards.forEach((card, idx) => {
@@ -724,7 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTestIntro(container, mod, modIdx) { 
         const progreso = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx] : { aprobado: false, intentos: 0, nota: 0 };
         if (progreso.aprobado) {
-             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Mòdul Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="revisarTest(${modIdx})">Veure resultats anteriors</button></div></div>`;
+             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Test Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="revisarTest(${modIdx})">Veure resultats anteriors</button></div></div>`;
              return;
         }
         if (progreso.intentos >= 2 && !state.godMode) {
@@ -879,7 +932,24 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         if(forzado) { doDelivery(); } else { window.mostrarModalConfirmacion("Entregar Examen", "Segur que vols entregar?", () => { document.getElementById('custom-modal').style.display = 'none'; doDelivery(); }); }
     }
-    window.imprimirDiploma = function(nota) { const nombreCurso = state.curso.titol; const fechaHoy = new Date().toLocaleDateString('ca-ES', { year: 'numeric', month: 'long', day: 'numeric' }); const alumno = USER; const nombreAlumno = `${alumno.nombre} ${alumno.apellidos || ''}`.toUpperCase(); const ventana = window.open('', '_blank'); ventana.document.write(`<!DOCTYPE html><html><head><title>Diploma</title><style>@page { size: A4 landscape; margin: 0; } body { margin: 0; padding: 0; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: white; font-family: sans-serif; } .page { width: 95%; height: 95%; border: 1px solid #fff; text-align: center; } .student { font-size: 24pt; font-weight: bold; margin: 20px auto; border-bottom: 2px solid #333; display: inline-block; padding: 0 40px; } </style></head><body><div class="page"><h1>Certificat</h1><p>SICAP certifica que</p><div class="student">${nombreAlumno}</div><p>Ha superat:</p><h2>${nombreCurso}</h2><p>Nota: ${nota} - Data: ${fechaHoy}</p></div><script>window.onload = function() { setTimeout(() => window.print(), 500); }</script></body></html>`); ventana.document.close(); };
+    // En js/renderitzadorCurs.js, busca window.imprimirDiploma y cámbiala:
+
+    window.imprimirDiploma = function(nota) { 
+        // Reutilizamos la función potente de dashboard.js si está disponible
+        if (window.imprimirDiplomaCompleto) {
+            // Necesitamos asegurar que state.curso y state.matriculaId tienen datos completos
+            // Construimos un objeto matricula 'fake' con los datos que tenemos en el estado del renderizador
+            const matData = {
+                id: state.matriculaId,
+                documentId: state.matriculaId,
+                nota_final: nota,
+                progres_detallat: state.progreso
+            };
+            window.imprimirDiplomaCompleto(matData, state.curso);
+        } else {
+            alert("Error: Mòdul de certificació no carregat.");
+        }
+    };
     window.obrirFormulariDubte = function(moduloTitulo) {
         const modal = document.getElementById('custom-modal'); const titleEl = document.getElementById('modal-title'); const msgEl = document.getElementById('modal-msg'); const btnConfirm = document.getElementById('modal-btn-confirm'); const btnCancel = document.getElementById('modal-btn-cancel');
         titleEl.innerText = "Enviar Dubte"; titleEl.style.color = "var(--brand-blue)";

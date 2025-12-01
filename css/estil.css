@@ -690,3 +690,84 @@ ul { list-style: none; padding: 0; margin: 0; }
     .grid-container, #grid-inner-numbers { gap: 10px; }
     .grid-item { padding: 10px; font-size: 1rem; }
 }
+
+/* --- AÑADIR AL FINAL DE css/estil.css --- */
+
+/* ESTILOS DE IMPRESIÓN (DIPLOMA) */
+@media print {
+    @page { margin: 0; size: A4 landscape; }
+    body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    
+    /* Ocultar todo lo que no sea el diploma */
+    #login-overlay, #app-container, #app-footer, .modal-overlay, #scroll-top-btn { 
+        display: none !important; 
+    }
+
+    /* Contenedor del Diploma visible */
+    #diploma-print-container {
+        display: block !important;
+        width: 100vw;
+        height: 100vh;
+    }
+
+    /* Páginas del Diploma */
+    .diploma-page {
+        width: 297mm;
+        height: 210mm;
+        page-break-after: always;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background-color: #fff;
+        border: 20px solid #fff; /* Margen físico */
+        box-sizing: border-box;
+    }
+
+    .diploma-border {
+        width: 100%;
+        height: 100%;
+        border: 5px double var(--brand-blue);
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        position: relative;
+    }
+
+    .diploma-watermark {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        opacity: 0.05;
+        width: 60%;
+        z-index: 0;
+    }
+
+    .diploma-content { z-index: 1; width: 100%; }
+    .diploma-title { font-size: 3rem; color: var(--brand-blue); font-family: 'Times New Roman', serif; margin-bottom: 20px; text-transform: uppercase; }
+    .diploma-text { font-size: 1.2rem; margin: 10px 0; color: #333; }
+    .diploma-student { font-size: 2.5rem; font-weight: bold; margin: 20px 0; border-bottom: 2px solid #333; padding: 0 50px 10px; display: inline-block; font-family: serif; }
+    .diploma-course { font-size: 2rem; font-weight: bold; color: var(--brand-red); margin: 20px 0; }
+    
+    .diploma-signatures {
+        margin-top: 50px;
+        display: flex;
+        justify-content: space-around;
+        width: 100%;
+    }
+    .signature-box { text-align: center; }
+    .signature-line { width: 200px; border-top: 1px solid #333; margin-bottom: 10px; }
+    
+    .diploma-qr { position: absolute; bottom: 30px; right: 30px; width: 100px; height: 100px; }
+    .diploma-verification { position: absolute; bottom: 10px; right: 30px; font-size: 0.7rem; color: #666; font-family: monospace; }
+
+    /* Cara B: Temario */
+    .syllabus-list { text-align: left; width: 80%; margin: 20px auto; columns: 2; font-size: 0.9rem; }
+    .syllabus-list li { margin-bottom: 5px; }
+}
+
+/* Ocultar contenedor de impresión en pantalla normal */
+#diploma-print-container { display: none; }

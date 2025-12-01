@@ -346,6 +346,27 @@ function initHeaderData() {
     setText('profile-name-display', user.nombre ? `${user.nombre} ${user.apellidos}` : user.username);
     setText('profile-dni-display', user.username);
 }
+// Añadir dentro de initHeaderData o justo después
+async function checkNewMessages(userId, token) {
+    try {
+        // Buscar mensajes donde el usuario es el creador Y el estado es 'respost' (y quizás un flag 'leido' si lo implementas)
+        const res = await fetch(`${STRAPI_URL}/api/missatges?filters[users_permissions_user][id][$eq]=${userId}&filters[estat][$eq]=respost`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+        if (json.data && json.data.length > 0) {
+            // Activar punto rojo en icono de mensajes
+            const msgIcon = document.getElementById('btn-messages');
+            if (msgIcon) {
+                msgIcon.style.color = 'var(--brand-blue)';
+                // Si quieres un punto, añádelo dinámicamente o usa CSS class
+                msgIcon.innerHTML += '<span class="notification-dot" style="display:block; background:green;"></span>';
+            }
+        }
+    } catch(e) { console.log("No se pudieron verificar mensajes"); }
+}
+
+// Llamar a esto dentro de iniciarApp()
 
 window.showView = function(viewName) {
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
@@ -544,22 +565,89 @@ async function loadFullProfile() {
     } catch(e) { console.error("Error perfil:", e); }
 }
 
+// --- SUSTITUIR loadGrades EN js/dashboard.js ---
+
 async function loadGrades() {
-    const tbody = document.getElementById('grades-table-body'); const token = localStorage.getItem('jwt'); const user = JSON.parse(localStorage.getItem('user'));
-    if(!tbody || !token) return; tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;"><div class="loader"></div></td></tr>';
+    const tbody = document.getElementById('grades-table-body');
+    const token = localStorage.getItem('jwt');
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if(!tbody || !token) return;
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;"><div class="loader"></div></td></tr>';
+
     try {
-        const res = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`, { headers: { 'Authorization': `Bearer ${token}` } });
-        const json = await res.json(); tbody.innerHTML = '';
-        if(!json.data || json.data.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">No tens cursos matriculats.</td></tr>'; return; }
-        json.data.forEach(mat => {
-            const curs = mat.curs; if(!curs) return;
-            const isCompleted = mat.estat === 'completat' || mat.progres >= 100;
-            const statusHtml = isCompleted ? '<span style="color:#10b981; font-weight:bold;">Completat</span>' : '<span style="color:var(--brand-blue);">En Curs</span>';
-            const diplomaHtml = isCompleted ? `<button class="btn-small" onclick="alert('Pots descarregar el diploma des de la secció del curs')"><i class="fa-solid fa-download"></i> PDF</button>` : '<small style="color:#999;">Pendent</small>';
-            tbody.innerHTML += `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 15px;"><strong>${curs.titol}</strong></td><td style="padding: 15px;">${statusHtml}</td><td style="padding: 15px;">${mat.nota_final||'-'}</td><td style="padding: 15px;">${diplomaHtml}</td></tr>`;
+        // Necesitamos traer también el detalle del progreso (progres_detallat)
+        const res = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs.moduls`, { 
+            headers: { 'Authorization': `Bearer ${token}` } 
         });
-    } catch(e) { console.error(e); tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Error carregant qualificacions.</td></tr>'; }
+        const json = await res.json();
+        tbody.innerHTML = '';
+
+        if(!json.data || json.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">No tens cursos matriculats.</td></tr>';
+            return;
+        }
+
+        json.data.forEach(mat => {
+            const curs = mat.curs;
+            if(!curs) return;
+
+            // Datos
+            const isCompleted = mat.estat === 'completat' || mat.progres >= 100;
+            const notaGlobal = mat.nota_final || (mat.progres_detallat?.examen_final?.nota) || '-';
+            const statusColor = isCompleted ? '#10b981' : 'var(--brand-blue)';
+            const statusText = isCompleted ? 'Completat' : `${mat.progres}%`;
+            
+            // Botón Diploma (Llamada a la nueva función)
+            // Guardamos los datos en data-attributes o pasamos el objeto si está en memoria, 
+            // pero para evitar problemas de scope, codificamos en base64 o simple llamada onclick seguro.
+            // Opción simple: Guardar en window temporalmente o pasar argumentos simples.
+            // Vamos a usar un truco seguro: Crear un closure en el onclick o pasar ID y buscar.
+            // Dado que tenemos los datos aquí, usaremos la función global.
+            
+            // Preparamos datos seguros para pasar a la función
+            const safeMat = encodeURIComponent(JSON.stringify(mat));
+            const safeCurs = encodeURIComponent(JSON.stringify(curs));
+
+            const diplomaHtml = isCompleted 
+                ? `<button class="btn-small" onclick='callPrintDiploma("${safeMat}", "${safeCurs}")'><i class="fa-solid fa-file-invoice"></i> Certificat</button>`
+                : '<small style="color:#999;">Pendent</small>';
+
+            // Detalles de Notas por Módulo (Tooltip o texto pequeño)
+            let detallesNotas = '';
+            if (mat.progres_detallat && mat.progres_detallat.modulos) {
+                const notasMods = mat.progres_detallat.modulos.map((m, i) => {
+                    return m.nota > 0 ? `<span title="Mòdul ${i+1}">M${i+1}:${m.nota}</span>` : '';
+                }).filter(n => n).join(' | ');
+                if(notasMods) detallesNotas = `<br><small style="color:#666; font-size:0.75rem;">${notasMods}</small>`;
+            }
+
+            tbody.innerHTML += `
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 15px;">
+                        <strong>${curs.titol}</strong>
+                        ${detallesNotas}
+                    </td>
+                    <td style="padding: 15px;">
+                        <span style="color:${statusColor}; font-weight:bold;">${statusText}</span>
+                    </td>
+                    <td style="padding: 15px; font-weight:bold;">${notaGlobal}</td>
+                    <td style="padding: 15px;">${diplomaHtml}</td>
+                </tr>
+            `;
+        });
+    } catch(e) { 
+        console.error(e); 
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Error carregant qualificacions.</td></tr>'; 
+    }
 }
+
+// Helper global para decodificar y llamar a imprimir
+window.callPrintDiploma = function(encMat, encCurs) {
+    const mat = JSON.parse(decodeURIComponent(encMat));
+    const curs = JSON.parse(decodeURIComponent(encCurs));
+    window.imprimirDiplomaCompleto(mat, curs);
+};
 
 // ==========================================
 // 6. MENSAJERÍA (DUDAS)
@@ -677,4 +765,104 @@ window.enviarResposta = async function(msgId) {
     } catch(e) {
         alert("Error de connexió");
     }
+};
+
+// --- AÑADIR EN js/dashboard.js ---
+
+window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
+    const nombreCurso = cursoData.titol;
+    const horas = cursoData.hores || 'N/A';
+    const fechaFin = new Date().toLocaleDateString('ca-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+    const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'Apte';
+    const matriculaId = matriculaData.documentId || matriculaData.id;
+    
+    // Generar URL del QR (Usando API pública rápida para no cargar librerías)
+    const verifyUrl = `${STRAPI_URL}/verificar-certificado/${matriculaId}`;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`;
+
+    // Construir lista de temario para Cara B
+    let temarioHtml = '';
+    if (cursoData.moduls && cursoData.moduls.length > 0) {
+        temarioHtml = '<ul class="syllabus-list">';
+        cursoData.moduls.forEach((m, i) => {
+            temarioHtml += `<li><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`;
+        });
+        temarioHtml += '</ul>';
+    } else {
+        temarioHtml = '<p>Temari detallat segons expedient.</p>';
+    }
+
+    // Crear contenedor de impresión si no existe
+    let printContainer = document.getElementById('diploma-print-container');
+    if (!printContainer) {
+        printContainer = document.createElement('div');
+        printContainer.id = 'diploma-print-container';
+        document.body.appendChild(printContainer);
+    }
+
+    // HTML del Diploma
+    printContainer.innerHTML = `
+        <!-- CARA A: CERTIFICADO -->
+        <div class="diploma-page">
+            <div class="diploma-border">
+                <img src="img/logo-sicap.png" alt="Logo SICAP" style="height: 80px; margin-bottom: 20px;">
+                <div class="diploma-watermark">
+                    <img src="img/logo-sicap.png" style="width:100%; filter: grayscale(100%);">
+                </div>
+                
+                <div class="diploma-content">
+                    <h1 class="diploma-title">Certificat d'Aprofitament</h1>
+                    <p class="diploma-text">El Sindicat Català de Presons (SICAP) certifica que</p>
+                    
+                    <div class="diploma-student">${nombreAlumno}</div>
+                    
+                    <p class="diploma-text">Amb DNI <strong>${user.username}</strong>, ha superat satisfactòriament el curs:</p>
+                    
+                    <h2 class="diploma-course">${nombreCurso}</h2>
+                    
+                    <p class="diploma-text">Amb una durada de <strong>${horas} hores</strong> lectives.</p>
+                    <p class="diploma-text">Qualificació obtinguda: <strong>${nota}</strong></p>
+                    <p class="diploma-text" style="margin-top:30px;">Barcelona, ${fechaFin}</p>
+
+                    <div class="diploma-signatures">
+                        <div class="signature-box">
+                            <div class="signature-line"></div>
+                            <small>Secretari de Formació</small>
+                        </div>
+                        <div class="signature-box">
+                            <div class="signature-line"></div>
+                            <small>Secretari General</small>
+                        </div>
+                    </div>
+                </div>
+
+                <img src="${qrSrc}" class="diploma-qr" alt="QR Verificació">
+                <div class="diploma-verification">Ref: ${matriculaId}</div>
+            </div>
+        </div>
+
+        <!-- CARA B: TEMARIO -->
+        <div class="diploma-page">
+            <div class="diploma-border" style="border-style: dotted; border-width: 2px; border-color: #ccc;">
+                <h3 style="color: var(--brand-blue); text-transform: uppercase; margin-top: 40px;">Continguts Formatius</h3>
+                <h4 style="margin-bottom: 20px;">${nombreCurso}</h4>
+                
+                ${temarioHtml}
+                
+                <div style="margin-top: auto; margin-bottom: 40px; font-size: 0.8rem; color: #666;">
+                    <p>Aquest document certifica la realització de les activitats formatives especificades.</p>
+                    <p>SICAP Formació - Registre d'Activitats Docents</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Imprimir
+    setTimeout(() => {
+        window.print();
+        // Limpiar después de imprimir para no molestar en la SPA (opcional)
+        // printContainer.innerHTML = ''; 
+    }, 500);
 };

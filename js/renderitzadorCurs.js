@@ -56,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Definimos el estado globalmente dentro del closure
     let state = {
         matriculaId: null,
         curso: null,
@@ -68,8 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         testEnCurso: false,
         godMode: false,
         preguntasExamenFinal: [],
-        timerInterval: null,
-        flashcardCache: {} // Caché crítica para las opciones
+        timerInterval: null
     };
 
     // UI Inicial
@@ -120,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     position: relative;
                     z-index: 1000;
                     pointer-events: auto !important;
-                    user-select: none; /* Evita seleccionar texto al hacer clic */
+                    user-select: none;
                 }
                 /* Arreglo para Safari/Mobile */
                 .flashcard-inner { transform-style: preserve-3d; }
@@ -290,7 +288,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- FUNCIONES GLOBALES (Window) ---
-    // Las definimos aquí para que tengan acceso al closure 'state' pero sean accesibles desde el HTML onclick
     window.toggleAccordion = function(headerElement) {
         const group = headerElement.parentElement;
         if (group.classList.contains('locked-module') && !state.godMode) return;
@@ -498,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // FLASHCARDS: Lógica robusta anti-errores
+    // FLASHCARDS: LOGICA ROBUSTA CON ENCODE (SOLUCION FINAL)
     // ------------------------------------------------------------------------
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
@@ -524,14 +521,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = `${headerHtml}<div class="flashcards-grid-view">`;
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
 
-        // Limpiamos caché de esta vista
-        state.flashcardCache = {};
-
         cards.forEach((card, idx) => {
             const isDone = isReallyCompleted || flippedIndices.includes(idx) || state.godMode;
             const flipClass = isDone ? 'flipped' : '';
 
-            // Texto de la respuesta
             let tempDiv = document.createElement("div");
             try {
                 if (typeof card.resposta === 'object') tempDiv.innerHTML = parseStrapiRichText(card.resposta);
@@ -556,12 +549,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             options.sort(() => Math.random() - 0.5);
 
-            // GUARDAMOS EN CACHÉ PARA EVITAR PROBLEMAS DE PARSING EN HTML
-            state.flashcardCache[idx] = {
-                correct: targetClean,
-                options: options
-            };
-
             let backContent = '';
             if (isDone) {
                 backContent = `
@@ -571,9 +558,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             } else {
                 let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
-                // GENERAMOS BOTONES CON ÍNDICES, NO CON TEXTO, PARA EVITAR ERRORES DE SINTAXIS
-                let buttonsHtml = options.map((opt, optIdx) => {
-                    return `<button class="btn-flash-option" onclick="checkFlashcard(event, this, ${idx}, ${optIdx}, ${modIdx})">${opt}</button>`;
+                let buttonsHtml = options.map(opt => {
+                    // USO encodeURIComponent PARA PASAR DATOS SEGUROS
+                    const safeOpt = encodeURIComponent(opt);
+                    const safeTarget = encodeURIComponent(targetClean);
+                    return `<button class="btn-flash-option" onclick="checkFlashcard(event, this, '${safeOpt}', '${safeTarget}', ${idx}, ${modIdx})">${opt}</button>`;
                 }).join('');
                 backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
             }
@@ -600,18 +589,15 @@ document.addEventListener('DOMContentLoaded', () => {
         cardElement.classList.toggle('flipped');
     }
 
-    window.checkFlashcard = function(e, btn, cardIdx, optIdx, modIdx) {
+    // CHECK USANDO DECODEURICOMPONENT (A PRUEBA DE ERRORES)
+    window.checkFlashcard = function(e, btn, encodedSelected, encodedCorrect, cardIdx, modIdx) {
         if (e) {
             e.stopPropagation(); 
             e.preventDefault();
         }
 
-        // RECUPERAMOS EL TEXTO REAL DE LA MEMORIA
-        const data = state.flashcardCache[cardIdx];
-        if (!data) return;
-
-        const selected = data.options[optIdx];
-        const correct = data.correct;
+        const selected = decodeURIComponent(encodedSelected);
+        const correct = decodeURIComponent(encodedCorrect);
         
         const totalCards = state.curso.modulos[modIdx].targetes_memoria.length;
         const count = addFlippedCard(modIdx, cardIdx);

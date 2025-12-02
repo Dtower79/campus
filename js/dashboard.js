@@ -643,7 +643,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const matriculaId = matriculaData.documentId || matriculaData.id;
     const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || '10';
 
-    // 1. FECHAS
+    // FECHAS
     const optionsDate = { year: 'numeric', month: 'long', day: 'numeric' };
     const fechaEmision = new Date().toLocaleDateString('ca-ES', optionsDate);
     
@@ -664,12 +664,12 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
 
     const textoFechasCurso = `Realitzat del ${fechaInicioStr} al ${fechaFinStr}`;
 
-    // 2. QR REAL
+    // QR REAL
     const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
     const verifyUrl = `${currentDomain}/verify.html?ref=${matriculaId}`;
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`;
 
-    // 3. TEMARIO LIMPIO
+    // TEMARIO
     let modulosHtml = '';
     if (cursoData.moduls && cursoData.moduls.length > 0) {
         modulosHtml = '<ul>';
@@ -690,11 +690,10 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     }
 
     printContainer.innerHTML = `
-        <!-- PÁGINA 1: CERTIFICADO -->
+        <!-- HOJA 1: DIPLOMA -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner">
-                    
                     <img src="img/logo-sicap.png" class="diploma-watermark">
                     <img src="img/logo-sicap.png" class="diploma-logo-top">
 
@@ -725,17 +724,15 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                             <span class="signature-role">Secretari General</span>
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
 
-        <!-- PÁGINA 2: EXPEDIENTE -->
+        <!-- HOJA 2: EXPEDIENTE -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner" style="align-items: flex-start; text-align: left; padding: 40px;">
                     
-                    <!-- MARCA DE AGUA (Visible ahora gracias al fondo transparente de info-grid) -->
                     <img src="img/logo-sicap.png" class="diploma-watermark">
 
                     <div class="page-back-content">
@@ -753,18 +750,12 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                             <div class="info-item"><span>Qualificació</span><strong>${nota}</strong></div>
                         </div>
 
-                        <!-- CAMBIO: Línea azul de 2px en lugar de gris -->
                         <h4 style="color:var(--brand-blue); border-bottom: 2px solid var(--brand-blue); padding-bottom:5px; margin-bottom:15px;">CONTINGUTS DEL CURS</h4>
                         
                         <div class="modules-list">
                             ${modulosHtml}
                         </div>
-
-                        <div class="back-footer">
-                            <p style="margin:0;">SICAP Formació - Registre d'Activitats Docents</p>
-                        </div>
                     </div>
-
                 </div>
             </div>
         </div>

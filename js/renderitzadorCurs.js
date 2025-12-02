@@ -878,8 +878,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- NUEVO REVISOR EXAMEN FINAL ---
+    // --- FUNCIÓN CORREGIDA PARA REVISIÓN CON GRID ---
     window.revisarExamenFinal = function() {
         const container = document.getElementById('moduls-container');
+        const gridRight = document.getElementById('quiz-grid'); // Referencia al sidebar derecho
         const preguntas = state.curso.examen_final || [];
         
         if (preguntas.length === 0) {
@@ -887,10 +889,38 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        let html = `<h3>Revisió Examen Final</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px;">Mode lectura de l'examen final.</div>`;
+        // 1. REGENERAR LA CUADRÍCULA DE NAVEGACIÓN (Punto 1 Solucionado)
+        if (gridRight) {
+            gridRight.className = 'grid-container';
+            gridRight.innerHTML = ''; // Limpiar lo que hubiera (cronómetro, etc.)
+            
+            // Añadir título opcional
+            const header = document.createElement('div');
+            header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary);">Navegació Revisió</h4>';
+            gridRight.appendChild(header);
+
+            preguntas.forEach((p, i) => {
+                const div = document.createElement('div');
+                div.className = 'grid-item answered'; // Clase 'answered' para que salga pintado
+                div.innerText = i + 1;
+                // Al hacer clic, scrollear a la tarjeta correspondiente
+                div.onclick = () => {
+                    const card = document.getElementById(`review-card-${i}`);
+                    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                };
+                gridRight.appendChild(div);
+            });
+        }
+
+        // 2. RENDERIZAR LAS PREGUNTAS EN EL MAIN
+        let html = `<h3>Revisió Examen Final</h3>
+                    <div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px;">
+                        <i class="fa-solid fa-eye"></i> Mode lectura: Aquí pots veure les respostes correctes i les explicacions.
+                    </div>`;
         
         preguntas.forEach((preg, idx) => {
-            html += `<div class="question-card review-mode">
+            // Añadimos ID único para el scroll
+            html += `<div class="question-card review-mode" id="review-card-${idx}">
                 <div class="q-header">Pregunta ${idx + 1}</div>
                 <div class="q-text">${preg.text}</div>
                 <div class="options-list">`;
@@ -900,6 +930,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
                 if (isCorrect) classes += 'correct-answer '; 
                 
+                // En modo revisión pura, solo marcamos la correcta visualmente
+                // Si quisieras marcar la que puso el usuario, necesitaríamos persistir 'respuestasTemp' o traerlas del backend si se guardaran detalladas.
+                // Por ahora, mostramos la plantilla correctora.
                 html += `<div class="${classes}"><input type="radio" disabled ${isCorrect ? 'checked' : ''}><span>${opt.text}</span></div>`;
             });
 

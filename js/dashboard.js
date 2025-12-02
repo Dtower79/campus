@@ -625,22 +625,25 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const nombreCurso = cursoData.titol;
     const horas = cursoData.hores || 'N/A';
     
+    // Fecha en catalán
     const fechaFin = new Date().toLocaleDateString('ca-ES', { year: 'numeric', month: 'long', day: 'numeric' });
-    const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'Apte';
+    const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || '10'; // Fallback a 10 si apto
     const matriculaId = matriculaData.documentId || matriculaData.id;
     
+    // QR
     const verifyUrl = `${STRAPI_URL}/verificar-certificado/${matriculaId}`;
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`;
 
+    // Generar lista de módulos para la cara B
     let temarioHtml = '';
     if (cursoData.moduls && cursoData.moduls.length > 0) {
-        temarioHtml = '<ul class="syllabus-list">';
-        cursoData.moduls.forEach((m, i) => {
-            temarioHtml += `<li><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`;
+        temarioHtml = '<div class="syllabus-content-list"><ul>';
+        cursoData.moduls.forEach((m) => {
+            temarioHtml += `<li>${m.titol}</li>`;
         });
-        temarioHtml += '</ul>';
+        temarioHtml += '</ul></div>';
     } else {
-        temarioHtml = '<p>Temari detallat segons expedient acadèmic.</p>';
+        temarioHtml = '<p>Temari detallat segons expedient acadèmic arxivat.</p>';
     }
 
     let printContainer = document.getElementById('diploma-print-container');
@@ -650,62 +653,95 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         document.body.appendChild(printContainer);
     }
 
+    // HTML ESTRUCTURA FEPOL EXACTA
     printContainer.innerHTML = `
+        <!-- CARA A: CERTIFICADO -->
         <div class="diploma-page">
-            <div class="diploma-border">
-                <img src="img/logo-sicap.png" alt="Logo SICAP" style="height: 80px; margin-bottom: 20px;">
-                <div class="diploma-watermark"><img src="img/logo-sicap.png" style="width:100%; filter: grayscale(100%);"></div>
-                
-                <div class="diploma-content">
-                    <h1 class="diploma-title">Certificat d'Aprofitament</h1>
+            <div class="diploma-frame"> <!-- Marco exterior -->
+                <div class="diploma-inner-frame"> <!-- Marco interior -->
+                    
+                    <!-- Logo centrado arriba -->
+                    <img src="img/logo-sicap.png" alt="SICAP FEPOL" class="diploma-header-logo">
+                    
+                    <h1 class="diploma-title">CERTIFICAT D'APROFITAMENT</h1>
+                    
                     <p class="diploma-text">El Sindicat Català de Presons (SICAP) certifica que</p>
+                    
                     <div class="diploma-student">${nombreAlumno}</div>
-                    <p class="diploma-text">Amb DNI <strong>${user.username}</strong>, ha superat satisfactòriament el curs:</p>
+                    
+                    <p class="diploma-text" style="border-top: 2px solid #333; width: 60%; margin: 10px auto;">
+                        Amb DNI <strong>${user.username}</strong>, ha superat satisfactòriament el curs:
+                    </p>
+                    
                     <h2 class="diploma-course">${nombreCurso}</h2>
-                    <p class="diploma-text">Amb una durada de <strong>${horas} hores</strong> lectives.</p>
-                    <p class="diploma-text">Qualificació obtinguda: <strong>${nota}</strong></p>
-                    <p class="diploma-text" style="margin-top:30px;">Barcelona, ${fechaFin}</p>
+                    
+                    <div class="diploma-details">
+                        <p>Amb una durada de <strong>${horas} hores</strong> lectives.</p>
+                        <p>Qualificació obtinguda: <strong>${nota}</strong></p>
+                        <p style="margin-top:20px;">Barcelona, ${fechaFin}</p>
+                    </div>
 
-                    <div class="diploma-signatures">
-                        <div class="diploma-qr-box">
-                            <img src="${qrSrc}" class="diploma-qr" alt="QR Verificació">
-                            <div style="font-size:0.7rem; color:#666;">Ref: ${matriculaId}</div>
+                    <div class="diploma-footer">
+                        <!-- IZQUIERDA: QR -->
+                        <div class="footer-left">
+                            <img src="${qrSrc}" class="qr-img" alt="QR">
+                            <div style="font-size:0.6rem; font-family:monospace;">Ref: ${matriculaId}</div>
                         </div>
-                        <div class="signature-box">
-                            <div style="height:40px;"></div>
+
+                        <!-- DERECHA: FIRMA MIGUEL -->
+                        <div class="footer-right">
                             <div class="signature-line"></div>
                             <strong>Miguel Pueyo Pérez</strong><br>
                             <small>Secretari General</small>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
 
+        <!-- CARA B: TEMARIO -->
         <div class="diploma-page">
-            <div class="diploma-border" style="border-style: dotted; border-width: 2px; border-color: #ccc;">
-                <h3 style="color: var(--brand-blue); text-transform: uppercase; margin-top: 40px; border-bottom: 2px solid var(--brand-red); display:inline-block; padding-bottom:5px;">Expedient Formatiu</h3>
-                
-                <div class="back-page-info">
-                    <div class="back-page-row"><span>Alumne:</span> <strong>${nombreAlumno}</strong></div>
-                    <div class="back-page-row"><span>DNI:</span> <strong>${user.username}</strong></div>
-                    <div class="back-page-row"><span>Curs:</span> <strong>${nombreCurso}</strong></div>
-                    <div class="back-page-row"><span>Data Finalització:</span> <strong>${fechaFin}</strong></div>
-                    <div class="back-page-row" style="border:none;"><span>Nota Final:</span> <strong>${nota}</strong></div>
-                </div>
+            <div class="diploma-frame">
+                <div class="diploma-inner-frame" style="align-items: flex-start; text-align: left;">
+                    
+                    <div class="syllabus-container">
+                        <div class="syllabus-header">
+                            <img src="img/logo-sicap.png" style="height:40px;">
+                            <h3 class="syllabus-title">Expedient Formatiu</h3>
+                        </div>
 
-                <h4 style="margin-top: 30px; text-align:left; width:80%;">Continguts:</h4>
-                ${temarioHtml}
-                
-                <div style="margin-top: auto; margin-bottom: 40px; font-size: 0.8rem; color: #666; width:80%;">
-                    <p>Aquest document acredita la competència adquirida en l'acció formativa especificada.</p>
-                    <p>SICAP Formació - Registre d'Activitats Docents | sicap.cat</p>
+                        <table class="syllabus-info-table">
+                            <tr>
+                                <td><strong>Alumne:</strong> ${nombreAlumno}</td>
+                                <td><strong>DNI:</strong> ${user.username}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Curs:</strong> ${nombreCurso}</td>
+                                <td><strong>Nota Final:</strong> ${nota}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Data:</strong> ${fechaFin}</td>
+                                <td><strong>Hores:</strong> ${horas}h</td>
+                            </tr>
+                        </table>
+
+                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:5px;">CONTINGUTS DEL CURS:</h4>
+                        <br>
+                        ${temarioHtml}
+                    </div>
+
+                    <div style="margin-top: auto; width: 100%; text-align: center; font-size: 0.8rem; color: #666;">
+                        <p>Aquest document acredita la competència adquirida en l'acció formativa especificada.</p>
+                        <p>SICAP Formació - Registre d'Activitats Docents | sicap.cat</p>
+                    </div>
+
                 </div>
             </div>
         </div>
     `;
 
-    setTimeout(() => { window.print(); }, 500);
+    setTimeout(() => { window.print(); }, 800); // Un poco más de tiempo para cargar el QR
 };
 
 // ==========================================

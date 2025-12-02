@@ -643,51 +643,47 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const matriculaId = matriculaData.documentId || matriculaData.id;
     const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || '10';
 
-    // 1. GESTIÓN DE FECHAS (Inicio - Fin - Emisión)
+    // 1. FECHAS
     const optionsDate = { year: 'numeric', month: 'long', day: 'numeric' };
-    
-    // Fecha de hoy (Emisión del certificado)
     const fechaEmision = new Date().toLocaleDateString('ca-ES', optionsDate);
     
-    // Fechas del curso (Desde Strapi)
-    let fechaInicioStr = "Data no disponible";
-    let fechaFinStr = "Data no disponible";
+    let fechaInicioStr = "Unknown";
+    let fechaFinStr = "Unknown";
 
     if (cursoData.fecha_inicio) {
         fechaInicioStr = new Date(cursoData.fecha_inicio).toLocaleDateString('ca-ES', { day: 'numeric', month: '2-digit', year: 'numeric' });
     } else if (cursoData.publishedAt) {
-        // Fallback si no hay fecha inicio explícita
         fechaInicioStr = new Date(cursoData.publishedAt).toLocaleDateString('ca-ES', { day: 'numeric', month: '2-digit', year: 'numeric' });
     }
 
-    if (cursoData.data_fi) { // Asegúrate que en Strapi el campo se llama 'data_fi' o 'fecha_fin'
+    if (cursoData.data_fi) {
         fechaFinStr = new Date(cursoData.data_fi).toLocaleDateString('ca-ES', { day: 'numeric', month: '2-digit', year: 'numeric' });
     } else {
-        // Fallback: usar la fecha de hoy como fin si no está definida
         fechaFinStr = new Date().toLocaleDateString('ca-ES', { day: 'numeric', month: '2-digit', year: 'numeric' });
     }
 
-    // Texto de fechas para el diploma
     const textoFechasCurso = `Realitzat del ${fechaInicioStr} al ${fechaFinStr}`;
 
-    
-    // 2. QR
-    const verifyUrl = `${STRAPI_URL}/verificar-certificado/${matriculaId}`;
+    // 2. QR REAL (Apunta al archivo local verify.html)
+    // Usamos window.location.origin para que funcione tanto en localhost como en el dominio real
+    const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+    const verifyUrl = `${currentDomain}/verify.html?ref=${matriculaId}`;
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`;
 
-    // 3. TEMARIO (HOJA 2)
+    // 3. TEMARIO LIMPIO (Eliminar redundancia "Mòdul X")
     let modulosHtml = '';
     if (cursoData.moduls && cursoData.moduls.length > 0) {
         modulosHtml = '<ul>';
         cursoData.moduls.forEach((m, i) => {
-            modulosHtml += `<li><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`;
+            // Regex para quitar "Mòdul 1:", "Modul 1", "Módulo 1 -", etc. del principio del título
+            const tituloLimpio = m.titol.replace(/^(Mòdul|Modul|Módulo)\s*\d+[:\s-]*/i, "").trim();
+            modulosHtml += `<li><strong>Mòdul ${i+1}:</strong> ${tituloLimpio}</li>`;
         });
         modulosHtml += '</ul>';
     } else {
         modulosHtml = '<p><em>Temari detallat segons l\'expedient acadèmic del curs.</em></p>';
     }
 
-    // 4. CREAR CONTENEDOR
     let printContainer = document.getElementById('diploma-print-container');
     if (!printContainer) {
         printContainer = document.createElement('div');
@@ -695,21 +691,17 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         document.body.appendChild(printContainer);
     }
 
-    // 5. RENDERIZAR HTML
     printContainer.innerHTML = `
         <!-- PÁGINA 1: CERTIFICADO -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner">
                     
-                    <!-- MARCA DE AGUA -->
                     <img src="img/logo-sicap.png" class="diploma-watermark">
-
-                    <!-- CABECERA -->
                     <img src="img/logo-sicap.png" class="diploma-logo-top">
+
                     <h1 class="diploma-title">CERTIFICAT D'APROFITAMENT</h1>
 
-                    <!-- CUERPO -->
                     <p class="diploma-text">El Sindicat Català de Presons (SICAP) certifica que</p>
                     <div class="diploma-student">${nombreAlumno}</div>
                     <p class="diploma-text">Amb DNI <strong>${user.username}</strong>, ha superat satisfactòriament el curs:</p>
@@ -722,7 +714,6 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                         <p class="diploma-text" style="margin-top:20px; font-size:0.95rem;">Barcelona, ${fechaEmision}</p>
                     </div>
 
-                    <!-- PIE: QR y FIRMA -->
                     <div class="diploma-footer">
                         <div class="footer-qr-area">
                             <img src="${qrSrc}" class="qr-image">
@@ -730,7 +721,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                         </div>
 
                         <div class="footer-signature-area">
-                            <div style="height:40px;"></div> <!-- Espacio para firmar -->
+                            <img src="img/firma-miguel.png" class="signature-img" alt="Firma" onerror="this.style.display='none'">
                             <div class="signature-line"></div>
                             <span class="signature-name">Miguel Pueyo Pérez</span>
                             <span class="signature-role">Secretari General</span>
@@ -741,11 +732,14 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
             </div>
         </div>
 
-        <!-- PÁGINA 2: EXPEDIENTE (Mismo estilo de borde) -->
+        <!-- PÁGINA 2: EXPEDIENTE -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
-                <div class="diploma-border-inner">
+                <div class="diploma-border-inner" style="align-items: flex-start; text-align: left; padding: 40px;">
                     
+                    <!-- AÑADIDA MARCA DE AGUA AQUÍ TAMBIÉN -->
+                    <img src="img/logo-sicap.png" class="diploma-watermark">
+
                     <div class="page-back-content">
                         <div class="expedient-header">
                             <h3 class="expedient-title">Expedient Formatiu</h3>

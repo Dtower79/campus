@@ -725,7 +725,7 @@ ul { list-style: none; padding: 0; margin: 0; }
 }
 
 /* ==========================================================================
-   14. ESTILOS DE IMPRESIÓN (DIPLOMA ESTILO FEPOL)
+   14. ESTILOS DE IMPRESIÓN (DIPLOMA OFICIAL A4)
    ========================================================================== */
 @media print {
     @page { 
@@ -746,42 +746,40 @@ ul { list-style: none; padding: 0; margin: 0; }
         display: none !important; 
     }
 
-    /* Contenedor del Diploma */
+    /* Contenedor visible */
     #diploma-print-container {
         display: block !important;
         width: 100vw;
-        height: 100vh;
+        height: 100%;
     }
 
-    /* PÁGINA BASE A4 HORIZONTAL */
+    /* PÁGINA BASE */
     .diploma-page {
         width: 297mm;
         height: 210mm;
         page-break-after: always;
         position: relative;
         background-color: #fff;
-        padding: 10mm; /* Margen blanco exterior */
+        padding: 15mm; /* Margen blanco impresora */
         box-sizing: border-box;
         display: flex;
         justify-content: center;
         align-items: center;
     }
 
-    /* EL MARCO AZUL DOBLE (ESTILO FEPOL) */
-    .diploma-frame {
+    /* MARCO DOBLE (ESTILO FEPOL/SICAP) */
+    .diploma-border-outer {
         width: 100%;
         height: 100%;
-        border: 2px solid var(--brand-blue); /* Línea exterior */
-        padding: 3px; /* Espacio entre líneas */
+        border: 3px solid var(--brand-blue);
+        padding: 4px; /* Espacio entre líneas */
         box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
     }
 
-    .diploma-inner-frame {
+    .diploma-border-inner {
         width: 100%;
         height: 100%;
-        border: 1px solid var(--brand-blue); /* Línea interior más fina */
+        border: 1px solid var(--brand-blue);
         padding: 40px;
         box-sizing: border-box;
         display: flex;
@@ -789,154 +787,185 @@ ul { list-style: none; padding: 0; margin: 0; }
         align-items: center;
         text-align: center;
         position: relative;
+        z-index: 1;
     }
 
-    /* LOGO SUPERIOR */
-    .diploma-header-logo {
-        height: 60px;
+    /* MARCA DE AGUA (FONDO) */
+    .diploma-watermark {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 500px;
+        opacity: 0.08; /* Muy suave */
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    /* CONTENIDOS */
+    .diploma-logo-top {
+        height: 70px;
         margin-bottom: 30px;
     }
 
-    /* TÍTULO CERTIFICADO */
     .diploma-title {
         font-family: "Times New Roman", Times, serif;
         color: var(--brand-blue);
-        font-size: 3.5rem;
+        font-size: 3.2rem;
+        font-weight: normal;
         text-transform: uppercase;
         margin: 0 0 20px 0;
-        letter-spacing: 2px;
-        font-weight: normal; /* Fepol usa una serif clásica no siempre negrita */
+        letter-spacing: 1px;
     }
 
-    /* TEXTOS */
     .diploma-text {
         font-family: Arial, sans-serif;
         font-size: 1.1rem;
         color: #333;
-        margin: 10px 0;
+        margin: 8px 0;
     }
 
-    /* NOMBRE ALUMNO */
     .diploma-student {
         font-family: "Times New Roman", Times, serif;
-        font-size: 2.8rem;
+        font-size: 2.5rem;
         font-weight: bold;
         color: #000;
-        margin: 20px 0;
+        margin: 25px 0;
         border-bottom: 1px solid #999;
-        padding-bottom: 10px;
+        padding: 0 40px 5px 40px;
         display: inline-block;
-        min-width: 60%;
     }
 
-    /* NOMBRE CURSO (ROJO) */
     .diploma-course {
         font-family: Arial, sans-serif;
-        font-size: 2.2rem;
+        font-size: 2rem;
         font-weight: bold;
-        color: var(--brand-red); /* Rojo corporativo */
+        color: var(--brand-red);
         margin: 20px 0;
         line-height: 1.2;
+        max-width: 80%;
     }
 
-    /* DATOS ESPECÍFICOS */
     .diploma-details {
-        font-size: 1.2rem;
-        margin-bottom: 40px;
+        font-size: 1.1rem;
+        margin-bottom: 20px;
     }
 
-    /* PIE DE PÁGINA (FIRMAS Y QR) */
+    /* FOOTER CON FLEXBOX PARA SEPARAR QR Y FIRMA */
     .diploma-footer {
-        margin-top: auto; /* Empujar al fondo */
+        margin-top: auto; /* Empuja al fondo */
         width: 100%;
         display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
+        justify-content: space-between; /* Extremos opuestos */
+        align-items: flex-end; /* Alineados abajo */
         padding: 0 20px;
     }
 
-    .footer-left {
+    /* LADO IZQUIERDO: QR */
+    .footer-qr-area {
         text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
-    
-    .footer-right {
-        text-align: center;
-        min-width: 300px;
-    }
-
-    .qr-img {
+    .qr-image {
         width: 110px;
         height: 110px;
         margin-bottom: 5px;
     }
+    .qr-ref {
+        font-size: 0.65rem;
+        font-family: monospace;
+        color: #666;
+    }
 
+    /* LADO DERECHO: FIRMA */
+    .footer-signature-area {
+        text-align: center;
+        min-width: 250px;
+    }
     .signature-line {
         border-top: 1px solid #000;
-        margin-top: 50px; /* Espacio para la firma manual o digital */
-        margin-bottom: 10px;
         width: 100%;
+        margin-bottom: 10px;
+    }
+    .signature-name {
+        font-weight: bold;
+        font-size: 1.1rem;
+        display: block;
+    }
+    .signature-role {
+        font-size: 0.9rem;
+        color: #444;
     }
 
-    /* --- ESTILOS CARA B (TEMARIO) --- */
-    .syllabus-container {
-        text-align: left;
+    /* --- CARA B (EXPEDIENTE) --- */
+    .page-back-content {
         width: 100%;
         height: 100%;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
     }
 
-    .syllabus-header {
+    .expedient-header {
         border-bottom: 2px solid var(--brand-blue);
-        margin-bottom: 30px;
         padding-bottom: 10px;
+        margin-bottom: 20px;
         display: flex;
         justify-content: space-between;
-        align-items: flex-end;
+        align-items: center;
     }
-
-    .syllabus-title {
-        font-size: 1.5rem;
+    .expedient-title {
         color: var(--brand-blue);
+        font-size: 1.5rem;
         text-transform: uppercase;
         font-weight: bold;
         margin: 0;
     }
 
-    .syllabus-info-table {
-        width: 100%;
-        border-collapse: collapse;
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        background-color: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #eee;
         margin-bottom: 30px;
         font-size: 0.9rem;
     }
-    .syllabus-info-table td {
-        padding: 8px;
-        border-bottom: 1px solid #eee;
-    }
-    .syllabus-info-table strong {
-        color: var(--brand-blue);
-    }
+    .info-item span { color: #666; display: block; font-size: 0.8rem; }
+    .info-item strong { color: #000; font-size: 1rem; }
 
-    .syllabus-content-list {
-        font-size: 0.95rem;
-        line-height: 1.5;
-        columns: 2; /* Doble columna para aprovechar espacio */
+    .modules-list {
+        columns: 2; /* Dos columnas para los módulos */
         column-gap: 40px;
+        font-size: 0.9rem;
     }
-    
-    .syllabus-content-list h4 {
+    .modules-list h4 {
         color: var(--brand-red);
-        margin-top: 0;
-        margin-bottom: 10px;
-        font-size: 1rem;
-        break-inside: avoid;
+        margin: 0 0 10px 0;
+        break-after: avoid;
+    }
+    .modules-list ul {
+        margin: 0 0 20px 0;
+        padding-left: 20px;
+        list-style-type: disc;
+    }
+    .modules-list li {
+        margin-bottom: 5px;
     }
 
-    .syllabus-content-list ul {
-        list-style-type: disc;
-        margin-left: 20px;
-        margin-bottom: 20px;
-        break-inside: avoid;
+    .back-footer {
+        margin-top: auto;
+        border-top: 1px solid #ddd;
+        padding-top: 10px;
+        font-size: 0.8rem;
+        color: #666;
+        text-align: center;
     }
 }
 
-/* Ocultar contenedor de impresión en pantalla normal */
+/* OCULTAR EN PANTALLA NORMAL */
 #diploma-print-container { display: none; }

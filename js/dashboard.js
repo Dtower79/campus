@@ -633,31 +633,38 @@ window.callPrintDiploma = function(index) {
     }
 };
 
+// --- SUSTITUIR EN js/dashboard.js ---
+
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
     const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
     const nombreCurso = cursoData.titol;
     const horas = cursoData.hores || 'N/A';
     
-    // Fecha en catalán
-    const fechaFin = new Date().toLocaleDateString('ca-ES', { year: 'numeric', month: 'long', day: 'numeric' });
-    const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || '10'; // Fallback a 10 si apto
+    // Fecha en formato texto (ej: 2 de diciembre del 2025)
+    const fechaObj = new Date();
+    const dia = fechaObj.getDate();
+    const mes = fechaObj.toLocaleDateString('ca-ES', { month: 'long' });
+    const any = fechaObj.getFullYear();
+    const fechaTexto = `${dia} de ${mes} del ${any}`;
+    
+    const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'Apte';
     const matriculaId = matriculaData.documentId || matriculaData.id;
     
-    // QR
+    // QR de Verificación
     const verifyUrl = `${STRAPI_URL}/verificar-certificado/${matriculaId}`;
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`;
 
-    // Generar lista de módulos para la cara B
-    let temarioHtml = '';
+    // Construir HTML de los módulos para la hoja trasera
+    let modulosHtml = '';
     if (cursoData.moduls && cursoData.moduls.length > 0) {
-        temarioHtml = '<div class="syllabus-content-list"><ul>';
-        cursoData.moduls.forEach((m) => {
-            temarioHtml += `<li>${m.titol}</li>`;
+        modulosHtml = '<ul>';
+        cursoData.moduls.forEach((m, i) => {
+            modulosHtml += `<li><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`;
         });
-        temarioHtml += '</ul></div>';
+        modulosHtml += '</ul>';
     } else {
-        temarioHtml = '<p>Temari detallat segons expedient acadèmic arxivat.</p>';
+        modulosHtml = '<p><em>Temari detallat segons l\'expedient acadèmic del curs.</em></p>';
     }
 
     let printContainer = document.getElementById('diploma-print-container');
@@ -667,46 +674,48 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         document.body.appendChild(printContainer);
     }
 
-    // HTML ESTRUCTURA FEPOL EXACTA
     printContainer.innerHTML = `
-        <!-- CARA A: CERTIFICADO -->
+        <!-- PÁGINA 1: CERTIFICADO -->
         <div class="diploma-page">
-            <div class="diploma-frame"> <!-- Marco exterior -->
-                <div class="diploma-inner-frame"> <!-- Marco interior -->
+            <div class="diploma-border-outer">
+                <div class="diploma-border-inner">
                     
-                    <!-- Logo centrado arriba -->
-                    <img src="img/logo-sicap.png" alt="SICAP FEPOL" class="diploma-header-logo">
-                    
+                    <!-- MARCA DE AGUA FONDO -->
+                    <img src="img/logo-sicap.png" class="diploma-watermark">
+
+                    <!-- LOGO SUPERIOR -->
+                    <img src="img/logo-sicap.png" class="diploma-logo-top">
+
+                    <!-- TÍTULO -->
                     <h1 class="diploma-title">CERTIFICAT D'APROFITAMENT</h1>
-                    
+
                     <p class="diploma-text">El Sindicat Català de Presons (SICAP) certifica que</p>
-                    
+
                     <div class="diploma-student">${nombreAlumno}</div>
-                    
-                    <p class="diploma-text" style="border-top: 2px solid #333; width: 60%; margin: 10px auto;">
-                        Amb DNI <strong>${user.username}</strong>, ha superat satisfactòriament el curs:
-                    </p>
-                    
+
+                    <p class="diploma-text">Amb DNI <strong>${user.username}</strong>, ha superat satisfactòriament el curs:</p>
+
                     <h2 class="diploma-course">${nombreCurso}</h2>
-                    
+
                     <div class="diploma-details">
-                        <p>Amb una durada de <strong>${horas} hores</strong> lectives.</p>
-                        <p>Qualificació obtinguda: <strong>${nota}</strong></p>
-                        <p style="margin-top:20px;">Barcelona, ${fechaFin}</p>
+                        <p class="diploma-text">Amb una durada de <strong>${horas} hores</strong> lectives.</p>
+                        <p class="diploma-text">Qualificació obtinguda: <strong>${nota}</strong></p>
+                        <p class="diploma-text" style="margin-top:25px;">Barcelona, ${fechaTexto}</p>
                     </div>
 
+                    <!-- PIE DE PÁGINA: QR (IZQ) Y FIRMA (DER) -->
                     <div class="diploma-footer">
-                        <!-- IZQUIERDA: QR -->
-                        <div class="footer-left">
-                            <img src="${qrSrc}" class="qr-img" alt="QR">
-                            <div style="font-size:0.6rem; font-family:monospace;">Ref: ${matriculaId}</div>
+                        <div class="footer-qr-area">
+                            <img src="${qrSrc}" class="qr-image">
+                            <div class="qr-ref">Ref: ${matriculaId}</div>
                         </div>
 
-                        <!-- DERECHA: FIRMA MIGUEL -->
-                        <div class="footer-right">
+                        <div class="footer-signature-area">
+                            <!-- Espacio para firma manuscrita o imagen -->
+                            <div style="height:50px;"></div> 
                             <div class="signature-line"></div>
-                            <strong>Miguel Pueyo Pérez</strong><br>
-                            <small>Secretari General</small>
+                            <span class="signature-name">Miguel Pueyo Pérez</span>
+                            <span class="signature-role">Secretari General</span>
                         </div>
                     </div>
 
@@ -714,40 +723,36 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
             </div>
         </div>
 
-        <!-- CARA B: TEMARIO -->
+        <!-- PÁGINA 2: EXPEDIENTE FORMATIVO -->
         <div class="diploma-page">
-            <div class="diploma-frame">
-                <div class="diploma-inner-frame" style="align-items: flex-start; text-align: left;">
+            <div class="diploma-border-outer" style="border-style: dotted; border-color: #ccc;">
+                <div class="diploma-border-inner" style="border:none; padding: 50px;">
                     
-                    <div class="syllabus-container">
-                        <div class="syllabus-header">
-                            <img src="img/logo-sicap.png" style="height:40px;">
-                            <h3 class="syllabus-title">Expedient Formatiu</h3>
+                    <div class="page-back-content">
+                        <div class="expedient-header">
+                            <h3 class="expedient-title">Expedient Formatiu</h3>
+                            <img src="img/logo-sicap.png" style="height:30px; opacity:0.6;">
                         </div>
 
-                        <table class="syllabus-info-table">
-                            <tr>
-                                <td><strong>Alumne:</strong> ${nombreAlumno}</td>
-                                <td><strong>DNI:</strong> ${user.username}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Curs:</strong> ${nombreCurso}</td>
-                                <td><strong>Nota Final:</strong> ${nota}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Data:</strong> ${fechaFin}</td>
-                                <td><strong>Hores:</strong> ${horas}h</td>
-                            </tr>
-                        </table>
+                        <div class="info-grid">
+                            <div class="info-item"><span>Alumne/a</span><strong>${nombreAlumno}</strong></div>
+                            <div class="info-item"><span>Document (DNI)</span><strong>${user.username}</strong></div>
+                            <div class="info-item"><span>Acció Formativa</span><strong>${nombreCurso}</strong></div>
+                            <div class="info-item"><span>Data de Finalització</span><strong>${fechaTexto}</strong></div>
+                            <div class="info-item"><span>Hores Totals</span><strong>${horas}h</strong></div>
+                            <div class="info-item"><span>Qualificació</span><strong>${nota}</strong></div>
+                        </div>
 
-                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:5px;">CONTINGUTS DEL CURS:</h4>
-                        <br>
-                        ${temarioHtml}
-                    </div>
+                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom:15px;">CONTINGUTS I MÒDULS</h4>
+                        
+                        <div class="modules-list">
+                            ${modulosHtml}
+                        </div>
 
-                    <div style="margin-top: auto; width: 100%; text-align: center; font-size: 0.8rem; color: #666;">
-                        <p>Aquest document acredita la competència adquirida en l'acció formativa especificada.</p>
-                        <p>SICAP Formació - Registre d'Activitats Docents | sicap.cat</p>
+                        <div class="back-footer">
+                            <p>Aquest document és un annex al certificat principal i detalla els continguts superats.</p>
+                            <p>SICAP Formació - Registre d'Activitats Docents</p>
+                        </div>
                     </div>
 
                 </div>
@@ -755,7 +760,8 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         </div>
     `;
 
-    setTimeout(() => { window.print(); }, 800); // Un poco más de tiempo para cargar el QR
+    // Retardo para asegurar carga de imagen QR
+    setTimeout(() => { window.print(); }, 800);
 };
 
 // ==========================================

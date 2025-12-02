@@ -17,11 +17,13 @@
         .status-valid { color: #28a745; }
         .status-invalid { color: #dc3545; }
         .data-row { display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px dashed #eee; padding-bottom: 5px; text-align: left; }
-        .data-label { color: #666; font-size: 0.9rem; }
-        .data-val { font-weight: bold; color: #333; }
+        .data-label { color: #666; font-size: 0.9rem; min-width: 80px; }
+        
+        /* AJUSTE PARA REFERENCIA LARGA */
+        .data-val { font-weight: bold; color: #333; text-align: right; word-break: break-all; }
+        
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--brand-blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-        .debug-error { font-size: 0.75rem; color: red; background: #fff0f0; padding: 10px; border: 1px solid red; margin-top: 15px; word-break: break-all; text-align: left; }
     </style>
 </head>
 <body>
@@ -45,27 +47,22 @@
             const card = document.getElementById('card');
 
             if (!ref) {
-                showInvalid("Codi de referència no proporcionat a la URL.");
+                showInvalid("Codi de referència no proporcionat.");
                 return;
             }
 
             try {
-                // Intentamos cargar con 'populate' completo
-                // NOTA: Si el rol Public no tiene permiso para ver 'users_permissions_user', esto podría fallar.
+                // Strapi query
                 const url = `${STRAPI_URL}/api/matriculas/${ref}?populate=curs&populate=users_permissions_user`;
-                
                 const res = await fetch(url);
                 
-                if (!res.ok) {
-                    // Si falla, lanzamos error con el código de estado para verlo en pantalla
-                    throw new Error(`Error Servidor: ${res.status} ${res.statusText}`);
-                }
+                if (!res.ok) throw new Error("Error de connexió");
                 
                 const json = await res.json();
                 const data = json.data;
 
                 if (!data) {
-                    showInvalid("Document no trobat a la base de dades (404).");
+                    showInvalid("Document no trobat.");
                     return;
                 }
 
@@ -80,26 +77,28 @@
                 }
 
             } catch (e) {
-                // MOSTRAMOS EL ERROR TÉCNICO EN PANTALLA PARA DEPURAR
-                showInvalid("Error de connexió o permisos.");
-                
-                const debugDiv = document.createElement('div');
-                debugDiv.className = 'debug-error';
-                debugDiv.innerHTML = `<strong>Detalls tècnics:</strong><br>${e.message}<br><br>URL: ${STRAPI_URL}`;
-                container.appendChild(debugDiv);
+                showInvalid("No s'ha pogut verificar el document. Intent-ho més tard.");
             }
 
             function showValid(data) {
                 card.style.borderColor = "#28a745";
                 
-                // Fallback seguro por si 'users_permissions_user' viene null por permisos
-                const alumno = data.users_permissions_user || { username: 'Dada protegida', nombre: '', apellidos: '' };
-                const curso = data.curs || { titol: 'Curs desconegut', hores: '0' };
+                // Intentamos sacar datos del usuario
+                // Si Strapi bloquea 'users_permissions_user', intentamos fallbacks
+                const alumno = data.users_permissions_user || {};
                 
-                const nombreCompleto = (alumno.nombre || alumno.apellidos) 
-                    ? `${alumno.nombre || ''} ${alumno.apellidos || ''}` 
-                    : alumno.username;
+                // Nombre: Si no hay nombre/apellidos, ponemos "Usuari Validat" para no poner "Dada protegida"
+                let nombreCompleto = "Usuari Validat";
+                if (alumno.nombre || alumno.apellidos) {
+                    nombreCompleto = `${alumno.nombre || ''} ${alumno.apellidos || ''}`;
+                } else if (alumno.username) {
+                    nombreCompleto = alumno.username; // A veces el username es el nombre
+                }
 
+                // DNI: El username suele ser el DNI en tu sistema
+                let dni = alumno.username || "***";
+
+                const curso = data.curs || { titol: 'Curs', hores: '0' };
                 const notaFinal = data.nota_final || data.progres_detallat?.examen_final?.nota || "Apte";
 
                 container.innerHTML = `
@@ -108,7 +107,7 @@
                     
                     <div class="data-row"><span class="data-label">Referència:</span> <span class="data-val">${data.documentId || ref}</span></div>
                     <div class="data-row"><span class="data-label">Alumne:</span> <span class="data-val">${nombreCompleto.toUpperCase()}</span></div>
-                    <div class="data-row"><span class="data-label">DNI:</span> <span class="data-val">${alumno.username}</span></div>
+                    <div class="data-row"><span class="data-label">DNI:</span> <span class="data-val">${dni.toUpperCase()}</span></div>
                     <div class="data-row"><span class="data-label">Curs:</span> <span class="data-val">${curso.titol}</span></div>
                     <div class="data-row"><span class="data-label">Hores:</span> <span class="data-val">${curso.hores}h</span></div>
                     <div class="data-row" style="border:none;"><span class="data-label">Nota Final:</span> <span class="data-val">${notaFinal}</span></div>

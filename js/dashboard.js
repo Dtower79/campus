@@ -694,6 +694,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner">
+                    
                     <img src="img/logo-sicap.png" class="diploma-watermark">
                     <img src="img/logo-sicap.png" class="diploma-logo-top">
 
@@ -754,6 +755,10 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                         
                         <div class="modules-list">
                             ${modulosHtml}
+                        </div>
+
+                        <div class="back-footer">
+                            <p style="margin:0;">SICAP - Sindicat Català de presons - Unitat de Formació</p>
                         </div>
                     </div>
                 </div>

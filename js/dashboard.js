@@ -195,8 +195,9 @@ window.mostrarModalError = function(mensaje, onCloseAction) {
 };
 
 // ==========================================
-// 3. FUNCIONES PRINCIPALES APP
+// 3. FUNCIONES PRINCIPALES APP (ACTUALIZADO)
 // ==========================================
+
 window.logoutApp = function() {
     window.mostrarModalConfirmacion("Tancar Sessió", "Estàs segur que vols sortir del campus?", () => {
         localStorage.clear(); 
@@ -219,9 +220,16 @@ window.appIniciada = false;
 window.iniciarApp = function() {
     if (window.appIniciada) return;
     window.appIniciada = true;
-    console.log("🚀 Iniciando SICAP App...");
+    console.log("🚀 SICAP App: Iniciant sistema...");
+    
     startInactivityTimers();
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
+    
+    // Iniciar polling de notificaciones real
+    checkRealNotifications(); 
+    // Comprobar cada 60 segundos
+    setInterval(checkRealNotifications, 60000);
+
     setTimeout(() => { setupDirectClicks(); }, 100);
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -235,33 +243,25 @@ window.iniciarApp = function() {
 
 function setupDirectClicks() {
     const btnBell = document.getElementById('btn-notifs');
-    const bellDot = btnBell ? btnBell.querySelector('.notification-dot') : null;
-
-    if (localStorage.getItem('notification_pending') === 'true') {
-        if (bellDot) { bellDot.style.display = 'block'; bellDot.classList.add('animate-ping'); }
-    } else {
-        if (bellDot) bellDot.style.display = 'none';
-    }
-
-    if (btnBell) btnBell.onclick = (e) => { 
-        e.stopPropagation();
-        if (localStorage.getItem('notification_pending') === 'true') {
-            if (bellDot) { bellDot.style.display = 'none'; bellDot.classList.remove('animate-ping'); }
-            localStorage.removeItem('notification_pending');
-            window.mostrarModalError("🔔 Tens novetats: T'has matriculat correctament al nou curs.");
-        } else {
-            window.mostrarModalError("No tens noves notificacions.");
-        }
-    };
-
     const btnMsg = document.getElementById('btn-messages');
-    if (btnMsg) {
-        btnMsg.onclick = async (e) => { 
-            e.stopPropagation(); 
-            await abrirPanelMensajes();
+    
+    // CAMPANA (Ahora abre panel real)
+    if (btnBell) {
+        btnBell.onclick = (e) => { 
+            e.stopPropagation();
+            abrirPanelNotificaciones();
         };
     }
 
+    // MENSAJES (Detecta si es profesor)
+    if (btnMsg) {
+        btnMsg.onclick = (e) => { 
+            e.stopPropagation(); 
+            abrirPanelMensajes();
+        };
+    }
+
+    // Resto de menús (Móvil, Usuario, etc.)
     const btnMobile = document.getElementById('mobile-menu-btn');
     const navMenu = document.getElementById('main-nav');
     if (btnMobile && navMenu) {
@@ -286,7 +286,7 @@ function setupDirectClicks() {
             }
         };
     }
-
+    
     const links = document.querySelectorAll('#user-dropdown-menu a');
     links.forEach(link => {
         link.onclick = (e) => {
@@ -343,21 +343,123 @@ function initHeaderData() {
     setText('profile-dni-display', user.username);
 }
 
-async function checkNewMessages(userId, token) {
+// ==========================================
+// 4. MOTOR DE NOTIFICACIONES
+// ==========================================
+
+async function checkRealNotifications() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('jwt');
+    if (!user || !token) return;
+
     try {
-        const res = await fetch(`${STRAPI_URL}/api/missatges?filters[users_permissions_user][id][$eq]=${userId}&filters[estat][$eq]=respost`, {
+        // Consultar Strapi: Notificaciones del usuario no leídas
+        const res = await fetch(`${API_ROUTES.notifications}?filters[user][id][$eq]=${user.id}&filters[llegida][$eq]=false`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
-        if (json.data && json.data.length > 0) {
-            const msgIcon = document.getElementById('btn-messages');
-            if (msgIcon) {
-                msgIcon.style.color = 'var(--brand-blue)';
-                msgIcon.innerHTML += '<span class="notification-dot" style="display:block; background:green;"></span>';
+        const count = json.data ? json.data.length : 0;
+
+        const bellDot = document.querySelector('.notification-dot');
+        if (bellDot) {
+            if (count > 0) {
+                bellDot.style.display = 'flex'; // Flex para centrar número
+                bellDot.classList.add('animate-ping');
+                bellDot.innerText = count > 9 ? '+9' : count; 
+            } else {
+                bellDot.style.display = 'none';
+                bellDot.classList.remove('animate-ping');
             }
         }
-    } catch(e) { console.log("No se pudieron verificar mensajes"); }
+    } catch (e) {
+        console.warn("Error checking notifications:", e);
+    }
 }
+
+window.abrirPanelNotificaciones = async function() {
+    const modal = document.getElementById('custom-modal');
+    const titleEl = document.getElementById('modal-title');
+    const msgEl = document.getElementById('modal-msg');
+    const btnConfirm = document.getElementById('modal-btn-confirm');
+    const btnCancel = document.getElementById('modal-btn-cancel');
+
+    titleEl.innerText = "Notificacions";
+    titleEl.style.color = "var(--brand-blue)";
+    btnCancel.style.display = 'none';
+    btnConfirm.innerText = "Tancar";
+    
+    // Clonar para limpiar eventos
+    const newConfirm = btnConfirm.cloneNode(true);
+    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+    newConfirm.onclick = () => modal.style.display = 'none';
+
+    msgEl.innerHTML = '<div class="loader"></div>';
+    modal.style.display = 'flex';
+
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('jwt');
+
+    try {
+        // Traer todas (leídas y no leídas) ordenadas por fecha
+        const res = await fetch(`${API_ROUTES.notifications}?filters[user][id][$eq]=${user.id}&sort=createdAt:desc&pagination[limit]=10`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await res.json();
+        const notifs = json.data || [];
+
+        if (notifs.length === 0) {
+            msgEl.innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No tens notificacions.</p>';
+            return;
+        }
+
+        let html = '<div class="notif-list">';
+        notifs.forEach(n => {
+            const fecha = new Date(n.createdAt).toLocaleDateString('ca-ES', { hour: '2-digit', minute:'2-digit' });
+            const unreadClass = n.llegida ? '' : 'unread';
+            const icon = n.llegida ? '<i class="fa-regular fa-envelope-open"></i>' : '<i class="fa-solid fa-envelope"></i>';
+            
+            html += `
+                <div class="notif-item ${unreadClass}" onclick="marcarNotificacionLeida('${n.documentId || n.id}', this)">
+                    <div class="notif-header">
+                        <span>${icon} ${fecha}</span>
+                        ${!n.llegida ? '<small style="color:var(--brand-red); font-weight:bold;">NOVA</small>' : ''}
+                    </div>
+                    <strong class="notif-title">${n.titol}</strong>
+                    <div class="notif-body">${n.missatge}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        msgEl.innerHTML = html;
+
+    } catch (e) {
+        msgEl.innerHTML = '<p style="color:red">Error carregant notificacions.</p>';
+    }
+};
+
+window.marcarNotificacionLeida = async function(id, element) {
+    if (!element.classList.contains('unread')) return; // Ya leída
+
+    const token = localStorage.getItem('jwt');
+    try {
+        await fetch(`${API_ROUTES.notifications}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ data: { llegida: true } })
+        });
+        
+        // UI Update inmediata
+        element.classList.remove('unread');
+        const badge = element.querySelector('small');
+        if(badge) badge.remove();
+        
+        // Actualizar campana global
+        checkRealNotifications();
+    } catch (e) {
+        console.error("Error marking read:", e);
+    }
+};
+
 
 window.showView = function(viewName) {
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
@@ -432,9 +534,8 @@ window.toggleDesc = function(id) {
 };
 
 // ==========================================
-// 4. LÓGICA DE CURSOS (DASHBOARD & CATÁLOGO)
+// 5. LÓGICA DE CURSOS (DASHBOARD & CATÁLOGO)
 // ==========================================
-// --- SUSTITUIR EN js/dashboard.js ---
 
 async function renderCoursesLogic(viewMode) {
     const listId = viewMode === 'dashboard' ? 'courses-list' : 'catalog-list';
@@ -498,12 +599,9 @@ async function renderCoursesLogic(viewMode) {
             if (curs._matricula) {
                 const mat = curs._matricula;
                 
-                // --- CORRECCIÓN LÓGICA 100% ---
-                // Si el examen final está aprobado, forzamos visualmente el 100%
                 let porcentaje = mat.progres || 0;
                 let isCompleted = mat.estat === 'completat' || porcentaje >= 100;
                 
-                // Chequeo profundo en el objeto detalle si existe
                 if (mat.progres_detallat && mat.progres_detallat.examen_final && mat.progres_detallat.examen_final.aprobado) {
                     porcentaje = 100;
                     isCompleted = true;
@@ -533,8 +631,6 @@ window.solicitarMatricula = function(courseId, courseTitle) {
             if (res.ok) {
                 document.getElementById('custom-modal').style.display = 'none';
                 localStorage.setItem('notification_pending', 'true');
-                const bellDot = document.querySelector('.notification-dot');
-                if(bellDot) { bellDot.style.display = 'block'; bellDot.classList.add('animate-ping'); setTimeout(() => bellDot.classList.remove('animate-ping'), 5000); }
                 window.showView('dashboard'); window.mostrarModalError("Matrícula realitzada correctament! Ja pots accedir al curs.");
             } else {
                 const err = await res.json(); document.getElementById('custom-modal').style.display = 'none';
@@ -548,7 +644,7 @@ window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'
 window.loadCatalog = async function() { await renderCoursesLogic('home'); };
 
 // ==========================================
-// 5. PERFIL & GRADES
+// 6. PERFIL & GRADES
 // ==========================================
 async function loadFullProfile() {
     const user = JSON.parse(localStorage.getItem('user')); const token = localStorage.getItem('jwt');
@@ -632,8 +728,6 @@ window.callPrintDiploma = function(index) {
         alert("Error al generar el diploma. Refresca la página.");
     }
 };
-
-// --- SUSTITUIR EN js/dashboard.js ---
 
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -770,8 +864,9 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
 };
 
 // ==========================================
-// 6. MENSAJERÍA (DUDAS)
+// 7. MENSAJERÍA (PROFESOR & ALUMNO)
 // ==========================================
+
 async function abrirPanelMensajes() {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -779,7 +874,10 @@ async function abrirPanelMensajes() {
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
     
-    titleEl.innerText = "Bústia de Dubtes";
+    const user = JSON.parse(localStorage.getItem('user'));
+    const esProfe = user.es_professor === true;
+
+    titleEl.innerText = esProfe ? "👨‍🏫 Safata de Dubtes (Professor)" : "💬 Els meus Dubtes";
     titleEl.style.color = "var(--brand-blue)";
     btnCancel.style.display = 'none';
     btnConfirm.innerText = "Tancar";
@@ -792,97 +890,145 @@ async function abrirPanelMensajes() {
     modal.style.display = 'flex';
 
     try {
-        const user = JSON.parse(localStorage.getItem('user'));
         const token = localStorage.getItem('jwt');
-        const esProfe = user.es_professor === true;
-
         let endpoint = '';
+
         if (esProfe) {
-            endpoint = `${STRAPI_URL}/api/missatges?filters[estat][$eq]=pendent&sort[0]=createdAt:desc`;
+            // El profesor ve SOLO los pendientes de responder de CUALQUIER alumno
+            endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user`;
         } else {
-            endpoint = `${STRAPI_URL}/api/missatges?filters[users_permissions_user][id][$eq]=${user.id}&sort[0]=createdAt:desc`;
+            // El alumno ve sus mensajes
+            endpoint = `${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:desc`;
         }
 
-        const res = await fetch(endpoint, {
-             headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
         const mensajes = json.data || [];
 
         if (mensajes.length === 0) {
-            msgEl.innerHTML = `<p style="text-align:center; padding:20px;">No hi ha missatges ${esProfe ? 'pendents' : 'registrats'}.</p>`;
+            msgEl.innerHTML = `<div style="text-align:center; padding:30px;">
+                <i class="fa-regular fa-comment-dots" style="font-size:3rem; color:#ccc; margin-bottom:10px;"></i>
+                <p>${esProfe ? 'No hi ha dubtes pendents! 🎉' : 'No has enviat cap dubte.'}</p>
+            </div>`;
             return;
         }
 
         let html = '<div class="msg-list-container">';
         mensajes.forEach(msg => {
             const fecha = new Date(msg.createdAt).toLocaleDateString('ca-ES');
-            const estadoClass = msg.estat === 'pendent' ? 'status-pending' : 'status-replied';
-            const estadoTexto = msg.estat === 'pendent' ? 'Pendent' : 'Respost';
-            let actionHtml = '';
+            const alumnoId = msg.users_permissions_user ? (msg.users_permissions_user.id || msg.users_permissions_user.documentId) : null;
             
-            if (esProfe && msg.estat === 'pendent') {
-                actionHtml = `
-                    <div style="margin-top:10px;">
-                        <textarea id="reply-${msg.documentId || msg.id}" class="modal-textarea" style="height:60px; margin:5px 0;" placeholder="Escriu la resposta..."></textarea>
-                        <button class="btn-small" style="background:var(--brand-blue); color:white;" onclick="enviarResposta('${msg.documentId || msg.id}')">Respondre</button>
+            // Renderizado diferente si es Profesor
+            if (esProfe) {
+                html += `
+                    <div class="msg-card" style="border-left: 4px solid var(--brand-red);">
+                        <div class="msg-header">
+                            <span><strong>${msg.alumne_nom || 'Alumne'}</strong> - ${msg.curs}</span>
+                            <span>${fecha}</span>
+                        </div>
+                        <div class="chat-meta">Tema: ${msg.tema}</div>
+                        <div class="chat-bubble bubble-student">
+                            "${msg.missatge}"
+                        </div>
+                        
+                        <div class="reply-area">
+                            <textarea id="reply-${msg.documentId || msg.id}" placeholder="Escriu la resposta aquí..."></textarea>
+                            <button class="btn-small" style="background:var(--brand-blue); color:white; width:100%; justify-content:center;" 
+                                onclick="enviarRespostaProfessor('${msg.documentId || msg.id}', ${alumnoId}, '${encodeURIComponent(msg.tema)}')">
+                                <i class="fa-regular fa-paper-plane"></i> Enviar i Notificar
+                            </button>
+                        </div>
                     </div>
                 `;
-            } else if (msg.resposta_professor) {
-                actionHtml = `<div class="msg-reply-box"><strong>👨‍🏫 Professor:</strong><br>${msg.resposta_professor}</div>`;
-            }
+            } else {
+                // Renderizado Alumno
+                const estadoClass = msg.estat === 'pendent' ? 'status-pending' : 'status-replied';
+                const estadoTexto = msg.estat === 'pendent' ? 'Pendent' : 'Respost';
+                
+                let respuestaHtml = '';
+                if (msg.resposta_professor) {
+                    respuestaHtml = `
+                        <div class="chat-meta" style="text-align:right; margin-top:10px;">👨‍🏫 Professor:</div>
+                        <div class="chat-bubble bubble-teacher">${msg.resposta_professor}</div>
+                    `;
+                }
 
-            html += `
-                <div class="msg-card">
-                    <div class="msg-header">
-                        <span>${esProfe ? '👤 ' + msg.alumne_nom : '📅 ' + fecha}</span>
-                        <span class="msg-status-badge ${estadoClass}">${estadoTexto}</span>
+                html += `
+                    <div class="msg-card">
+                        <div class="msg-header">
+                            <span>${msg.curs}</span>
+                            <span class="msg-status-badge ${estadoClass}">${estadoTexto}</span>
+                        </div>
+                        <div class="chat-bubble bubble-student">${msg.missatge}</div>
+                        ${respuestaHtml}
                     </div>
-                    <div class="msg-body">
-                        <strong>Curs:</strong> ${msg.curs} <br>
-                        <strong>Tema:</strong> ${msg.tema} <br>
-                        <p style="margin-top:5px; font-style:italic;">"${msg.missatge}"</p>
-                    </div>
-                    ${actionHtml}
-                </div>
-            `;
+                `;
+            }
         });
         html += '</div>';
         msgEl.innerHTML = html;
+
     } catch (e) {
         console.error(e);
         msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>';
     }
 }
 
-window.enviarResposta = async function(msgId) {
+// FUNCIÓN DEL PROFESOR: RESPONDE Y CREA NOTIFICACIÓN
+window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     const txtArea = document.getElementById(`reply-${msgId}`);
     const respuesta = txtArea.value.trim();
-    if(!respuesta) return alert("Escriu una resposta.");
+    if (!respuesta) return alert("Escriu una resposta.");
 
     const token = localStorage.getItem('jwt');
     const btn = txtArea.nextElementSibling;
+    const originalText = btn.innerHTML;
     btn.innerText = "Enviant..."; 
     btn.disabled = true;
 
     try {
-        const payload = {
-            data: {
-                resposta_professor: respuesta,
-                estat: 'respost'
-            }
-        };
-        const res = await fetch(`${STRAPI_URL}/api/missatges/${msgId}`, {
+        // 1. ACTUALIZAR EL MENSAJE
+        const resMsg = await fetch(`${API_ROUTES.messages}/${msgId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                data: {
+                    resposta_professor: respuesta,
+                    estat: 'respost'
+                }
+            })
         });
-        if(res.ok) {
-            abrirPanelMensajes(); 
-        } else {
-            alert("Error al guardar la resposta");
+
+        if (!resMsg.ok) throw new Error("Error actualitzant missatge");
+
+        // 2. CREAR NOTIFICACIÓN PARA EL ALUMNO (Si tenemos el ID)
+        if (studentId) {
+            const tema = decodeURIComponent(encodedTema);
+            const notifPayload = {
+                data: {
+                    titol: "Dubte Respost",
+                    missatge: `El professor ha respost al teu dubte sobre: "${tema}". Revisa la safata de missatges.`,
+                    llegida: false,
+                    user: studentId,
+                    type: "reply" // Campo opcional para lógica futura
+                }
+            };
+
+            await fetch(API_ROUTES.notifications, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(notifPayload)
+            });
         }
-    } catch(e) {
-        alert("Error de connexió");
+
+        // Recargar panel para quitar el mensaje de la lista
+        abrirPanelMensajes();
+        window.mostrarModalError("Resposta enviada i alumne notificat correctament.");
+
+    } catch (e) {
+        console.error(e);
+        alert("Error al processar la resposta.");
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 };

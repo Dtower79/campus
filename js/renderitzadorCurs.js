@@ -134,8 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- SUSTITUIR EN js/renderitzadorCurs.js ---
-
     async function init() {
         const container = document.getElementById('moduls-container');
         if(container) container.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
@@ -890,10 +888,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- NUEVO REVISOR EXAMEN FINAL ---
-    // --- FUNCIÓN CORREGIDA PARA REVISIÓN CON GRID ---
     window.revisarExamenFinal = function() {
         const container = document.getElementById('moduls-container');
-        const gridRight = document.getElementById('quiz-grid'); // Referencia al sidebar derecho
+        const gridRight = document.getElementById('quiz-grid'); 
         const preguntas = state.curso.examen_final || [];
         
         if (preguntas.length === 0) {
@@ -901,21 +898,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 1. REGENERAR LA CUADRÍCULA DE NAVEGACIÓN (Punto 1 Solucionado)
         if (gridRight) {
             gridRight.className = 'grid-container';
-            gridRight.innerHTML = ''; // Limpiar lo que hubiera (cronómetro, etc.)
-            
-            // Añadir título opcional
+            gridRight.innerHTML = ''; 
             const header = document.createElement('div');
             header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary);">Navegació Revisió</h4>';
             gridRight.appendChild(header);
 
             preguntas.forEach((p, i) => {
                 const div = document.createElement('div');
-                div.className = 'grid-item answered'; // Clase 'answered' para que salga pintado
+                div.className = 'grid-item answered'; 
                 div.innerText = i + 1;
-                // Al hacer clic, scrollear a la tarjeta correspondiente
                 div.onclick = () => {
                     const card = document.getElementById(`review-card-${i}`);
                     if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -924,14 +917,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // 2. RENDERIZAR LAS PREGUNTAS EN EL MAIN
         let html = `<h3>Revisió Examen Final</h3>
                     <div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px;">
                         <i class="fa-solid fa-eye"></i> Mode lectura: Aquí pots veure les respostes correctes i les explicacions.
                     </div>`;
         
         preguntas.forEach((preg, idx) => {
-            // Añadimos ID único para el scroll
             html += `<div class="question-card review-mode" id="review-card-${idx}">
                 <div class="q-header">Pregunta ${idx + 1}</div>
                 <div class="q-text">${preg.text}</div>
@@ -941,10 +932,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 let classes = 'option-item ';
                 const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
                 if (isCorrect) classes += 'correct-answer '; 
-                
-                // En modo revisión pura, solo marcamos la correcta visualmente
-                // Si quisieras marcar la que puso el usuario, necesitaríamos persistir 'respuestasTemp' o traerlas del backend si se guardaran detalladas.
-                // Por ahora, mostramos la plantilla correctora.
                 html += `<div class="${classes}"><input type="radio" disabled ${isCorrect ? 'checked' : ''}><span>${opt.text}</span></div>`;
             });
 
@@ -962,7 +949,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
         
-        // --- PUNTO 7: MOSTRAR BOTÓN DE REVISIÓN SI YA ESTÁ APROBADO ---
         if (finalData.aprobado) {
             let botonHtml = `<button class="btn-primary" onclick="imprimirDiploma('${finalData.nota}')"><i class="fa-solid fa-download"></i> Descarregar Diploma</button>`;
             let revisarHtml = `<button class="btn-secondary" style="margin-top:10px;" onclick="revisarExamenFinal()"><i class="fa-solid fa-eye"></i> Revisar Respostes</button>`;
@@ -980,7 +966,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // --- PUNTO 4: GOD MODE EN EXAMEN FINAL ---
         if (finalData.intentos >= 2 && !state.godMode) { 
             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Intents esgotats.</p></div>`; 
             return; 
@@ -1042,6 +1027,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function iniciarCronometro() { const display = document.getElementById('exam-timer'); if(!display) return; const LIMIT_MS = 30 * 60 * 1000; clearInterval(state.timerInterval); state.timerInterval = setInterval(() => { const now = Date.now(); const elapsed = now - state.testStartTime; const remaining = LIMIT_MS - elapsed; if (remaining <= 0) { detenerCronometro(); display.innerText = "00:00"; alert("Temps esgotat!"); entregarExamenFinal(true); return; } const min = Math.floor(remaining / 60000); const sec = Math.floor((remaining % 60000) / 1000); display.innerText = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }, 1000); }
     function detenerCronometro() { clearInterval(state.timerInterval); }
+    
+    // --- HELPER PARA NOTIFICACIÓN AUTOMÁTICA ---
+    async function notificarAprobado(cursoTitulo) {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const token = localStorage.getItem('jwt');
+        try {
+            await fetch(API_ROUTES.notifications, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    data: {
+                        titol: "Curs Completat! 🎓",
+                        missatge: `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`,
+                        llegida: false,
+                        user: user.id
+                    }
+                })
+            });
+            if(window.checkRealNotifications) window.checkRealNotifications();
+        } catch(e) { console.error("Error notif:", e); }
+    }
+
     window.entregarExamenFinal = function(forzado = false) {
         const doDelivery = async () => {
             detenerCronometro(); const preguntas = window.currentQuestions; let aciertos = 0;
@@ -1054,7 +1061,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (aprobado) porcentaje = 100;
 
             const payload = { data: { progres_detallat: state.progreso, progres: porcentaje } }; 
-            if (aprobado) { payload.data.estat = 'completat'; payload.data.nota_final = nota; }
+            if (aprobado) { 
+                payload.data.estat = 'completat'; 
+                payload.data.nota_final = nota; 
+                
+                // NOTIFICAR AL ALUMNO
+                notificarAprobado(state.curso.titol);
+            }
             
             await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) });
             limpiarRespuestasLocales('examen_final'); state.testEnCurso = false; document.body.classList.remove('exam-active');
@@ -1062,24 +1075,16 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         if(forzado) { doDelivery(); } else { window.mostrarModalConfirmacion("Entregar Examen", "Segur que vols entregar?", () => { document.getElementById('custom-modal').style.display = 'none'; doDelivery(); }); }
     }
-    // En js/renderitzadorCurs.js, busca window.imprimirDiploma y cámbiala:
 
     window.imprimirDiploma = function(nota) { 
-        // Reutilizamos la función potente de dashboard.js si está disponible
         if (window.imprimirDiplomaCompleto) {
-            // Necesitamos asegurar que state.curso y state.matriculaId tienen datos completos
-            // Construimos un objeto matricula 'fake' con los datos que tenemos en el estado del renderizador
-            const matData = {
-                id: state.matriculaId,
-                documentId: state.matriculaId,
-                nota_final: nota,
-                progres_detallat: state.progreso
-            };
+            const matData = { id: state.matriculaId, documentId: state.matriculaId, nota_final: nota, progres_detallat: state.progreso };
             window.imprimirDiplomaCompleto(matData, state.curso);
         } else {
             alert("Error: Mòdul de certificació no carregat.");
         }
     };
+
     window.obrirFormulariDubte = function(moduloTitulo) {
         const modal = document.getElementById('custom-modal'); const titleEl = document.getElementById('modal-title'); const msgEl = document.getElementById('modal-msg'); const btnConfirm = document.getElementById('modal-btn-confirm'); const btnCancel = document.getElementById('modal-btn-cancel');
         titleEl.innerText = "Enviar Dubte"; titleEl.style.color = "var(--brand-blue)";

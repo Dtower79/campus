@@ -134,6 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- SUSTITUIR EN js/renderitzadorCurs.js ---
+
     async function init() {
         const container = document.getElementById('moduls-container');
         if(container) container.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
@@ -142,7 +144,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!state.progreso || Object.keys(state.progreso).length === 0) {
                 await inicializarProgresoEnStrapi();
             }
-            await sincronizarAvanceLocal(); 
+            
+            // --- AUTO-CORRECCIÓN 100% ---
+            // Si el examen final está aprobado pero el progreso no es 100, lo arreglamos ahora mismo
+            if (state.progreso.examen_final && state.progreso.examen_final.aprobado && state.curso.progres < 100) {
+                console.log("Detectada inconsistencia de progreso. Corrigiendo al 100%...");
+                // Llamamos a guardarProgreso que ya tiene la lógica de forzar 100%
+                await guardarProgreso(state.progreso);
+            } else {
+                await sincronizarAvanceLocal(); 
+            }
+
             renderSidebar();
             renderMainContent();
         } catch (e) {

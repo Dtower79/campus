@@ -434,6 +434,8 @@ window.toggleDesc = function(id) {
 // ==========================================
 // 4. LÓGICA DE CURSOS (DASHBOARD & CATÁLOGO)
 // ==========================================
+// --- SUSTITUIR EN js/dashboard.js ---
+
 async function renderCoursesLogic(viewMode) {
     const listId = viewMode === 'dashboard' ? 'courses-list' : 'catalog-list';
     const list = document.getElementById(listId);
@@ -495,8 +497,20 @@ async function renderCoursesLogic(viewMode) {
 
             if (curs._matricula) {
                 const mat = curs._matricula;
-                const color = mat.progres >= 100 ? '#10b981' : 'var(--brand-blue)';
-                progressHtml = `<div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${mat.progres||0}%; background:${color}"></div></div><span class="progress-text">${mat.progres||0}% Completat</span></div>`;
+                
+                // --- CORRECCIÓN LÓGICA 100% ---
+                // Si el examen final está aprobado, forzamos visualmente el 100%
+                let porcentaje = mat.progres || 0;
+                let isCompleted = mat.estat === 'completat' || porcentaje >= 100;
+                
+                // Chequeo profundo en el objeto detalle si existe
+                if (mat.progres_detallat && mat.progres_detallat.examen_final && mat.progres_detallat.examen_final.aprobado) {
+                    porcentaje = 100;
+                    isCompleted = true;
+                }
+
+                const color = isCompleted ? '#10b981' : 'var(--brand-blue)';
+                progressHtml = `<div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${porcentaje}%; background:${color}"></div></div><span class="progress-text">${porcentaje}% Completat</span></div>`;
                 actionHtml = esFuturo ? `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alertFechaFutura('${safeTitle}', '${dateStr}')">Accedir</button>` : `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
             } else {
                 actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${safeTitle}')">Matricular-me</button>`;

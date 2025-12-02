@@ -99,9 +99,23 @@ ul { list-style: none; padding: 0; margin: 0; }
    3. BOTONES (UI KIT)
    ========================================================================== */
 .btn-primary, .btn-enroll { 
-    border: none; border-radius: 6px; font-weight: bold; cursor: pointer; 
-    width: 100%; transition: 0.3s; display: flex; align-items: center; justify-content: center;
-    box-sizing: border-box; min-height: 48px; padding: 0 15px; font-size: 1rem; margin-top: auto; 
+    border: none; 
+    border-radius: 6px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    width: 100%; 
+    transition: 0.3s; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    box-sizing: border-box; 
+    min-height: 48px; 
+    padding: 0 15px; 
+    font-size: 1rem; 
+    margin-top: auto;
+    
+    /* CAMBIO: Separación entre icono y texto */
+    gap: 10px; 
 }
 
 .btn-primary { background-color: var(--accent-color); color: white; }
@@ -111,7 +125,20 @@ ul { list-style: none; padding: 0; margin: 0; }
 .btn-enroll:hover { background-color: #003865 !important; }
 
 .btn-secondary { background: transparent !important; color: #004B87 !important; border: 1px solid #004B87 !important; padding: 8px 20px; border-radius: 4px; cursor: pointer; }
-.btn-small { padding: 6px 12px; font-size: 0.85rem; border-radius: 4px; background-color: var(--bg-body); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.btn-small { 
+    padding: 6px 12px; 
+    font-size: 0.85rem; 
+    border-radius: 4px; 
+    background-color: var(--bg-body); 
+    border: 1px solid var(--border-color); 
+    color: var(--text-main); 
+    cursor: pointer; 
+    display: inline-flex; 
+    align-items: center; 
+    
+    /* CAMBIO: Separación entre icono y texto */
+    gap: 8px; 
+}
 
 .btn-centered-container { display: flex; justify-content: center; margin-top: 30px; width: 100%; }
 .btn-centered-container .btn-primary { width: auto; min-width: 300px; }

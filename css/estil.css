@@ -760,7 +760,7 @@ ul { list-style: none; padding: 0; margin: 0; }
         page-break-after: always;
         position: relative;
         background-color: #fff;
-        padding: 15mm; /* Margen blanco impresora */
+        padding: 10mm; /* Margen físico de la hoja */
         box-sizing: border-box;
         display: flex;
         justify-content: center;
@@ -772,15 +772,17 @@ ul { list-style: none; padding: 0; margin: 0; }
         width: 100%;
         height: 100%;
         border: 3px solid var(--brand-blue);
-        padding: 4px; /* Espacio entre líneas */
+        padding: 3px; 
         box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
     }
 
     .diploma-border-inner {
         width: 100%;
         height: 100%;
         border: 1px solid var(--brand-blue);
-        padding: 40px;
+        padding: 25px; /* Reducido para ganar espacio */
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
@@ -790,78 +792,76 @@ ul { list-style: none; padding: 0; margin: 0; }
         z-index: 1;
     }
 
-    /* MARCA DE AGUA (FONDO) */
+    /* MARCA DE AGUA */
     .diploma-watermark {
         position: absolute;
-        top: 50%;
-        left: 50%;
+        top: 50%; left: 50%;
         transform: translate(-50%, -50%);
         width: 500px;
-        opacity: 0.08; /* Muy suave */
+        opacity: 0.08;
         z-index: -1;
-        pointer-events: none;
     }
 
-    /* CONTENIDOS */
+    /* --- CONTENIDO PÁGINA 1 --- */
     .diploma-logo-top {
-        height: 70px;
-        margin-bottom: 30px;
+        height: 60px; /* Un poco más pequeño */
+        margin-bottom: 15px;
     }
 
     .diploma-title {
         font-family: "Times New Roman", Times, serif;
         color: var(--brand-blue);
-        font-size: 3.2rem;
+        font-size: 3rem; /* Ajustado */
         font-weight: normal;
         text-transform: uppercase;
-        margin: 0 0 20px 0;
+        margin: 0 0 10px 0;
         letter-spacing: 1px;
     }
 
     .diploma-text {
         font-family: Arial, sans-serif;
-        font-size: 1.1rem;
+        font-size: 1rem;
         color: #333;
-        margin: 8px 0;
+        margin: 5px 0;
     }
 
     .diploma-student {
         font-family: "Times New Roman", Times, serif;
-        font-size: 2.5rem;
+        font-size: 2.4rem;
         font-weight: bold;
         color: #000;
-        margin: 25px 0;
+        margin: 15px 0;
         border-bottom: 1px solid #999;
         padding: 0 40px 5px 40px;
         display: inline-block;
+        line-height: 1.1;
     }
 
     .diploma-course {
         font-family: Arial, sans-serif;
-        font-size: 2rem;
+        font-size: 1.8rem;
         font-weight: bold;
         color: var(--brand-red);
-        margin: 20px 0;
+        margin: 15px 0;
         line-height: 1.2;
-        max-width: 80%;
+        max-width: 90%;
     }
 
     .diploma-details {
-        font-size: 1.1rem;
-        margin-bottom: 20px;
+        font-size: 1rem;
+        margin-bottom: 10px;
     }
 
-    /* FOOTER CON FLEXBOX PARA SEPARAR QR Y FIRMA */
+    /* FOOTER (QR Y FIRMA) */
     .diploma-footer {
-        margin-top: auto; /* Empuja al fondo */
+        margin-top: auto; /* Empuja al fondo del contenedor flex */
         width: 100%;
         display: flex;
-        justify-content: space-between; /* Extremos opuestos */
-        align-items: flex-end; /* Alineados abajo */
-        padding: 0 20px;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 0 10px;
     }
 
-    /* LADO IZQUIERDO: QR */
     .footer-qr-area {
         text-align: center;
         display: flex;
@@ -869,43 +869,44 @@ ul { list-style: none; padding: 0; margin: 0; }
         align-items: center;
     }
     .qr-image {
-        width: 110px;
-        height: 110px;
-        margin-bottom: 5px;
+        width: 100px;
+        height: 100px;
+        margin-bottom: 2px;
     }
     .qr-ref {
-        font-size: 0.65rem;
+        font-size: 0.6rem;
         font-family: monospace;
         color: #666;
     }
 
-    /* LADO DERECHO: FIRMA */
     .footer-signature-area {
         text-align: center;
-        min-width: 250px;
+        min-width: 220px;
     }
     .signature-line {
         border-top: 1px solid #000;
         width: 100%;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
     }
     .signature-name {
         font-weight: bold;
-        font-size: 1.1rem;
+        font-size: 1rem;
         display: block;
     }
     .signature-role {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
         color: #444;
     }
 
-    /* --- CARA B (EXPEDIENTE) --- */
+    /* --- CONTENIDO PÁGINA 2 (EXPEDIENTE) --- */
+    /* Usamos el mismo marco exterior, pero contenido alineado a la izquierda */
     .page-back-content {
         width: 100%;
         height: 100%;
         text-align: left;
         display: flex;
         flex-direction: column;
+        padding: 20px;
     }
 
     .expedient-header {
@@ -918,7 +919,7 @@ ul { list-style: none; padding: 0; margin: 0; }
     }
     .expedient-title {
         color: var(--brand-blue);
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         text-transform: uppercase;
         font-weight: bold;
         margin: 0;
@@ -927,43 +928,41 @@ ul { list-style: none; padding: 0; margin: 0; }
     .info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 15px;
+        gap: 10px;
         background-color: #f9f9f9;
-        padding: 20px;
-        border-radius: 8px;
+        padding: 15px;
+        border-radius: 4px;
         border: 1px solid #eee;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
         font-size: 0.9rem;
     }
-    .info-item span { color: #666; display: block; font-size: 0.8rem; }
-    .info-item strong { color: #000; font-size: 1rem; }
+    .info-item span { color: #666; display: block; font-size: 0.75rem; text-transform: uppercase; }
+    .info-item strong { color: #000; font-size: 0.95rem; }
 
     .modules-list {
-        columns: 2; /* Dos columnas para los módulos */
+        columns: 2;
         column-gap: 40px;
         font-size: 0.9rem;
-    }
-    .modules-list h4 {
-        color: var(--brand-red);
-        margin: 0 0 10px 0;
-        break-after: avoid;
+        flex-grow: 1; /* Ocupa el espacio disponible */
     }
     .modules-list ul {
-        margin: 0 0 20px 0;
+        margin: 0;
         padding-left: 20px;
         list-style-type: disc;
     }
     .modules-list li {
-        margin-bottom: 5px;
+        margin-bottom: 4px;
+        break-inside: avoid;
     }
 
     .back-footer {
-        margin-top: auto;
+        margin-top: 20px;
         border-top: 1px solid #ddd;
         padding-top: 10px;
         font-size: 0.8rem;
         color: #666;
         text-align: center;
+        width: 100%;
     }
 }
 

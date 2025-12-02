@@ -640,22 +640,42 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
     const nombreCurso = cursoData.titol;
     const horas = cursoData.hores || 'N/A';
-    
-    // Fecha en formato texto (ej: 2 de diciembre del 2025)
-    const fechaObj = new Date();
-    const dia = fechaObj.getDate();
-    const mes = fechaObj.toLocaleDateString('ca-ES', { month: 'long' });
-    const any = fechaObj.getFullYear();
-    const fechaTexto = `${dia} de ${mes} del ${any}`;
-    
-    const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'Apte';
     const matriculaId = matriculaData.documentId || matriculaData.id;
+    const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || '10';
+
+    // 1. GESTIÓN DE FECHAS (Inicio - Fin - Emisión)
+    const optionsDate = { year: 'numeric', month: 'long', day: 'numeric' };
     
-    // QR de Verificación
+    // Fecha de hoy (Emisión del certificado)
+    const fechaEmision = new Date().toLocaleDateString('ca-ES', optionsDate);
+    
+    // Fechas del curso (Desde Strapi)
+    let fechaInicioStr = "Data no disponible";
+    let fechaFinStr = "Data no disponible";
+
+    if (cursoData.fecha_inicio) {
+        fechaInicioStr = new Date(cursoData.fecha_inicio).toLocaleDateString('ca-ES', { day: 'numeric', month: '2-digit', year: 'numeric' });
+    } else if (cursoData.publishedAt) {
+        // Fallback si no hay fecha inicio explícita
+        fechaInicioStr = new Date(cursoData.publishedAt).toLocaleDateString('ca-ES', { day: 'numeric', month: '2-digit', year: 'numeric' });
+    }
+
+    if (cursoData.data_fi) { // Asegúrate que en Strapi el campo se llama 'data_fi' o 'fecha_fin'
+        fechaFinStr = new Date(cursoData.data_fi).toLocaleDateString('ca-ES', { day: 'numeric', month: '2-digit', year: 'numeric' });
+    } else {
+        // Fallback: usar la fecha de hoy como fin si no está definida
+        fechaFinStr = new Date().toLocaleDateString('ca-ES', { day: 'numeric', month: '2-digit', year: 'numeric' });
+    }
+
+    // Texto de fechas para el diploma
+    const textoFechasCurso = `Realitzat del ${fechaInicioStr} al ${fechaFinStr}`;
+
+    
+    // 2. QR
     const verifyUrl = `${STRAPI_URL}/verificar-certificado/${matriculaId}`;
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`;
 
-    // Construir HTML de los módulos para la hoja trasera
+    // 3. TEMARIO (HOJA 2)
     let modulosHtml = '';
     if (cursoData.moduls && cursoData.moduls.length > 0) {
         modulosHtml = '<ul>';
@@ -667,6 +687,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         modulosHtml = '<p><em>Temari detallat segons l\'expedient acadèmic del curs.</em></p>';
     }
 
+    // 4. CREAR CONTENEDOR
     let printContainer = document.getElementById('diploma-print-container');
     if (!printContainer) {
         printContainer = document.createElement('div');
@@ -674,36 +695,34 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         document.body.appendChild(printContainer);
     }
 
+    // 5. RENDERIZAR HTML
     printContainer.innerHTML = `
         <!-- PÁGINA 1: CERTIFICADO -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner">
                     
-                    <!-- MARCA DE AGUA FONDO -->
+                    <!-- MARCA DE AGUA -->
                     <img src="img/logo-sicap.png" class="diploma-watermark">
 
-                    <!-- LOGO SUPERIOR -->
+                    <!-- CABECERA -->
                     <img src="img/logo-sicap.png" class="diploma-logo-top">
-
-                    <!-- TÍTULO -->
                     <h1 class="diploma-title">CERTIFICAT D'APROFITAMENT</h1>
 
+                    <!-- CUERPO -->
                     <p class="diploma-text">El Sindicat Català de Presons (SICAP) certifica que</p>
-
                     <div class="diploma-student">${nombreAlumno}</div>
-
                     <p class="diploma-text">Amb DNI <strong>${user.username}</strong>, ha superat satisfactòriament el curs:</p>
-
+                    
                     <h2 class="diploma-course">${nombreCurso}</h2>
-
+                    
                     <div class="diploma-details">
-                        <p class="diploma-text">Amb una durada de <strong>${horas} hores</strong> lectives.</p>
+                        <p class="diploma-text"><strong>${textoFechasCurso}</strong>, amb una durada de <strong>${horas} hores</strong> lectives.</p>
                         <p class="diploma-text">Qualificació obtinguda: <strong>${nota}</strong></p>
-                        <p class="diploma-text" style="margin-top:25px;">Barcelona, ${fechaTexto}</p>
+                        <p class="diploma-text" style="margin-top:20px; font-size:0.95rem;">Barcelona, ${fechaEmision}</p>
                     </div>
 
-                    <!-- PIE DE PÁGINA: QR (IZQ) Y FIRMA (DER) -->
+                    <!-- PIE: QR y FIRMA -->
                     <div class="diploma-footer">
                         <div class="footer-qr-area">
                             <img src="${qrSrc}" class="qr-image">
@@ -711,8 +730,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                         </div>
 
                         <div class="footer-signature-area">
-                            <!-- Espacio para firma manuscrita o imagen -->
-                            <div style="height:50px;"></div> 
+                            <div style="height:40px;"></div> <!-- Espacio para firmar -->
                             <div class="signature-line"></div>
                             <span class="signature-name">Miguel Pueyo Pérez</span>
                             <span class="signature-role">Secretari General</span>
@@ -723,10 +741,10 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
             </div>
         </div>
 
-        <!-- PÁGINA 2: EXPEDIENTE FORMATIVO -->
+        <!-- PÁGINA 2: EXPEDIENTE (Mismo estilo de borde) -->
         <div class="diploma-page">
-            <div class="diploma-border-outer" style="border-style: dotted; border-color: #ccc;">
-                <div class="diploma-border-inner" style="border:none; padding: 50px;">
+            <div class="diploma-border-outer">
+                <div class="diploma-border-inner">
                     
                     <div class="page-back-content">
                         <div class="expedient-header">
@@ -736,22 +754,21 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
 
                         <div class="info-grid">
                             <div class="info-item"><span>Alumne/a</span><strong>${nombreAlumno}</strong></div>
-                            <div class="info-item"><span>Document (DNI)</span><strong>${user.username}</strong></div>
-                            <div class="info-item"><span>Acció Formativa</span><strong>${nombreCurso}</strong></div>
-                            <div class="info-item"><span>Data de Finalització</span><strong>${fechaTexto}</strong></div>
-                            <div class="info-item"><span>Hores Totals</span><strong>${horas}h</strong></div>
+                            <div class="info-item"><span>DNI</span><strong>${user.username}</strong></div>
+                            <div class="info-item"><span>Curs</span><strong>${nombreCurso}</strong></div>
+                            <div class="info-item"><span>Dates</span><strong>${fechaInicioStr} - ${fechaFinStr}</strong></div>
+                            <div class="info-item"><span>Hores</span><strong>${horas}h</strong></div>
                             <div class="info-item"><span>Qualificació</span><strong>${nota}</strong></div>
                         </div>
 
-                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom:15px;">CONTINGUTS I MÒDULS</h4>
+                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom:15px;">CONTINGUTS DEL CURS</h4>
                         
                         <div class="modules-list">
                             ${modulosHtml}
                         </div>
 
                         <div class="back-footer">
-                            <p>Aquest document és un annex al certificat principal i detalla els continguts superats.</p>
-                            <p>SICAP Formació - Registre d'Activitats Docents</p>
+                            <p style="margin:0;">SICAP Formació - Registre d'Activitats Docents</p>
                         </div>
                     </div>
 
@@ -760,7 +777,6 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         </div>
     `;
 
-    // Retardo para asegurar carga de imagen QR
     setTimeout(() => { window.print(); }, 800);
 };
 

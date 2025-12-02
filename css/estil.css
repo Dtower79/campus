@@ -928,13 +928,20 @@ ul { list-style: none; padding: 0; margin: 0; }
     .info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        background-color: #f9f9f9;
-        padding: 15px;
-        border-radius: 4px;
+        gap: 15px;
+        
+        /* CAMBIO: Fondo semitransparente para ver el logo debajo */
+        background-color: rgba(249, 249, 249, 0.6); 
+        
+        padding: 20px;
+        border-radius: 8px;
         border: 1px solid #eee;
-        margin-bottom: 20px;
+        margin-bottom: 30px;
         font-size: 0.9rem;
+        
+        /* Aseguramos que esté por encima de la marca de agua pero sea transparente */
+        position: relative; 
+        z-index: 2;
     }
     .info-item span { color: #666; display: block; font-size: 0.75rem; text-transform: uppercase; }
     .info-item strong { color: #000; font-size: 0.95rem; }

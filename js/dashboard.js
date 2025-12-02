@@ -664,18 +664,16 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
 
     const textoFechasCurso = `Realitzat del ${fechaInicioStr} al ${fechaFinStr}`;
 
-    // 2. QR REAL (Apunta al archivo local verify.html)
-    // Usamos window.location.origin para que funcione tanto en localhost como en el dominio real
+    // 2. QR REAL
     const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
     const verifyUrl = `${currentDomain}/verify.html?ref=${matriculaId}`;
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`;
 
-    // 3. TEMARIO LIMPIO (Eliminar redundancia "Mòdul X")
+    // 3. TEMARIO LIMPIO
     let modulosHtml = '';
     if (cursoData.moduls && cursoData.moduls.length > 0) {
         modulosHtml = '<ul>';
         cursoData.moduls.forEach((m, i) => {
-            // Regex para quitar "Mòdul 1:", "Modul 1", "Módulo 1 -", etc. del principio del título
             const tituloLimpio = m.titol.replace(/^(Mòdul|Modul|Módulo)\s*\d+[:\s-]*/i, "").trim();
             modulosHtml += `<li><strong>Mòdul ${i+1}:</strong> ${tituloLimpio}</li>`;
         });
@@ -737,7 +735,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner" style="align-items: flex-start; text-align: left; padding: 40px;">
                     
-                    <!-- AÑADIDA MARCA DE AGUA AQUÍ TAMBIÉN -->
+                    <!-- MARCA DE AGUA (Visible ahora gracias al fondo transparente de info-grid) -->
                     <img src="img/logo-sicap.png" class="diploma-watermark">
 
                     <div class="page-back-content">
@@ -755,7 +753,8 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                             <div class="info-item"><span>Qualificació</span><strong>${nota}</strong></div>
                         </div>
 
-                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom:15px;">CONTINGUTS DEL CURS</h4>
+                        <!-- CAMBIO: Línea azul de 2px en lugar de gris -->
+                        <h4 style="color:var(--brand-blue); border-bottom: 2px solid var(--brand-blue); padding-bottom:5px; margin-bottom:15px;">CONTINGUTS DEL CURS</h4>
                         
                         <div class="modules-list">
                             ${modulosHtml}

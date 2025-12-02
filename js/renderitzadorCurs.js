@@ -1028,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function iniciarCronometro() { const display = document.getElementById('exam-timer'); if(!display) return; const LIMIT_MS = 30 * 60 * 1000; clearInterval(state.timerInterval); state.timerInterval = setInterval(() => { const now = Date.now(); const elapsed = now - state.testStartTime; const remaining = LIMIT_MS - elapsed; if (remaining <= 0) { detenerCronometro(); display.innerText = "00:00"; alert("Temps esgotat!"); entregarExamenFinal(true); return; } const min = Math.floor(remaining / 60000); const sec = Math.floor((remaining % 60000) / 1000); display.innerText = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }, 1000); }
     function detenerCronometro() { clearInterval(state.timerInterval); }
     
-    // --- HELPER PARA NOTIFICACIÓN AUTOMÁTICA ---
+    // --- HELPER PARA NOTIFICACIÓN AUTOMÁTICA (CORREGIDO) ---
     async function notificarAprobado(cursoTitulo) {
         const user = JSON.parse(localStorage.getItem('user'));
         const token = localStorage.getItem('jwt');
@@ -1041,7 +1041,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         titol: "Curs Completat! 🎓",
                         missatge: `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`,
                         llegida: false,
-                        user: user.id
+                        // CORRECCIÓN CRÍTICA: Nombre del campo de relación según tu captura
+                        users_permissions_user: user.id
                     }
                 })
             });

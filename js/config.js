@@ -9,7 +9,7 @@ const API_ROUTES = {
     register: `${STRAPI_URL}/api/auth/local/register`,
     checkAffiliate: `${STRAPI_URL}/api/afiliados`,
     
-    // NUEVAS RUTAS PARA EL SISTEMA DE PROFESOR Y NOTIFICACIONES
+    // Ruta apuntando a tu colección "Notificaciones"
     notifications: `${STRAPI_URL}/api/notificaciones`,
     messages: `${STRAPI_URL}/api/missatges`
 };

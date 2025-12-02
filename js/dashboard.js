@@ -344,7 +344,7 @@ function initHeaderData() {
 }
 
 // ==========================================
-// 4. MOTOR DE NOTIFICACIONES
+// 4. MOTOR DE NOTIFICACIONES (CORREGIDO)
 // ==========================================
 
 async function checkRealNotifications() {
@@ -354,7 +354,8 @@ async function checkRealNotifications() {
 
     try {
         // Consultar Strapi: Notificaciones del usuario no leídas
-        const res = await fetch(`${API_ROUTES.notifications}?filters[user][id][$eq]=${user.id}&filters[llegida][$eq]=false`, {
+        // NOTA: Usamos 'users_permissions_user' para filtrar por la relación correcta
+        const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
@@ -401,7 +402,7 @@ window.abrirPanelNotificaciones = async function() {
 
     try {
         // Traer todas (leídas y no leídas) ordenadas por fecha
-        const res = await fetch(`${API_ROUTES.notifications}?filters[user][id][$eq]=${user.id}&sort=createdAt:desc&pagination[limit]=10`, {
+        const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:desc&pagination[limit]=10`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
@@ -974,7 +975,7 @@ async function abrirPanelMensajes() {
     }
 }
 
-// FUNCIÓN DEL PROFESOR: RESPONDE Y CREA NOTIFICACIÓN
+// FUNCIÓN DEL PROFESOR: RESPONDE Y CREA NOTIFICACIÓN (CORREGIDA)
 window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     const txtArea = document.getElementById(`reply-${msgId}`);
     const respuesta = txtArea.value.trim();
@@ -1009,8 +1010,9 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
                     titol: "Dubte Respost",
                     missatge: `El professor ha respost al teu dubte sobre: "${tema}". Revisa la safata de missatges.`,
                     llegida: false,
-                    user: studentId,
-                    type: "reply" // Campo opcional para lógica futura
+                    // CORRECCIÓN CRÍTICA: Nombre del campo de relación según tu captura
+                    users_permissions_user: studentId, 
+                    type: "reply" 
                 }
             };
 

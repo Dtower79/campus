@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // ------------------------------------------------------------------------
-    // 1. HELPER: TRADUCTOR DE TEXTO
+    // 1. HELPER: TRADUCTOR DE TEXTO (MEJORADO PARA LISTAS)
     // ------------------------------------------------------------------------
     function parseStrapiRichText(content) {
         if (!content) return '';
@@ -41,9 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'list':
                         const tag = block.format === 'ordered' ? 'ol' : 'ul';
                         const items = block.children.map(listItem => {
-                            // Los items de lista en Strapi v5 tienen 'children' que suelen ser párrafos o texto directo
                             const liContent = listItem.children.map(child => {
-                                // A veces el hijo directo es texto, a veces un párrafo wrapper
                                 return extractText(child.children || [child]); 
                             }).join(" ");
                             return `<li>${liContent}</li>`;
@@ -162,7 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
                 const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx].flashcards_done : false;
                 
-                // Solo sincronizamos hacia arriba si localmente está hecho y remotamente no.
                 if (localmenteCompletado && !estadoRemoto) {
                     if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
                     state.progreso.modulos[idx].flashcards_done = true;
@@ -199,8 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
 
-        // --- LÓGICA DE RESET INTELIGENTE ---
-        // 1. Detección por cambio de ID de matrícula
         const cacheKey = `sicap_last_matricula_${SLUG}`;
         const lastMatricula = localStorage.getItem(cacheKey);
         let forceReset = false;
@@ -210,13 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
             forceReset = true;
         }
         
-        // 2. Detección por Progreso 0 (Safety Check)
-        // Si el progreso global es 0, asumimos que es un curso nuevo y forzamos limpieza
-        // Esto arregla casos donde la BD tiene basura antigua
         if (mat.progres === 0) {
             console.log("Detectat progrés 0%. Forçant estat inicial...");
             forceReset = true;
-            // Reseteamos el estado en memoria para que la UI no se pinte verde
             if (state.progreso.modulos) {
                 state.progreso.modulos.forEach(m => {
                     m.flashcards_done = false;
@@ -224,13 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     m.nota = 0;
                     m.intentos = 0;
                 });
-                // Guardamos este estado limpio en DB para corregir inconsistencias
                 guardarProgreso(state.progreso); 
             }
         }
 
         if (forceReset) {
-            // Borramos todo lo relacionado con este curso del localStorage
             Object.keys(localStorage).forEach(key => {
                 if (key.includes(SLUG) && (key.includes('flipped') || key.includes('progress'))) {
                     localStorage.removeItem(key);
@@ -250,40 +239,48 @@ document.addEventListener('DOMContentLoaded', () => {
         await guardarProgreso(nuevoProgreso);
     }
 
-    
+    // --- LÓGICA DE PROGRESO GRANULAR ---
     async function guardarProgreso(progresoObj) {
         const modulos = state.curso.moduls || [];
         let totalActividades = 0;
         let actividadesCompletadas = 0;
 
-        // 1. Calcular actividades en Módulos
+        // Conteo módulos
         modulos.forEach((mod, idx) => {
             const modProg = (progresoObj.modulos && progresoObj.modulos[idx]) ? progresoObj.modulos[idx] : {};
-            
-            // Actividad: Test
-            totalActividades++;
+            totalActividades++; // Test obligatorio
             if (modProg.aprobado) actividadesCompletadas++;
-
-            // Actividad: Flashcards (si existen)
+            
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
-                totalActividades++;
+                totalActividades++; // Flashcards
                 if (modProg.flashcards_done) actividadesCompletadas++;
             }
         });
 
-        // 2. Calcular actividad Examen Final (si existe)
+        // Conteo final
         if (state.curso.examen_final && state.curso.examen_final.length > 0) {
             totalActividades++;
             if (progresoObj.examen_final && progresoObj.examen_final.aprobado) actividadesCompletadas++;
         }
 
-        // Cálculo porcentaje (evitar división por cero)
         let porcentaje = totalActividades > 0 ? Math.round((actividadesCompletadas / totalActividades) * 100) : 0;
-        
-        // Forzar 100% si el examen final está aprobado (regla de negocio opcional, pero segura)
-        if (progresoObj.examen_final && progresoObj.examen_final.aprobado) porcentaje = 100;
 
-        const payload = { data: { progres_detallat: progresoObj, progres: porcentaje } };
+        // Si aprobó examen final, forzamos 100%
+        if (progresoObj.examen_final && progresoObj.examen_final.aprobado) {
+            porcentaje = 100;
+        }
+
+        const payload = { 
+            data: { 
+                progres_detallat: progresoObj, 
+                progres: porcentaje,
+                estat: porcentaje >= 100 ? 'completat' : 'actiu'
+            } 
+        };
+
+        if (progresoObj.examen_final && progresoObj.examen_final.aprobado) {
+            payload.data.nota_final = progresoObj.examen_final.nota;
+        }
         
         try {
             await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, {
@@ -292,14 +289,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(payload)
             });
             state.progreso = progresoObj;
-            
-            // Actualizar UI si es necesario
             if (document.getElementById('course-index') && document.getElementById('course-index').innerHTML !== '') {
                 renderSidebar(); 
             }
-        } catch(e) {
-            console.error("Error guardando progreso:", e);
-        }
+        } catch(e) { console.error("Error guardando progreso:", e); }
     }
 
     // --- Helpers LocalStorage ---
@@ -572,16 +565,31 @@ document.addEventListener('DOMContentLoaded', () => {
             breadcrumbs.push(`<span class="breadcrumb-current">${subSection}</span>`);
         }
         const breadcrumbsHtml = `<div class="breadcrumbs">${breadcrumbs.join('<span class="breadcrumb-separator"><i class="fa-solid fa-angle-right"></i></span>')}</div>`;
+        
+        let extraTools = '';
+        if (state.progreso.examen_final && state.progreso.examen_final.aprobado) {
+            const nota = state.progreso.examen_final.nota;
+            extraTools = `
+                <div class="tools-box" style="border-color: green; background-color: #f0fff4;">
+                    <div class="tools-title" style="color:green;"><i class="fa-solid fa-trophy"></i> Curs Completat</div>
+                    <button class="btn-primary" style="margin-top:10px; font-size:0.85rem;" onclick="imprimirDiploma('${nota}')">
+                        <i class="fa-solid fa-download"></i> Descarregar Diploma
+                    </button>
+                </div>
+            `;
+        }
+
         const noteKey = `sicap_notes_${USER.id}_${state.curso.slug}`;
         const savedNote = localStorage.getItem(noteKey) || '';
         const modTitleSafe = mod && mod.titol ? mod.titol.replace(/'/g, "\\'") : 'General';
-        container.innerHTML = `${breadcrumbsHtml}<div class="sidebar-header"><h3>Eines d'Estudi</h3></div><div class="tools-box"><div class="tools-title"><i class="fa-regular fa-note-sticky"></i> Les meves notes</div><textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea><small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small></div><div class="tools-box" style="border-color: var(--brand-blue);"><div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div><p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquí'}"</strong>?</p><button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')"><i class="fa-regular fa-paper-plane"></i> Enviar Dubte</button></div>`;
+        
+        container.innerHTML = `${breadcrumbsHtml}${extraTools}<div class="sidebar-header"><h3>Eines d'Estudi</h3></div><div class="tools-box"><div class="tools-title"><i class="fa-regular fa-note-sticky"></i> Les meves notes</div><textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea><small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small></div><div class="tools-box" style="border-color: var(--brand-blue);"><div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div><p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquí'}"</strong>?</p><button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')"><i class="fa-regular fa-paper-plane"></i> Enviar Dubte</button></div>`;
         const noteArea = document.getElementById('quick-notes');
         if(noteArea) noteArea.addEventListener('input', (e) => localStorage.setItem(noteKey, e.target.value));
     }
 
     // ------------------------------------------------------------------------
-    // FLASHCARDS: LOGICA ROBUSTA CON ACTUALIZACIÓN INSTANTÁNEA (DOM)
+    // FLASHCARDS
     // ------------------------------------------------------------------------
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
@@ -646,7 +654,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             } else {
                 let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
-                // USO DATA-ATTRIBUTES PARA PASAR DATOS SEGUROS
                 let buttonsHtml = options.map(opt => {
                     const safeOpt = encodeURIComponent(opt);
                     const safeTarget = encodeURIComponent(targetClean);
@@ -678,12 +685,10 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
-    // Funciones globales para las Flashcards
     window.handleFlip = function(cardElement) {
         cardElement.classList.toggle('flipped');
     }
 
-    // NUEVA FUNCIÓN QUE LEE DEL DOM Y ACTUALIZA UI AL MOMENTO
     window.checkFlashcardFromDOM = function(e, btn) {
         if (e) {
             e.stopPropagation(); 
@@ -871,19 +876,92 @@ document.addEventListener('DOMContentLoaded', () => {
         html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(${modIdx}, 'test')">Tornar</button></div>`;
         container.innerHTML = html; window.scrollTo(0,0);
     }
+
+    // --- NUEVO REVISOR EXAMEN FINAL ---
+    window.revisarExamenFinal = function() {
+        const container = document.getElementById('moduls-container');
+        const preguntas = state.curso.examen_final || [];
+        
+        if (preguntas.length === 0) {
+            alert("No s'han trobat preguntes per revisar.");
+            return;
+        }
+
+        let html = `<h3>Revisió Examen Final</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px;">Mode lectura de l'examen final.</div>`;
+        
+        preguntas.forEach((preg, idx) => {
+            html += `<div class="question-card review-mode">
+                <div class="q-header">Pregunta ${idx + 1}</div>
+                <div class="q-text">${preg.text}</div>
+                <div class="options-list">`;
+            
+            preg.opcions.forEach((opt) => {
+                let classes = 'option-item ';
+                const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                if (isCorrect) classes += 'correct-answer '; 
+                
+                html += `<div class="${classes}"><input type="radio" disabled ${isCorrect ? 'checked' : ''}><span>${opt.text}</span></div>`;
+            });
+
+            if (preg.explicacio) html += `<div class="explanation-box"><strong>Explicació:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
+            html += `</div></div>`;
+        });
+
+        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(999, 'examen_final')">Tornar</button></div>`;
+        
+        container.innerHTML = html;
+        window.scrollTo(0,0);
+    }
+
     function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
+        
+        // --- PUNTO 7: MOSTRAR BOTÓN DE REVISIÓN SI YA ESTÁ APROBADO ---
         if (finalData.aprobado) {
-             let puedeDescargar = true; let mensajeFecha = '';
-             if (state.curso.data_fi) { const fechaFin = new Date(state.curso.data_fi); const hoy = new Date(); if (hoy < fechaFin) { puedeDescargar = false; mensajeFecha = `Certificat disponible: <strong>${fechaFin.toLocaleDateString('ca-ES')}</strong>.`; } }
-             let botonHtml = puedeDescargar ? `<button class="btn-primary" onclick="imprimirDiploma('${finalData.nota}')">Descarregar Diploma</button>` : `<div class="alert-info" style="margin-top:15px; color:#856404; background:#fff3cd; padding:10px; border-radius:4px;"><i class="fa-solid fa-clock"></i> ${mensajeFecha}</div>`;
-             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h1 style="color:green;">🎉 ENHORABONA!</h1><p>Curs Completat.</p><div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div><div class="btn-centered-container">${botonHtml}</div></div>`;
-             return;
+            let botonHtml = `<button class="btn-primary" onclick="imprimirDiploma('${finalData.nota}')"><i class="fa-solid fa-download"></i> Descarregar Diploma</button>`;
+            let revisarHtml = `<button class="btn-secondary" style="margin-top:10px;" onclick="revisarExamenFinal()"><i class="fa-solid fa-eye"></i> Revisar Respostes</button>`;
+
+            container.innerHTML = `
+                <div class="dashboard-card" style="border-top:5px solid green; text-align:center;">
+                    <h1 style="color:green;">🎉 ENHORABONA!</h1>
+                    <p>Has completat el curs satisfactoriament.</p>
+                    <div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div>
+                    <div class="btn-centered-container" style="flex-direction:column; gap:10px;">
+                        ${botonHtml}
+                        ${revisarHtml}
+                    </div>
+                </div>`;
+            return;
         }
-        if (finalData.intentos >= 2 && !state.godMode) { container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Intents esgotats.</p></div>`; return; }
-        const savedData = cargarRespuestasLocales('examen_final'); const isActive = (Object.keys(savedData).length > 0) || state.testEnCurso;
-        if (isActive) { state.testEnCurso = true; renderFinalQuestions(container, savedData); } else { container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2 style="color:var(--brand-blue);">🏆 Examen Final</h2><div class="exam-info-box"><p>⏱️ 30 minuts.</p><p>🎯 Nota tall: 7.5</p></div><br><div class="btn-centered-container"><button class="btn-primary" onclick="iniciarExamenFinal()">COMENÇAR EXAMEN FINAL</button></div></div>`; }
+
+        // --- PUNTO 4: GOD MODE EN EXAMEN FINAL ---
+        if (finalData.intentos >= 2 && !state.godMode) { 
+            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Intents esgotats.</p></div>`; 
+            return; 
+        }
+
+        const savedData = cargarRespuestasLocales('examen_final');
+        const isActive = (Object.keys(savedData).length > 0) || state.testEnCurso;
+        
+        if (isActive) { 
+            state.testEnCurso = true; 
+            renderFinalQuestions(container, savedData); 
+        } else { 
+            container.innerHTML = `
+                <div class="dashboard-card" style="text-align:center; padding: 40px;">
+                    <h2 style="color:var(--brand-blue);">🏆 Examen Final</h2>
+                    <div class="exam-info-box">
+                        <p>⏱️ 30 minuts.</p>
+                        <p>🎯 Nota tall: 7.5</p>
+                        <p>🔄 Intents: ${finalData.intentos}/2</p>
+                    </div>
+                    <br>
+                    <div class="btn-centered-container">
+                        <button class="btn-primary" onclick="iniciarExamenFinal()">COMENÇAR EXAMEN FINAL</button>
+                    </div>
+                </div>`; 
+        }
     }
     window.iniciarExamenFinal = function() {
         if (!state.curso.examen_final || state.curso.examen_final.length === 0) { alert("Error: No s'han carregat preguntes."); return; }
@@ -925,7 +1003,14 @@ document.addEventListener('DOMContentLoaded', () => {
             preguntas.forEach((preg, idx) => { const qId = `final-${idx}`; const userRes = state.respuestasTemp[qId]; const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true); if (userRes == correctaIdx) aciertos++; });
             const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); const aprobado = nota >= 7.5; 
             state.progreso.examen_final.intentos += 1; state.progreso.examen_final.nota = Math.max(state.progreso.examen_final.nota, nota); if (aprobado) state.progreso.examen_final.aprobado = true;
-            const payload = { data: { progres_detallat: state.progreso } }; if (aprobado) { payload.data.estat = 'completat'; payload.data.nota_final = nota; }
+            
+            // Si aprueba, forzamos 100%
+            let porcentaje = state.progreso.progres || 0;
+            if (aprobado) porcentaje = 100;
+
+            const payload = { data: { progres_detallat: state.progreso, progres: porcentaje } }; 
+            if (aprobado) { payload.data.estat = 'completat'; payload.data.nota_final = nota; }
+            
             await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) });
             limpiarRespuestasLocales('examen_final'); state.testEnCurso = false; document.body.classList.remove('exam-active');
             mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, 999, true);

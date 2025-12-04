@@ -1,12 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Si hay sesión, ocultar login INMEDIATAMENTE
     if (localStorage.getItem('jwt')) {
         const overlay = document.getElementById('login-overlay');
         const app = document.getElementById('app-container');
+        
         if (overlay) overlay.style.display = 'none';
         if (app) app.style.display = 'block';
-        if (!window.appIniciada) window.iniciarApp();
+
+        if (!window.appIniciada) {
+            window.iniciarApp();
+        }
     }
     
+    // Gestión "He oblidat la contrasenya"
     const forgotLink = document.getElementById('forgot-pass');
     if(forgotLink) {
         forgotLink.onclick = (e) => {
@@ -15,15 +21,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // MOSTRAR FOOTER SIEMPRE
     const footer = document.getElementById('app-footer');
     if(footer) footer.style.display = 'block';
 
+    // BOTÓN SCROLL TOP
     if(!document.getElementById('scroll-top-btn')) {
         const btn = document.createElement('button');
         btn.id = 'scroll-top-btn';
         btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
         btn.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
         document.body.appendChild(btn);
+        
         window.onscroll = () => {
             if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
                 btn.style.display = "flex";
@@ -34,56 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- NAVEGACIÓN ---
-window.showView = function(viewName) {
-    ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.style.display = 'none';
-    });
-
-    let targetId = '';
-    if(viewName === 'home') targetId = 'catalog-view';
-    if(viewName === 'dashboard') targetId = 'dashboard-view';
-    if(viewName === 'profile') targetId = 'profile-view';
-    if(viewName === 'grades') targetId = 'grades-view';
-    if(viewName === 'exam') targetId = 'exam-view';
-
-    const targetEl = document.getElementById(targetId);
-    if(targetEl) targetEl.style.display = viewName === 'exam' ? 'flex' : 'block';
-
-    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    const navMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
-    if (navMap[viewName]) {
-        const activeBtn = document.getElementById(navMap[viewName]);
-        if(activeBtn) activeBtn.classList.add('active');
-    }
-
-    if(viewName === 'dashboard') loadUserCourses();
-    if(viewName === 'home') loadCatalog();
-    if(viewName === 'profile') loadFullProfile();
-    if(viewName === 'grades') loadGrades();
-};
-
-window.appIniciada = false;
-
-window.iniciarApp = function() {
-    if (window.appIniciada) return;
-    window.appIniciada = true;
-    console.log("🚀 SICAP App: Iniciant sistema...");
-    
-    startInactivityTimers();
-    try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
-    
-    checkRealNotifications(); 
-    setInterval(checkRealNotifications, 60000);
-
-    setTimeout(() => { setupDirectClicks(); }, 100);
-
-    const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.get('slug')) { window.showView('dashboard'); } 
-    else { document.getElementById('dashboard-view').style.display = 'none'; document.getElementById('exam-view').style.display = 'flex'; }
-};
-
+// ==========================================
+// 1. CONTROL DE INACTIVIDAD
+// ==========================================
 let warningTimer;
 let logoutTimer;
 const WARNING_TIME = 10 * 60 * 1000; 
@@ -143,6 +105,9 @@ function mostrarModalInactividad() {
 
 ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => { document.addEventListener(evt, resetInactivity); });
 
+// ==========================================
+// 2. SISTEMA DE MODALES Y UI
+// ==========================================
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
     if(!modal) return; 
@@ -171,8 +136,7 @@ window.mostrarModalError = function(mensaje, onCloseAction) {
     const btnCancel = document.getElementById('modal-btn-cancel');
 
     titleEl.innerText = "Atenció"; titleEl.style.color = "var(--brand-blue)"; 
-    // Usar innerHTML para permitir saltos de linea
-    document.getElementById('modal-msg').innerHTML = mensaje; 
+    document.getElementById('modal-msg').innerHTML = mensaje;
     btnCancel.style.display = 'none'; 
     btnConfirm.innerText = "Entesos"; btnConfirm.style.background = "var(--brand-blue)"; btnConfirm.disabled = false;
     
@@ -186,6 +150,39 @@ window.logoutApp = function() {
     window.mostrarModalConfirmacion("Tancar Sessió", "Estàs segur que vols sortir del campus?", () => {
         localStorage.clear(); window.location.href = 'index.html';
     });
+};
+
+window.tornarAlDashboard = function() {
+    document.getElementById('exam-view').style.display = 'none';
+    document.getElementById('app-container').style.display = 'block';
+    window.showView('dashboard');
+    const url = new URL(window.location);
+    url.searchParams.delete('slug');
+    window.history.pushState({}, '', url);
+    window.scrollTo(0,0);
+};
+
+// ==========================================
+// 3. INICIO Y NAVEGACIÓN
+// ==========================================
+window.appIniciada = false;
+
+window.iniciarApp = function() {
+    if (window.appIniciada) return;
+    window.appIniciada = true;
+    console.log("🚀 SICAP App: Iniciant sistema...");
+    
+    startInactivityTimers();
+    try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
+    
+    checkRealNotifications(); 
+    setInterval(checkRealNotifications, 60000);
+
+    setTimeout(() => { setupDirectClicks(); }, 100);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!urlParams.get('slug')) { window.showView('dashboard'); } 
+    else { document.getElementById('dashboard-view').style.display = 'none'; document.getElementById('exam-view').style.display = 'flex'; }
 };
 
 function setupDirectClicks() {
@@ -250,7 +247,7 @@ function initHeaderData() {
 }
 
 // ==========================================
-// 4. MOTOR DE NOTIFICACIONES
+// 4. MOTOR DE NOTIFICACIONES (FIXED)
 // ==========================================
 
 async function checkRealNotifications() {
@@ -258,9 +255,8 @@ async function checkRealNotifications() {
     const token = localStorage.getItem('jwt');
     if (!user || !token) return;
 
-    // Empezar oculto por defecto
     const bellDot = document.querySelector('.notification-dot');
-    if(bellDot) bellDot.style.display = 'none'; 
+    if(bellDot) bellDot.style.display = 'none'; // Reset por defecto
 
     try {
         let totalCount = 0;
@@ -321,7 +317,7 @@ window.abrirPanelNotificaciones = async function() {
         let html = '<div class="notif-list">';
         let hasContent = false;
 
-        // 1. SI ES PROFESOR: Comprobar mensajes pendientes para mostrarlos aquí
+        // 1. SI ES PROFESOR: Mostrar aviso de mensajes pendientes
         if (user.es_professor === true) {
             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -331,13 +327,18 @@ window.abrirPanelNotificaciones = async function() {
 
             if (countMsg > 0) {
                 hasContent = true;
+                // NOTA: Añadimos un script inline para apagar la campana visualmente al clicar
                 html += `
-                    <div class="notif-item unread" onclick="abrirPanelMensajes(); document.getElementById('custom-modal').style.display='none';">
+                    <div class="notif-item unread" onclick="
+                        document.querySelector('.notification-dot').style.display='none'; 
+                        abrirPanelMensajes(); 
+                        document.getElementById('custom-modal').style.display='none';
+                    ">
                         <div class="notif-header">
                             <span><i class="fa-solid fa-comment-dots"></i> Safata d'Entrada</span>
                             <small style="color:var(--brand-red); font-weight:bold;">PENDENTS</small>
                         </div>
-                        <strong class="notif-title">Tens ${countMsg} dubtes d'alumnos per respondre</strong>
+                        <strong class="notif-title">Tens ${countMsg} dubtes d'alumnes per respondre</strong>
                         <div class="notif-body">Fes clic aquí per anar a la safata de missatges.</div>
                     </div>
                 `;
@@ -403,14 +404,12 @@ window.marcarNotificacionLeida = async function(id, element) {
 };
 
 // ==========================================
-// 5. MENSAJERÍA
+// 5. MENSAJERÍA (FIXED: Orden, Fechas, Enlaces)
 // ==========================================
 
 async function abrirPanelMensajes() {
-    // Si estamos abriendo desde notificaciones, puede haber conflicto de modales.
-    // Aseguramos que usamos el modal principal.
+    // Hack para reiniciar modal si venimos de notificaciones
     const modal = document.getElementById('custom-modal');
-    // Forzamos cierre y reapertura limpia para evitar superposiciones
     modal.style.display = 'none';
     setTimeout(() => { modal.style.display = 'flex'; }, 50);
 
@@ -437,7 +436,7 @@ async function abrirPanelMensajes() {
         const token = localStorage.getItem('jwt');
         let endpoint = '';
 
-        // Orden ASCENDENTE
+        // Orden ASCENDENTE (Antiguos arriba, nuevos abajo)
         if (esProfe) {
             endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user`;
         } else {
@@ -458,13 +457,16 @@ async function abrirPanelMensajes() {
 
         let html = '<div class="msg-list-container" id="chat-container">';
         mensajes.forEach(msg => {
+            // FECHA COMPLETA CON HORA
             const fecha = new Date(msg.createdAt).toLocaleDateString('ca-ES', { 
                 day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
             });
             const alumnoId = msg.users_permissions_user ? (msg.users_permissions_user.id || msg.users_permissions_user.documentId) : null;
             
+            // Función para convertir URLs en links clicables
             const procesarTexto = (txt) => {
                 if(!txt) return '';
+                // Regex simple para URLs
                 return txt.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:var(--brand-blue); text-decoration:underline;">$1</a>');
             };
 
@@ -516,6 +518,7 @@ async function abrirPanelMensajes() {
         html += '</div>';
         msgEl.innerHTML = html;
 
+        // Auto-scroll al fondo
         setTimeout(() => {
             const container = document.getElementById('chat-container');
             if(container) container.scrollTop = container.scrollHeight;
@@ -527,6 +530,7 @@ async function abrirPanelMensajes() {
     }
 }
 
+// CORRECCIÓN: nombre de campo "resposta_professor" en vez de "respuesta"
 window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     const txtArea = document.getElementById(`reply-${msgId}`);
     const respuesta = txtArea.value.trim();
@@ -538,13 +542,12 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     btn.innerText = "Enviant..."; btn.disabled = true;
 
     try {
-        // FIXED: Usamos 'resposta_professor' (Catalán) que es lo que espera Strapi
         const resMsg = await fetch(`${API_ROUTES.messages}/${msgId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ 
                 data: { 
-                    resposta_professor: respuesta, 
+                    resposta_professor: respuesta, // CAMPO CORRECTO (CATALÁN)
                     estat: 'respost' 
                 } 
             })
@@ -569,13 +572,11 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
             });
         }
         
-        // Recargar panel
-        document.getElementById('custom-modal').style.display = 'none'; // Cerramos el de chat
+        document.getElementById('custom-modal').style.display = 'none';
         setTimeout(() => {
-            window.mostrarModalError("✅ Resposta enviada correctament."); // Usamos el bonito
+            window.mostrarModalError("✅ Resposta enviada correctament.");
         }, 300);
         
-        // Refrescar contador campana
         checkRealNotifications();
 
     } catch (e) {
@@ -587,9 +588,34 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     }
 };
 
-// ==========================================
-// 6. UTILIDADES FORMATO & CURSOS
-// ==========================================
+window.showView = function(viewName) {
+    ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'none';
+    });
+
+    let targetId = '';
+    if(viewName === 'home') targetId = 'catalog-view';
+    if(viewName === 'dashboard') targetId = 'dashboard-view';
+    if(viewName === 'profile') targetId = 'profile-view';
+    if(viewName === 'grades') targetId = 'grades-view';
+    if(viewName === 'exam') targetId = 'exam-view';
+
+    const targetEl = document.getElementById(targetId);
+    if(targetEl) targetEl.style.display = viewName === 'exam' ? 'flex' : 'block';
+
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    const navMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
+    if (navMap[viewName]) {
+        const activeBtn = document.getElementById(navMap[viewName]);
+        if(activeBtn) activeBtn.classList.add('active');
+    }
+
+    if(viewName === 'dashboard') loadUserCourses();
+    if(viewName === 'home') loadCatalog();
+    if(viewName === 'profile') loadFullProfile();
+    if(viewName === 'grades') loadGrades();
+};
 
 function parseStrapiText(content) {
     if (!content) return '';

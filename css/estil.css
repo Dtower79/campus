@@ -472,3 +472,31 @@ ul { list-style: none; padding: 0; margin: 0; }
 
 .reply-area { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
 .reply-area textarea { width: 100%; border: 1px solid #ccc; border-radius: 6px; padding: 10px; min-height: 80px; font-family: inherit; margin-bottom: 10px; }
+
+/* --- AÑADIR O REEMPLAZAR AL FINAL DEL ARCHIVO --- */
+
+/* CORRECCIÓN PUNTO 1: Ocultar dot por defecto para que no parpadee al cargar */
+.notification-dot {
+    display: none; /* Se activará vía JS solo si hay datos */
+}
+
+/* CORRECCIÓN PUNTO 2: Chat estilo WhatsApp */
+.msg-list-container {
+    max-height: 400px;
+    overflow-y: auto;
+    text-align: left;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column; /* Normal, de arriba a abajo */
+    gap: 15px;
+    padding-right: 5px;
+    scroll-behavior: smooth;
+}
+
+/* Estética de fechas más pequeña */
+.msg-date-small {
+    font-size: 0.7rem;
+    color: #999;
+    margin-left: 10px;
+    font-weight: normal;
+}

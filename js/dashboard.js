@@ -1,22 +1,12 @@
-/* ==========================================================================
-   DASHBOARD.JS - Lógica Principal (v6.0)
-   ========================================================================== */
-
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Gestión de Sesión al cargar
     if (localStorage.getItem('jwt')) {
         const overlay = document.getElementById('login-overlay');
         const app = document.getElementById('app-container');
-        
         if (overlay) overlay.style.display = 'none';
         if (app) app.style.display = 'block';
-
-        if (!window.appIniciada) {
-            window.iniciarApp();
-        }
+        if (!window.appIniciada) window.iniciarApp();
     }
     
-    // 2. Recuperar Contraseña
     const forgotLink = document.getElementById('forgot-pass');
     if(forgotLink) {
         forgotLink.onclick = (e) => {
@@ -25,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 3. Footer y Scroll
     const footer = document.getElementById('app-footer');
     if(footer) footer.style.display = 'block';
 
@@ -35,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
         btn.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
         document.body.appendChild(btn);
-        
         window.onscroll = () => {
             if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
                 btn.style.display = "flex";
@@ -46,18 +34,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// ==========================================
-// CONTROL DE NAVEGACIÓN (SHOW VIEW)
-// ==========================================
-// Definimos esto PRIMERO para evitar errores de "not a function"
+// --- NAVEGACIÓN ---
 window.showView = function(viewName) {
-    // 1. Ocultar todas las vistas
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
-    // 2. Determinar destino
     let targetId = '';
     if(viewName === 'home') targetId = 'catalog-view';
     if(viewName === 'dashboard') targetId = 'dashboard-view';
@@ -65,11 +48,9 @@ window.showView = function(viewName) {
     if(viewName === 'grades') targetId = 'grades-view';
     if(viewName === 'exam') targetId = 'exam-view';
 
-    // 3. Mostrar vista destino
     const targetEl = document.getElementById(targetId);
     if(targetEl) targetEl.style.display = viewName === 'exam' ? 'flex' : 'block';
 
-    // 4. Actualizar Menú
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     const navMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
     if (navMap[viewName]) {
@@ -77,16 +58,12 @@ window.showView = function(viewName) {
         if(activeBtn) activeBtn.classList.add('active');
     }
 
-    // 5. Cargar datos específicos
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
     if(viewName === 'grades') loadGrades();
 };
 
-// ==========================================
-// INICIO DE LA APLICACIÓN
-// ==========================================
 window.appIniciada = false;
 
 window.iniciarApp = function() {
@@ -97,25 +74,16 @@ window.iniciarApp = function() {
     startInactivityTimers();
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
     
-    // Iniciar polling de notificaciones real
     checkRealNotifications(); 
-    setInterval(checkRealNotifications, 60000); // Revisar cada minuto
+    setInterval(checkRealNotifications, 60000);
 
     setTimeout(() => { setupDirectClicks(); }, 100);
 
-    // Navegación inicial basada en URL
     const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.get('slug')) {
-        window.showView('dashboard');
-    } else {
-        document.getElementById('dashboard-view').style.display = 'none';
-        document.getElementById('exam-view').style.display = 'flex';
-    }
+    if (!urlParams.get('slug')) { window.showView('dashboard'); } 
+    else { document.getElementById('dashboard-view').style.display = 'none'; document.getElementById('exam-view').style.display = 'flex'; }
 };
 
-// ==========================================
-// CONTROL DE INACTIVIDAD
-// ==========================================
 let warningTimer;
 let logoutTimer;
 const WARNING_TIME = 10 * 60 * 1000; 
@@ -175,9 +143,6 @@ function mostrarModalInactividad() {
 
 ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => { document.addEventListener(evt, resetInactivity); });
 
-// ==========================================
-// UTILIDADES: MODALES Y NAVEGACIÓN
-// ==========================================
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
     if(!modal) return; 
@@ -206,7 +171,8 @@ window.mostrarModalError = function(mensaje, onCloseAction) {
     const btnCancel = document.getElementById('modal-btn-cancel');
 
     titleEl.innerText = "Atenció"; titleEl.style.color = "var(--brand-blue)"; 
-    document.getElementById('modal-msg').innerText = mensaje;
+    // Usar innerHTML para permitir saltos de linea
+    document.getElementById('modal-msg').innerHTML = mensaje; 
     btnCancel.style.display = 'none'; 
     btnConfirm.innerText = "Entesos"; btnConfirm.style.background = "var(--brand-blue)"; btnConfirm.disabled = false;
     
@@ -222,21 +188,9 @@ window.logoutApp = function() {
     });
 };
 
-window.tornarAlDashboard = function() {
-    document.getElementById('exam-view').style.display = 'none';
-    document.getElementById('app-container').style.display = 'block';
-    window.showView('dashboard');
-    const url = new URL(window.location);
-    url.searchParams.delete('slug');
-    window.history.pushState({}, '', url);
-    window.scrollTo(0,0);
-};
-
 function setupDirectClicks() {
     const btnBell = document.getElementById('btn-notifs');
     const btnMsg = document.getElementById('btn-messages');
-    
-    // Eventos Click
     if (btnBell) btnBell.onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     if (btnMsg) btnMsg.onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
 
@@ -256,7 +210,6 @@ function setupDirectClicks() {
         };
     }
     
-    // Enlaces dropdown
     const links = document.querySelectorAll('#user-dropdown-menu a');
     links.forEach(link => {
         link.onclick = (e) => {
@@ -267,7 +220,6 @@ function setupDirectClicks() {
     });
     document.body.addEventListener('click', closeAllMenus);
 
-    // Navegación Desktop
     const navButtons = [ { id: 'nav-catalog', view: 'home' }, { id: 'nav-profile', view: 'profile' }, { id: 'nav-dashboard', view: 'dashboard' } ];
     navButtons.forEach(btn => {
         const el = document.getElementById(btn.id);
@@ -306,15 +258,14 @@ async function checkRealNotifications() {
     const token = localStorage.getItem('jwt');
     if (!user || !token) return;
 
-    // Empezar oculto para no mentir
+    // Empezar oculto por defecto
     const bellDot = document.querySelector('.notification-dot');
     if(bellDot) bellDot.style.display = 'none'; 
 
     try {
         let totalCount = 0;
 
-        // 1. Notificaciones normales (para todos)
-        // Usamos el campo users_permissions_user como vimos en Strapi
+        // 1. Notificaciones de sistema
         const resNotif = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -330,7 +281,7 @@ async function checkRealNotifications() {
             if (jsonMsg.data) totalCount += jsonMsg.data.length;
         }
 
-        // 3. Actualizar UI
+        // 3. Mostrar u ocultar
         if (bellDot) {
             if (totalCount > 0) {
                 bellDot.style.display = 'flex';
@@ -367,38 +318,68 @@ window.abrirPanelNotificaciones = async function() {
     const token = localStorage.getItem('jwt');
 
     try {
+        let html = '<div class="notif-list">';
+        let hasContent = false;
+
+        // 1. SI ES PROFESOR: Comprobar mensajes pendientes para mostrarlos aquí
+        if (user.es_professor === true) {
+            const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const jsonMsg = await resMsg.json();
+            const countMsg = jsonMsg.data ? jsonMsg.data.length : 0;
+
+            if (countMsg > 0) {
+                hasContent = true;
+                html += `
+                    <div class="notif-item unread" onclick="abrirPanelMensajes(); document.getElementById('custom-modal').style.display='none';">
+                        <div class="notif-header">
+                            <span><i class="fa-solid fa-comment-dots"></i> Safata d'Entrada</span>
+                            <small style="color:var(--brand-red); font-weight:bold;">PENDENTS</small>
+                        </div>
+                        <strong class="notif-title">Tens ${countMsg} dubtes d'alumnos per respondre</strong>
+                        <div class="notif-body">Fes clic aquí per anar a la safata de missatges.</div>
+                    </div>
+                `;
+            }
+        }
+
+        // 2. Notificaciones de sistema
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:desc&pagination[limit]=10`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
         const notifs = json.data || [];
 
-        if (notifs.length === 0) {
-            msgEl.innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No tens notificacions.</p>';
-            return;
+        if (notifs.length > 0) {
+            hasContent = true;
+            notifs.forEach(n => {
+                const fecha = new Date(n.createdAt).toLocaleDateString('ca-ES', { 
+                    day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' 
+                });
+                const unreadClass = n.llegida ? '' : 'unread';
+                const icon = n.llegida ? '<i class="fa-regular fa-envelope-open"></i>' : '<i class="fa-solid fa-envelope"></i>';
+                
+                html += `
+                    <div class="notif-item ${unreadClass}" onclick="marcarNotificacionLeida('${n.documentId || n.id}', this)">
+                        <div class="notif-header">
+                            <span>${icon} ${fecha}</span>
+                            ${!n.llegida ? '<small style="color:var(--brand-red); font-weight:bold;">NOVA</small>' : ''}
+                        </div>
+                        <strong class="notif-title">${n.titol}</strong>
+                        <div class="notif-body">${n.missatge}</div>
+                    </div>
+                `;
+            });
         }
 
-        let html = '<div class="notif-list">';
-        notifs.forEach(n => {
-            const fecha = new Date(n.createdAt).toLocaleDateString('ca-ES', { 
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' 
-            });
-            const unreadClass = n.llegida ? '' : 'unread';
-            const icon = n.llegida ? '<i class="fa-regular fa-envelope-open"></i>' : '<i class="fa-solid fa-envelope"></i>';
-            
-            html += `
-                <div class="notif-item ${unreadClass}" onclick="marcarNotificacionLeida('${n.documentId || n.id}', this)">
-                    <div class="notif-header">
-                        <span>${icon} ${fecha}</span>
-                        ${!n.llegida ? '<small style="color:var(--brand-red); font-weight:bold;">NOVA</small>' : ''}
-                    </div>
-                    <strong class="notif-title">${n.titol}</strong>
-                    <div class="notif-body">${n.missatge}</div>
-                </div>
-            `;
-        });
         html += '</div>';
-        msgEl.innerHTML = html;
+
+        if (!hasContent) {
+            msgEl.innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No tens notificacions.</p>';
+        } else {
+            msgEl.innerHTML = html;
+        }
 
     } catch (e) {
         msgEl.innerHTML = '<p style="color:red">Error carregant notificacions.</p>';
@@ -426,7 +407,13 @@ window.marcarNotificacionLeida = async function(id, element) {
 // ==========================================
 
 async function abrirPanelMensajes() {
+    // Si estamos abriendo desde notificaciones, puede haber conflicto de modales.
+    // Aseguramos que usamos el modal principal.
     const modal = document.getElementById('custom-modal');
+    // Forzamos cierre y reapertura limpia para evitar superposiciones
+    modal.style.display = 'none';
+    setTimeout(() => { modal.style.display = 'flex'; }, 50);
+
     const titleEl = document.getElementById('modal-title');
     const msgEl = document.getElementById('modal-msg');
     const btnConfirm = document.getElementById('modal-btn-confirm');
@@ -445,13 +432,12 @@ async function abrirPanelMensajes() {
     newConfirm.onclick = () => modal.style.display = 'none';
 
     msgEl.innerHTML = '<div class="loader"></div><p style="text-align:center">Carregant missatges...</p>';
-    modal.style.display = 'flex';
 
     try {
         const token = localStorage.getItem('jwt');
         let endpoint = '';
 
-        // Orden ASCENDENTE para chat natural (antiguo arriba, nuevo abajo)
+        // Orden ASCENDENTE
         if (esProfe) {
             endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user`;
         } else {
@@ -473,11 +459,10 @@ async function abrirPanelMensajes() {
         let html = '<div class="msg-list-container" id="chat-container">';
         mensajes.forEach(msg => {
             const fecha = new Date(msg.createdAt).toLocaleDateString('ca-ES', { 
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
             });
             const alumnoId = msg.users_permissions_user ? (msg.users_permissions_user.id || msg.users_permissions_user.documentId) : null;
             
-            // Convertir URLs a enlaces
             const procesarTexto = (txt) => {
                 if(!txt) return '';
                 return txt.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:var(--brand-blue); text-decoration:underline;">$1</a>');
@@ -531,7 +516,6 @@ async function abrirPanelMensajes() {
         html += '</div>';
         msgEl.innerHTML = html;
 
-        // Auto-scroll al fondo
         setTimeout(() => {
             const container = document.getElementById('chat-container');
             if(container) container.scrollTop = container.scrollHeight;
@@ -554,10 +538,16 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     btn.innerText = "Enviant..."; btn.disabled = true;
 
     try {
+        // FIXED: Usamos 'resposta_professor' (Catalán) que es lo que espera Strapi
         const resMsg = await fetch(`${API_ROUTES.messages}/${msgId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ data: { respuesta_professor: respuesta, estat: 'respost' } })
+            body: JSON.stringify({ 
+                data: { 
+                    resposta_professor: respuesta, 
+                    estat: 'respost' 
+                } 
+            })
         });
 
         if (!resMsg.ok) throw new Error("Error actualitzant missatge");
@@ -578,12 +568,22 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
                 body: JSON.stringify(notifPayload)
             });
         }
-        abrirPanelMensajes();
-        window.mostrarModalError("Resposta enviada i alumne notificat correctament.");
+        
+        // Recargar panel
+        document.getElementById('custom-modal').style.display = 'none'; // Cerramos el de chat
+        setTimeout(() => {
+            window.mostrarModalError("✅ Resposta enviada correctament."); // Usamos el bonito
+        }, 300);
+        
+        // Refrescar contador campana
+        checkRealNotifications();
+
     } catch (e) {
         console.error(e);
-        alert("Error al processar la resposta.");
-        btn.innerHTML = originalText; btn.disabled = false;
+        document.getElementById('custom-modal').style.display = 'none';
+        setTimeout(() => {
+            window.mostrarModalError("❌ Error al processar la resposta. Comprova la connexió.");
+        }, 300);
     }
 };
 

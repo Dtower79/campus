@@ -500,3 +500,33 @@ ul { list-style: none; padding: 0; margin: 0; }
     margin-left: 10px;
     font-weight: normal;
 }
+
+/* Para que la campana no mienta al cargar */
+.notification-dot {
+    display: none; 
+}
+
+/* Estilos del Chat */
+.msg-list-container {
+    height: 400px;
+    max-height: 400px;
+    overflow-y: auto;
+    text-align: left;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding-right: 5px;
+    scroll-behavior: smooth;
+    background: #fafafa;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+.msg-date-small { font-size: 0.7rem; color: #999; margin-left: 10px; font-weight: normal; }
+.chat-bubble { padding: 10px 15px; border-radius: 12px; margin-bottom: 5px; max-width: 90%; font-size: 0.95rem; line-height: 1.4; }
+.bubble-student { background-color: #f1f3f5; color: #333; border-top-left-radius: 0; margin-right: auto; }
+.bubble-teacher { background-color: #e3f2fd; color: #0d47a1; border-top-right-radius: 0; margin-left: auto; border: 1px solid #bbdefb; }
+.chat-meta { font-size: 0.75rem; color: #999; margin-bottom: 4px; display: block; }
+.reply-area { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
+.reply-area textarea { width: 100%; border: 1px solid #ccc; border-radius: 6px; padding: 10px; min-height: 80px; font-family: inherit; margin-bottom: 10px; }

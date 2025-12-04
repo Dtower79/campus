@@ -530,3 +530,103 @@ ul { list-style: none; padding: 0; margin: 0; }
 .chat-meta { font-size: 0.75rem; color: #999; margin-bottom: 4px; display: block; }
 .reply-area { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
 .reply-area textarea { width: 100%; border: 1px solid #ccc; border-radius: 6px; padding: 10px; min-height: 80px; font-family: inherit; margin-bottom: 10px; }
+
+/* --- AÑADIR O REEMPLAZAR AL FINAL DE css/estil.css --- */
+
+/* 1. CAMPANA */
+.notification-dot { display: none; }
+
+/* 2. CHAT Y MENSAJERÍA MEJORADA */
+.msg-list-container {
+    height: 400px;
+    max-height: 400px;
+    overflow-y: auto;
+    text-align: left;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding-right: 5px;
+    scroll-behavior: smooth;
+    background: #fafafa;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+/* CABECERA DEL MENSAJE (Fecha Arreglada) */
+.msg-card {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.msg-header {
+    display: flex;
+    justify-content: space-between; /* Separa nombre a izq y fecha a der */
+    align-items: flex-start;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+}
+
+.msg-info-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.msg-user-name {
+    font-weight: bold;
+    color: var(--brand-blue);
+    font-size: 0.95rem;
+}
+
+.msg-course-name {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.msg-date-badge {
+    background-color: #eee;
+    color: #555;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* BURBUJAS DE CHAT */
+.chat-meta { font-size: 0.75rem; color: #999; margin-bottom: 4px; display: block; }
+.chat-bubble { padding: 10px 15px; border-radius: 12px; margin-bottom: 5px; max-width: 90%; font-size: 0.95rem; line-height: 1.4; }
+.bubble-student { background-color: #fff; border: 1px solid #ddd; color: #333; border-top-left-radius: 0; margin-right: auto; }
+.bubble-teacher { background-color: #e3f2fd; color: #0d47a1; border-top-right-radius: 0; margin-left: auto; border: 1px solid #bbdefb; }
+
+.reply-area { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
+.reply-area textarea { width: 100%; border: 1px solid #ccc; border-radius: 6px; padding: 10px; min-height: 80px; font-family: inherit; margin-bottom: 10px; }
+
+/* ENLACES EN CHAT */
+.chat-bubble a { color: var(--brand-blue); text-decoration: underline; font-weight: bold; }
+
+/* BOTÓN TOGGLE DE MODO (PROFESOR/ALUMNO) */
+.view-toggle-btn {
+    background: none;
+    border: 1px solid var(--brand-blue);
+    color: var(--brand-blue);
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin-bottom: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+}
+.view-toggle-btn:hover { background-color: #f0f8ff; }
+.view-toggle-btn.active { background-color: var(--brand-blue); color: white; }

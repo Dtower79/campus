@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Gestión "He oblidat la contrasenya"
     const forgotLink = document.getElementById('forgot-pass');
     if(forgotLink) {
         forgotLink.onclick = (e) => {
@@ -21,18 +20,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // MOSTRAR FOOTER SIEMPRE
     const footer = document.getElementById('app-footer');
     if(footer) footer.style.display = 'block';
 
-    // BOTÓN SCROLL TOP
     if(!document.getElementById('scroll-top-btn')) {
         const btn = document.createElement('button');
         btn.id = 'scroll-top-btn';
         btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
         btn.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
         document.body.appendChild(btn);
-        
         window.onscroll = () => {
             if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
                 btn.style.display = "flex";
@@ -44,8 +40,57 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 1. CONTROL DE INACTIVIDAD
+// CONTROL DE NAVEGACIÓN
 // ==========================================
+window.showView = function(viewName) {
+    ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'none';
+    });
+
+    let targetId = '';
+    if(viewName === 'home') targetId = 'catalog-view';
+    if(viewName === 'dashboard') targetId = 'dashboard-view';
+    if(viewName === 'profile') targetId = 'profile-view';
+    if(viewName === 'grades') targetId = 'grades-view';
+    if(viewName === 'exam') targetId = 'exam-view';
+
+    const targetEl = document.getElementById(targetId);
+    if(targetEl) targetEl.style.display = viewName === 'exam' ? 'flex' : 'block';
+
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    const navMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
+    if (navMap[viewName]) {
+        const activeBtn = document.getElementById(navMap[viewName]);
+        if(activeBtn) activeBtn.classList.add('active');
+    }
+
+    if(viewName === 'dashboard') loadUserCourses();
+    if(viewName === 'home') loadCatalog();
+    if(viewName === 'profile') loadFullProfile();
+    if(viewName === 'grades') loadGrades();
+};
+
+window.appIniciada = false;
+
+window.iniciarApp = function() {
+    if (window.appIniciada) return;
+    window.appIniciada = true;
+    console.log("🚀 SICAP App: Iniciant sistema...");
+    
+    startInactivityTimers();
+    try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
+    
+    checkRealNotifications(); 
+    setInterval(checkRealNotifications, 60000);
+
+    setTimeout(() => { setupDirectClicks(); }, 100);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!urlParams.get('slug')) { window.showView('dashboard'); } 
+    else { document.getElementById('dashboard-view').style.display = 'none'; document.getElementById('exam-view').style.display = 'flex'; }
+};
+
 let warningTimer;
 let logoutTimer;
 const WARNING_TIME = 10 * 60 * 1000; 
@@ -105,9 +150,6 @@ function mostrarModalInactividad() {
 
 ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => { document.addEventListener(evt, resetInactivity); });
 
-// ==========================================
-// 2. SISTEMA DE MODALES Y UI
-// ==========================================
 window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
     const modal = document.getElementById('custom-modal');
     if(!modal) return; 
@@ -136,7 +178,7 @@ window.mostrarModalError = function(mensaje, onCloseAction) {
     const btnCancel = document.getElementById('modal-btn-cancel');
 
     titleEl.innerText = "Atenció"; titleEl.style.color = "var(--brand-blue)"; 
-    document.getElementById('modal-msg').innerHTML = mensaje;
+    document.getElementById('modal-msg').innerHTML = mensaje; 
     btnCancel.style.display = 'none'; 
     btnConfirm.innerText = "Entesos"; btnConfirm.style.background = "var(--brand-blue)"; btnConfirm.disabled = false;
     
@@ -152,43 +194,12 @@ window.logoutApp = function() {
     });
 };
 
-window.tornarAlDashboard = function() {
-    document.getElementById('exam-view').style.display = 'none';
-    document.getElementById('app-container').style.display = 'block';
-    window.showView('dashboard');
-    const url = new URL(window.location);
-    url.searchParams.delete('slug');
-    window.history.pushState({}, '', url);
-    window.scrollTo(0,0);
-};
-
-// ==========================================
-// 3. INICIO Y NAVEGACIÓN
-// ==========================================
-window.appIniciada = false;
-
-window.iniciarApp = function() {
-    if (window.appIniciada) return;
-    window.appIniciada = true;
-    console.log("🚀 SICAP App: Iniciant sistema...");
-    
-    startInactivityTimers();
-    try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
-    
-    checkRealNotifications(); 
-    setInterval(checkRealNotifications, 60000);
-
-    setTimeout(() => { setupDirectClicks(); }, 100);
-
-    const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.get('slug')) { window.showView('dashboard'); } 
-    else { document.getElementById('dashboard-view').style.display = 'none'; document.getElementById('exam-view').style.display = 'flex'; }
-};
-
 function setupDirectClicks() {
     const btnBell = document.getElementById('btn-notifs');
     const btnMsg = document.getElementById('btn-messages');
     if (btnBell) btnBell.onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
+    
+    // Al abrir mensajes, si no pasamos argumento, el sistema decide el modo por defecto
     if (btnMsg) btnMsg.onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
 
     const btnMobile = document.getElementById('mobile-menu-btn');
@@ -247,7 +258,7 @@ function initHeaderData() {
 }
 
 // ==========================================
-// 4. MOTOR DE NOTIFICACIONES (FIXED)
+// 4. MOTOR DE NOTIFICACIONES
 // ==========================================
 
 async function checkRealNotifications() {
@@ -256,19 +267,17 @@ async function checkRealNotifications() {
     if (!user || !token) return;
 
     const bellDot = document.querySelector('.notification-dot');
-    if(bellDot) bellDot.style.display = 'none'; // Reset por defecto
+    if(bellDot) bellDot.style.display = 'none'; 
 
     try {
         let totalCount = 0;
 
-        // 1. Notificaciones de sistema
         const resNotif = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const jsonNotif = await resNotif.json();
         if (jsonNotif.data) totalCount += jsonNotif.data.length;
 
-        // 2. Si es profesor, sumar mensajes pendientes
         if (user.es_professor === true) {
             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -277,7 +286,6 @@ async function checkRealNotifications() {
             if (jsonMsg.data) totalCount += jsonMsg.data.length;
         }
 
-        // 3. Mostrar u ocultar
         if (bellDot) {
             if (totalCount > 0) {
                 bellDot.style.display = 'flex';
@@ -317,7 +325,6 @@ window.abrirPanelNotificaciones = async function() {
         let html = '<div class="notif-list">';
         let hasContent = false;
 
-        // 1. SI ES PROFESOR: Mostrar aviso de mensajes pendientes
         if (user.es_professor === true) {
             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -327,7 +334,7 @@ window.abrirPanelNotificaciones = async function() {
 
             if (countMsg > 0) {
                 hasContent = true;
-                // NOTA: Añadimos un script inline para apagar la campana visualmente al clicar
+                // FIX: "alumnes" en vez de "alumnos"
                 html += `
                     <div class="notif-item unread" onclick="
                         document.querySelector('.notification-dot').style.display='none'; 
@@ -345,7 +352,6 @@ window.abrirPanelNotificaciones = async function() {
             }
         }
 
-        // 2. Notificaciones de sistema
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:desc&pagination[limit]=10`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -404,10 +410,10 @@ window.marcarNotificacionLeida = async function(id, element) {
 };
 
 // ==========================================
-// 5. MENSAJERÍA (FIXED: Orden, Fechas, Enlaces)
+// 5. MENSAJERÍA (MODO HÍBRIDO + FECHAS ARREGLADAS)
 // ==========================================
 
-async function abrirPanelMensajes() {
+async function abrirPanelMensajes(modoForzado) {
     // Hack para reiniciar modal si venimos de notificaciones
     const modal = document.getElementById('custom-modal');
     modal.style.display = 'none';
@@ -421,7 +427,35 @@ async function abrirPanelMensajes() {
     const user = JSON.parse(localStorage.getItem('user'));
     const esProfe = user.es_professor === true;
 
-    titleEl.innerText = esProfe ? "👨‍🏫 Safata de Dubtes (Professor)" : "💬 Els meus Dubtes";
+    // Determinar qué modo mostrar: 'profesor' (responder) o 'alumno' (mis dudas)
+    // Si se fuerza un modo, se usa ese. Si no, si es profe, ve la bandeja. Si es alumno, ve sus dudas.
+    let modoActual = modoForzado ? modoForzado : (esProfe ? 'profesor' : 'alumno');
+
+    // Construcción del título y botón de Switch (si es profe)
+    let headerHtml = "";
+    if (esProfe) {
+        if (modoActual === 'profesor') {
+            headerHtml = `
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                    <span>👨‍🏫 Safata de Dubtes (Professor)</span>
+                    <button class="view-toggle-btn" onclick="abrirPanelMensajes('alumno')">
+                        <i class="fa-solid fa-user"></i> Veure com Alumne
+                    </button>
+                </div>`;
+        } else {
+            headerHtml = `
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                    <span>💬 Els meus Dubtes (Alumne)</span>
+                    <button class="view-toggle-btn" onclick="abrirPanelMensajes('profesor')">
+                        <i class="fa-solid fa-chalkboard-user"></i> Veure com Professor
+                    </button>
+                </div>`;
+        }
+        titleEl.innerHTML = headerHtml; // Usamos innerHTML para meter el botón
+    } else {
+        titleEl.innerText = "💬 Els meus Dubtes";
+    }
+    
     titleEl.style.color = "var(--brand-blue)";
     btnCancel.style.display = 'none';
     btnConfirm.innerText = "Tancar";
@@ -436,10 +470,11 @@ async function abrirPanelMensajes() {
         const token = localStorage.getItem('jwt');
         let endpoint = '';
 
-        // Orden ASCENDENTE (Antiguos arriba, nuevos abajo)
-        if (esProfe) {
+        if (modoActual === 'profesor') {
+            // Ver dudas de otros (Pendientes de responder)
             endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user`;
         } else {
+            // Ver mis dudas propias (como alumno)
             endpoint = `${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:asc`;
         }
 
@@ -448,34 +483,40 @@ async function abrirPanelMensajes() {
         const mensajes = json.data || [];
 
         if (mensajes.length === 0) {
+            let emptyMsg = modoActual === 'profesor' 
+                ? 'No hi ha dubtes pendents! 🎉' 
+                : 'No has enviat cap dubte encara.';
+                
             msgEl.innerHTML = `<div style="text-align:center; padding:30px;">
                 <i class="fa-regular fa-comment-dots" style="font-size:3rem; color:#ccc; margin-bottom:10px;"></i>
-                <p>${esProfe ? 'No hi ha dubtes pendents! 🎉' : 'No has enviat cap dubte.'}</p>
+                <p>${emptyMsg}</p>
             </div>`;
             return;
         }
 
         let html = '<div class="msg-list-container" id="chat-container">';
         mensajes.forEach(msg => {
-            // FECHA COMPLETA CON HORA
             const fecha = new Date(msg.createdAt).toLocaleDateString('ca-ES', { 
-                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
+                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' 
             });
             const alumnoId = msg.users_permissions_user ? (msg.users_permissions_user.id || msg.users_permissions_user.documentId) : null;
             
-            // Función para convertir URLs en links clicables
             const procesarTexto = (txt) => {
                 if(!txt) return '';
-                // Regex simple para URLs
-                return txt.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:var(--brand-blue); text-decoration:underline;">$1</a>');
+                return txt.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
             };
 
-            if (esProfe) {
+            // RENDERIZADO SEGÚN EL MODO ACTIVO
+            if (modoActual === 'profesor') {
+                // MODO PROFESOR: Tarjeta de respuesta
                 html += `
                     <div class="msg-card" style="border-left: 4px solid var(--brand-red);">
                         <div class="msg-header">
-                            <span><strong>${msg.alumne_nom || 'Alumne'}</strong> - ${msg.curs}</span>
-                            <span>${fecha}</span>
+                            <div class="msg-info-group">
+                                <span class="msg-user-name">${msg.alumne_nom || 'Alumne'}</span>
+                                <span class="msg-course-name">${msg.curs}</span>
+                            </div>
+                            <span class="msg-date-badge">${fecha}</span>
                         </div>
                         <div class="chat-meta">Tema: ${msg.tema}</div>
                         <div class="chat-bubble bubble-student">
@@ -492,6 +533,7 @@ async function abrirPanelMensajes() {
                     </div>
                 `;
             } else {
+                // MODO ALUMNO: Burbujas de chat
                 const estadoClass = msg.estat === 'pendent' ? 'status-pending' : 'status-replied';
                 const estadoTexto = msg.estat === 'pendent' ? 'Pendent' : 'Respost';
                 
@@ -506,8 +548,11 @@ async function abrirPanelMensajes() {
                 html += `
                     <div class="msg-card">
                         <div class="msg-header">
-                            <span>${msg.curs} <span class="msg-date-small">${fecha}</span></span>
-                            <span class="msg-status-badge ${estadoClass}">${estadoTexto}</span>
+                            <div class="msg-info-group">
+                                <span class="msg-course-name">${msg.curs}</span>
+                                <span class="msg-status-badge ${estadoClass}" style="width:fit-content; margin-top:2px;">${estadoTexto}</span>
+                            </div>
+                            <span class="msg-date-badge">${fecha}</span>
                         </div>
                         <div class="chat-bubble bubble-student">${procesarTexto(msg.missatge)}</div>
                         ${respuestaHtml}
@@ -518,7 +563,6 @@ async function abrirPanelMensajes() {
         html += '</div>';
         msgEl.innerHTML = html;
 
-        // Auto-scroll al fondo
         setTimeout(() => {
             const container = document.getElementById('chat-container');
             if(container) container.scrollTop = container.scrollHeight;
@@ -530,7 +574,6 @@ async function abrirPanelMensajes() {
     }
 }
 
-// CORRECCIÓN: nombre de campo "resposta_professor" en vez de "respuesta"
 window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     const txtArea = document.getElementById(`reply-${msgId}`);
     const respuesta = txtArea.value.trim();
@@ -547,7 +590,7 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ 
                 data: { 
-                    resposta_professor: respuesta, // CAMPO CORRECTO (CATALÁN)
+                    resposta_professor: respuesta, 
                     estat: 'respost' 
                 } 
             })
@@ -588,34 +631,9 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     }
 };
 
-window.showView = function(viewName) {
-    ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.style.display = 'none';
-    });
-
-    let targetId = '';
-    if(viewName === 'home') targetId = 'catalog-view';
-    if(viewName === 'dashboard') targetId = 'dashboard-view';
-    if(viewName === 'profile') targetId = 'profile-view';
-    if(viewName === 'grades') targetId = 'grades-view';
-    if(viewName === 'exam') targetId = 'exam-view';
-
-    const targetEl = document.getElementById(targetId);
-    if(targetEl) targetEl.style.display = viewName === 'exam' ? 'flex' : 'block';
-
-    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    const navMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
-    if (navMap[viewName]) {
-        const activeBtn = document.getElementById(navMap[viewName]);
-        if(activeBtn) activeBtn.classList.add('active');
-    }
-
-    if(viewName === 'dashboard') loadUserCourses();
-    if(viewName === 'home') loadCatalog();
-    if(viewName === 'profile') loadFullProfile();
-    if(viewName === 'grades') loadGrades();
-};
+// ==========================================
+// 6. UTILIDADES FORMATO & CURSOS
+// ==========================================
 
 function parseStrapiText(content) {
     if (!content) return '';

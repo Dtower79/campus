@@ -1,6 +1,12 @@
+/* ==========================================================================
+   DASHBOARD.JS (v7.0 Optimized)
+   Lógica principal: Auth, Navegación, Notificaciones y Mensajería
+   ========================================================================== */
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Si hay sesión, ocultar login INMEDIATAMENTE
-    if (localStorage.getItem('jwt')) {
+    // 1. CHEQUEO DE SESIÓN
+    const token = localStorage.getItem('jwt');
+    if (token) {
         const overlay = document.getElementById('login-overlay');
         const app = document.getElementById('app-container');
         
@@ -11,7 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
             window.iniciarApp();
         }
     }
-    
+
+    // 2. RECUPERACIÓN CONTRASEÑA
     const forgotLink = document.getElementById('forgot-pass');
     if(forgotLink) {
         forgotLink.onclick = (e) => {
@@ -20,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 3. FOOTER Y SCROLL
     const footer = document.getElementById('app-footer');
     if(footer) footer.style.display = 'block';
 
@@ -29,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
         btn.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
         document.body.appendChild(btn);
+        
         window.onscroll = () => {
             if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
                 btn.style.display = "flex";
@@ -40,14 +49,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// CONTROL DE NAVEGACIÓN
+// 1. NAVEGACIÓN SPA
 // ==========================================
 window.showView = function(viewName) {
+    // Ocultar todas
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
+    // Mapeo vistas
     let targetId = '';
     if(viewName === 'home') targetId = 'catalog-view';
     if(viewName === 'dashboard') targetId = 'dashboard-view';
@@ -58,6 +69,7 @@ window.showView = function(viewName) {
     const targetEl = document.getElementById(targetId);
     if(targetEl) targetEl.style.display = viewName === 'exam' ? 'flex' : 'block';
 
+    // Actualizar menú activo
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     const navMap = { 'home': 'nav-catalog', 'profile': 'nav-profile', 'dashboard': 'nav-dashboard' };
     if (navMap[viewName]) {
@@ -65,6 +77,7 @@ window.showView = function(viewName) {
         if(activeBtn) activeBtn.classList.add('active');
     }
 
+    // Cargar datos según vista
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
@@ -81,19 +94,28 @@ window.iniciarApp = function() {
     startInactivityTimers();
     try { initHeaderData(); } catch (e) { console.error("Error header:", e); }
     
+    // Iniciar polling de notificaciones
     checkRealNotifications(); 
-    setInterval(checkRealNotifications, 60000);
+    setInterval(checkRealNotifications, 60000); // Cada minuto
 
     setTimeout(() => { setupDirectClicks(); }, 100);
 
+    // Comprobar si venimos a un examen directo (URL Slug)
     const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.get('slug')) { window.showView('dashboard'); } 
-    else { document.getElementById('dashboard-view').style.display = 'none'; document.getElementById('exam-view').style.display = 'flex'; }
+    if (!urlParams.get('slug')) { 
+        window.showView('dashboard'); 
+    } else { 
+        document.getElementById('dashboard-view').style.display = 'none'; 
+        document.getElementById('exam-view').style.display = 'flex'; 
+    }
 };
 
+// ==========================================
+// 2. INACTIVIDAD Y SESIÓN
+// ==========================================
 let warningTimer;
 let logoutTimer;
-const WARNING_TIME = 10 * 60 * 1000; 
+const WARNING_TIME = 10 * 60 * 1000; // 10 minutos
 
 function startInactivityTimers() {
     if(!localStorage.getItem('jwt')) return;
@@ -105,9 +127,14 @@ function startInactivityTimers() {
 function resetInactivity() {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
+    // Si el modal de inactividad ya está abierto, no reseteamos
     if (modal && modal.style.display === 'flex' && titleEl && titleEl.innerText === "Inactivitat Detectada") return; 
     startInactivityTimers();
 }
+
+['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => { 
+    document.addEventListener(evt, resetInactivity); 
+});
 
 function mostrarModalInactividad() {
     const modal = document.getElementById('custom-modal');
@@ -123,6 +150,7 @@ function mostrarModalInactividad() {
     btnCancel.style.display = 'block'; btnCancel.innerText = "Tancar Sessió";
     btnConfirm.innerText = "Estendre Sessió"; btnConfirm.style.background = "var(--brand-blue)";
     
+    // Clonar botones para limpiar eventos
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
@@ -133,7 +161,8 @@ function mostrarModalInactividad() {
 
     modal.style.display = 'flex';
 
-    let segundosRestantes = 300;
+    // Cuenta atrás
+    let segundosRestantes = 300; // 5 minutos extra
     const countdownInterval = setInterval(() => {
         if(modal.style.display === 'none') { clearInterval(countdownInterval); return; }
         segundosRestantes--;
@@ -141,33 +170,18 @@ function mostrarModalInactividad() {
         const s = segundosRestantes % 60;
         const display = document.getElementById('logout-countdown');
         if(display) display.innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        
         if (segundosRestantes <= 0) {
-            clearInterval(countdownInterval); modal.style.display = 'none';
-            localStorage.clear(); window.location.href = 'index.html';
+            clearInterval(countdownInterval); 
+            modal.style.display = 'none';
+            logoutApp();
         }
     }, 1000);
 }
 
-['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => { document.addEventListener(evt, resetInactivity); });
-
-window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
-    const modal = document.getElementById('custom-modal');
-    if(!modal) return; 
-    const titleEl = document.getElementById('modal-title');
-    const msgEl = document.getElementById('modal-msg');
-    const btnConfirm = document.getElementById('modal-btn-confirm');
-    const btnCancel = document.getElementById('modal-btn-cancel');
-
-    titleEl.innerText = titulo; titleEl.style.color = "var(--brand-blue)"; msgEl.innerText = mensaje;
-    btnConfirm.innerText = "Confirmar"; btnConfirm.disabled = false; btnConfirm.style.background = ""; btnCancel.style.display = "block"; 
-
-    const newConfirm = btnConfirm.cloneNode(true); const newCancel = btnCancel.cloneNode(true);
-    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
-    btnCancel.parentNode.replaceChild(newCancel, btnCancel);
-
-    newConfirm.onclick = () => { if(onConfirm) onConfirm(); else modal.style.display = 'none'; };
-    newCancel.onclick = () => { modal.style.display = 'none'; };
-    modal.style.display = 'flex';
+window.logoutApp = function() {
+    localStorage.clear(); 
+    window.location.href = 'index.html';
 };
 
 window.mostrarModalError = function(mensaje, onCloseAction) {
@@ -188,26 +202,44 @@ window.mostrarModalError = function(mensaje, onCloseAction) {
     modal.style.display = 'flex';
 };
 
-window.logoutApp = function() {
-    window.mostrarModalConfirmacion("Tancar Sessió", "Estàs segur que vols sortir del campus?", () => {
-        localStorage.clear(); window.location.href = 'index.html';
-    });
+window.mostrarModalConfirmacion = function(titulo, mensaje, onConfirm) {
+    const modal = document.getElementById('custom-modal');
+    if(!modal) return; 
+    const titleEl = document.getElementById('modal-title');
+    const msgEl = document.getElementById('modal-msg');
+    const btnConfirm = document.getElementById('modal-btn-confirm');
+    const btnCancel = document.getElementById('modal-btn-cancel');
+
+    titleEl.innerText = titulo; titleEl.style.color = "var(--brand-blue)"; msgEl.innerText = mensaje;
+    btnConfirm.innerText = "Confirmar"; btnConfirm.disabled = false; btnCancel.style.display = "block"; 
+
+    const newConfirm = btnConfirm.cloneNode(true); const newCancel = btnCancel.cloneNode(true);
+    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+    btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
+    newConfirm.onclick = () => { if(onConfirm) onConfirm(); else modal.style.display = 'none'; };
+    newCancel.onclick = () => { modal.style.display = 'none'; };
+    modal.style.display = 'flex';
 };
 
+// ==========================================
+// 3. UI Y EVENTOS
+// ==========================================
 function setupDirectClicks() {
     const btnBell = document.getElementById('btn-notifs');
     const btnMsg = document.getElementById('btn-messages');
-    if (btnBell) btnBell.onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     
-    // Al abrir mensajes, si no pasamos argumento, el sistema decide el modo por defecto
+    if (btnBell) btnBell.onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     if (btnMsg) btnMsg.onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
 
+    // Menú móvil
     const btnMobile = document.getElementById('mobile-menu-btn');
     const navMenu = document.getElementById('main-nav');
     if (btnMobile && navMenu) {
         btnMobile.onclick = (e) => { e.stopPropagation(); navMenu.classList.toggle('show-mobile'); };
     }
 
+    // Menú Usuario
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
     if (btnUser && userDropdown) {
@@ -218,16 +250,19 @@ function setupDirectClicks() {
         };
     }
     
-    const links = document.querySelectorAll('#user-dropdown-menu a');
-    links.forEach(link => {
+    // Links Dropdown
+    document.querySelectorAll('#user-dropdown-menu a').forEach(link => {
         link.onclick = (e) => {
             const action = link.getAttribute('data-action');
             if (action) { e.preventDefault(); window.showView(action); closeAllMenus(); } 
-            else if (link.id === 'btn-logout-dropdown' || link.innerText.includes('Sortir')) { e.preventDefault(); window.logoutApp(); }
+            else if (link.innerText.includes('Sortir')) { e.preventDefault(); window.logoutApp(); }
         };
     });
+    
+    // Cerrar al hacer clic fuera
     document.body.addEventListener('click', closeAllMenus);
 
+    // Navegación header desktop
     const navButtons = [ { id: 'nav-catalog', view: 'home' }, { id: 'nav-profile', view: 'profile' }, { id: 'nav-dashboard', view: 'dashboard' } ];
     navButtons.forEach(btn => {
         const el = document.getElementById(btn.id);
@@ -246,9 +281,11 @@ function initHeaderData() {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) return;
     const setText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
+    
     let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
     if (user.apellidos) initials += user.apellidos.charAt(0);
     initials = initials.toUpperCase();
+    
     setText('user-initials', initials);
     setText('dropdown-username', user.nombre ? `${user.nombre} ${user.apellidos}` : user.username);
     setText('dropdown-email', user.email);
@@ -258,7 +295,7 @@ function initHeaderData() {
 }
 
 // ==========================================
-// 4. MOTOR DE NOTIFICACIONES
+// 4. MOTOR DE NOTIFICACIONES (CORREGIDO)
 // ==========================================
 
 async function checkRealNotifications() {
@@ -272,12 +309,14 @@ async function checkRealNotifications() {
     try {
         let totalCount = 0;
 
+        // 1. Notificaciones de sistema no leídas
         const resNotif = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const jsonNotif = await resNotif.json();
         if (jsonNotif.data) totalCount += jsonNotif.data.length;
 
+        // 2. Mensajes pendientes (si es profesor)
         if (user.es_professor === true) {
             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -286,6 +325,7 @@ async function checkRealNotifications() {
             if (jsonMsg.data) totalCount += jsonMsg.data.length;
         }
 
+        // Actualizar UI Campana
         if (bellDot) {
             if (totalCount > 0) {
                 bellDot.style.display = 'flex';
@@ -311,6 +351,7 @@ window.abrirPanelNotificaciones = async function() {
     titleEl.innerText = "Notificacions"; titleEl.style.color = "var(--brand-blue)";
     btnCancel.style.display = 'none'; btnConfirm.innerText = "Tancar";
     
+    // Resetear botón confirmación
     const newConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     newConfirm.onclick = () => modal.style.display = 'none';
@@ -325,6 +366,7 @@ window.abrirPanelNotificaciones = async function() {
         let html = '<div class="notif-list">';
         let hasContent = false;
 
+        // A. Mensajes para Profesor
         if (user.es_professor === true) {
             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -334,7 +376,6 @@ window.abrirPanelNotificaciones = async function() {
 
             if (countMsg > 0) {
                 hasContent = true;
-                // FIX: "alumnes" en vez de "alumnos"
                 html += `
                     <div class="notif-item unread" onclick="
                         document.querySelector('.notification-dot').style.display='none'; 
@@ -352,7 +393,8 @@ window.abrirPanelNotificaciones = async function() {
             }
         }
 
-        const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:desc&pagination[limit]=10`, {
+        // B. Notificaciones de Sistema (SOLO NO LEÍDAS - FIX BUG 1)
+        const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
@@ -364,14 +406,12 @@ window.abrirPanelNotificaciones = async function() {
                 const fecha = new Date(n.createdAt).toLocaleDateString('ca-ES', { 
                     day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' 
                 });
-                const unreadClass = n.llegida ? '' : 'unread';
-                const icon = n.llegida ? '<i class="fa-regular fa-envelope-open"></i>' : '<i class="fa-solid fa-envelope"></i>';
                 
                 html += `
-                    <div class="notif-item ${unreadClass}" onclick="marcarNotificacionLeida('${n.documentId || n.id}', this)">
+                    <div class="notif-item unread" onclick="marcarNotificacionLeida('${n.documentId || n.id}', this)">
                         <div class="notif-header">
-                            <span>${icon} ${fecha}</span>
-                            ${!n.llegida ? '<small style="color:var(--brand-red); font-weight:bold;">NOVA</small>' : ''}
+                            <span><i class="fa-solid fa-envelope"></i> ${fecha}</span>
+                            <small style="color:var(--brand-red); font-weight:bold;">NOVA</small>
                         </div>
                         <strong class="notif-title">${n.titol}</strong>
                         <div class="notif-body">${n.missatge}</div>
@@ -383,7 +423,7 @@ window.abrirPanelNotificaciones = async function() {
         html += '</div>';
 
         if (!hasContent) {
-            msgEl.innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No tens notificacions.</p>';
+            msgEl.innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No tens notificacions noves.</p>';
         } else {
             msgEl.innerHTML = html;
         }
@@ -394,28 +434,29 @@ window.abrirPanelNotificaciones = async function() {
 };
 
 window.marcarNotificacionLeida = async function(id, element) {
-    if (!element.classList.contains('unread')) return; // Ya estaba leída
+    if (!element.classList.contains('unread')) return;
 
-    // 1. Actualización Visual Inmediata (UX)
+    // 1. UI Inmediata
+    element.style.opacity = '0.5';
+    element.style.pointerEvents = 'none'; // Evitar doble click
     element.classList.remove('unread');
+    
+    // Quitar badge visual
     const badge = element.querySelector('small');
     if(badge) badge.remove();
 
-    // 2. Restar 1 a la campana visualmente sin esperar al servidor
+    // 2. Restar contador visual
     const bellDot = document.querySelector('.notification-dot');
     if (bellDot && bellDot.innerText) {
         let current = parseInt(bellDot.innerText);
         if (!isNaN(current) && current > 0) {
             current--;
-            if (current === 0) {
-                bellDot.style.display = 'none';
-            } else {
-                bellDot.innerText = current > 9 ? '+9' : current;
-            }
+            if (current === 0) bellDot.style.display = 'none';
+            else bellDot.innerText = current > 9 ? '+9' : current;
         }
     }
 
-    // 3. Petición al servidor (Background)
+    // 3. API
     const token = localStorage.getItem('jwt');
     try {
         await fetch(`${API_ROUTES.notifications}/${id}`, {
@@ -423,24 +464,30 @@ window.marcarNotificacionLeida = async function(id, element) {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ data: { llegida: true } })
         });
-        // Opcional: Hacer un check real por si acaso
-        // checkRealNotifications(); 
+        
+        // Efecto visual de desaparición suave (opcional)
+        setTimeout(() => {
+            element.style.display = 'none';
+            // Verificar si queda algo visible
+            const list = document.querySelector('.notif-list');
+            if(list && list.children.length === 0) {
+                document.getElementById('modal-msg').innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No tens notificacions noves.</p>';
+            }
+        }, 500);
+
     } catch (e) { 
         console.error("Error marking read:", e); 
-        // Si falla, revertimos (opcional, pero para UX simple mejor no molestar)
+        element.style.opacity = '1'; // Revertir en error
     }
 };
 
-
 // ==========================================
-// 5. MENSAJERÍA (MODO HÍBRIDO + FECHAS ARREGLADAS)
+// 5. MENSAJERÍA (WHATSAPP STYLE UI CORREGIDO)
 // ==========================================
 
-// MODIFICADO: Función de abrir chat para usar el NUEVO DISEÑO
 async function abrirPanelMensajes(modoForzado) {
     const modal = document.getElementById('custom-modal');
-    // Reinicio limpio
-    modal.style.display = 'none';
+    modal.style.display = 'none'; // Reset limpio
     setTimeout(() => { modal.style.display = 'flex'; }, 50);
 
     const titleEl = document.getElementById('modal-title');
@@ -452,7 +499,7 @@ async function abrirPanelMensajes(modoForzado) {
     const esProfe = user.es_professor === true;
     let modoActual = modoForzado ? modoForzado : (esProfe ? 'profesor' : 'alumno');
 
-    // Cabecera con Switch
+    // Header del modal
     let headerHtml = "";
     if (esProfe) {
         if (modoActual === 'profesor') {
@@ -480,8 +527,10 @@ async function abrirPanelMensajes(modoForzado) {
         let endpoint = '';
 
         if (modoActual === 'profesor') {
+            // Ver pendientes de responder, ordenados por antigüedad
             endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user`;
         } else {
+            // Ver mis mensajes (alumno), ordenados cronológicamente
             endpoint = `${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:asc`;
         }
 
@@ -490,83 +539,89 @@ async function abrirPanelMensajes(modoForzado) {
         const mensajes = json.data || [];
 
         if (mensajes.length === 0) {
-            msgEl.innerHTML = `<div style="text-align:center; padding:30px; color:#999;"><i class="fa-regular fa-comment-dots" style="font-size:2rem;"></i><p>No hi ha missatges.</p></div>`;
+            msgEl.innerHTML = `<div style="text-align:center; padding:30px; color:#999;"><i class="fa-regular fa-comment-dots" style="font-size:3rem; margin-bottom:10px;"></i><p>No hi ha missatges.</p></div>`;
             return;
         }
 
-        // NUEVO HTML DEL CHAT (MEJORA 1)
+        // GENERACIÓN DEL CHAT (CORREGIDO PUNTO 3)
         let html = '<div class="msg-list-container" id="chat-container">';
+        
         mensajes.forEach(msg => {
             const fecha = new Date(msg.createdAt).toLocaleDateString('ca-ES', { 
                 day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
             });
+            
             const alumnoId = msg.users_permissions_user ? (msg.users_permissions_user.id || msg.users_permissions_user.documentId) : null;
+            const alumnoNombre = msg.alumne_nom || 'Alumne';
             
             const procesarTexto = (txt) => {
                 if(!txt) return '';
-                return txt.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+                return txt.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>').replace(/\n/g, '<br>');
             };
 
-            if (modoActual === 'profesor') {
-                // VISTA PROFESOR
-                html += `
-                    <div class="msg-card" style="border-left: 4px solid var(--brand-red);">
-                        <div class="msg-header">
-                            <div class="msg-info-group">
-                                <span class="msg-course-highlight"><i class="fa-solid fa-book"></i> ${msg.curs}</span>
-                                <div class="msg-meta-info">
-                                    <i class="fa-solid fa-user"></i> <strong>${msg.alumne_nom || 'Alumne'}</strong> | Tema: ${msg.tema}
-                                </div>
-                            </div>
-                            <span class="msg-date-badge">${fecha}</span>
-                        </div>
-                        
-                        <div class="msg-content">
-                            <div class="chat-bubble bubble-student">"${procesarTexto(msg.missatge)}"</div>
-                            
-                            <div class="reply-area">
-                                <textarea id="reply-${msg.documentId || msg.id}" placeholder="Escriu la resposta..."></textarea>
-                                <button class="btn-primary" style="min-height:35px; font-size:0.9rem;" 
-                                    onclick="enviarRespostaProfessor('${msg.documentId || msg.id}', ${alumnoId}, '${encodeURIComponent(msg.tema)}')">
-                                    <i class="fa-regular fa-paper-plane"></i> Enviar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // VISTA ALUMNO
-                const estadoClass = msg.estat === 'pendent' ? 'status-pending' : 'status-replied';
-                const estadoTexto = msg.estat === 'pendent' ? 'Pendent' : 'Respost';
-                
-                let respuestaHtml = '';
-                if (msg.resposta_professor) {
-                    respuestaHtml = `
-                        <div class="chat-meta" style="text-align:right; margin-top:10px; font-weight:bold; color:var(--brand-blue);">👨‍🏫 Professor:</div>
-                        <div class="chat-bubble bubble-teacher">${procesarTexto(msg.resposta_professor)}</div>
-                    `;
-                }
+            // Estructura de burbujas Flexbox
+            let burbujasHtml = '';
 
-                html += `
-                    <div class="msg-card">
-                        <div class="msg-header">
-                            <div class="msg-info-group">
-                                <span class="msg-course-highlight">${msg.curs}</span>
-                                <span class="msg-status-badge ${estadoClass}" style="font-size:0.65rem;">${estadoTexto}</span>
-                            </div>
-                            <span class="msg-date-badge">${fecha}</span>
-                        </div>
-                        <div class="msg-content">
-                            <div class="chat-bubble bubble-student">${procesarTexto(msg.missatge)}</div>
-                            ${respuestaHtml}
-                        </div>
+            if (modoActual === 'profesor') {
+                // VISTA PROFE:
+                // Alumno (Izquierda / Blanco)
+                burbujasHtml += `
+                    <div class="chat-bubble bubble-student">
+                        <strong>${alumnoNombre}</strong><br>
+                        ${procesarTexto(msg.missatge)}
+                        <span class="msg-date-small">${fecha}</span>
                     </div>
                 `;
+                
+                // Área de respuesta (Profe)
+                burbujasHtml += `
+                    <div class="reply-area">
+                        <textarea id="reply-${msg.documentId || msg.id}" placeholder="Escriu la resposta..." style="width:100%; border-radius:8px; padding:8px;"></textarea>
+                        <button class="btn-primary" style="margin-top:5px; width:auto; padding:5px 15px; font-size:0.85rem;" 
+                            onclick="enviarRespostaProfessor('${msg.documentId || msg.id}', ${alumnoId}, '${encodeURIComponent(msg.tema)}')">
+                            <i class="fa-regular fa-paper-plane"></i> Enviar
+                        </button>
+                    </div>
+                `;
+
+            } else {
+                // VISTA ALUMNO:
+                // Yo (Derecha / Verde)
+                burbujasHtml += `
+                    <div class="chat-bubble bubble-teacher">
+                        ${procesarTexto(msg.missatge)}
+                        <span class="msg-date-small">${fecha}</span>
+                    </div>
+                `;
+
+                // Respuesta Profe (Izquierda / Blanco)
+                if (msg.resposta_professor) {
+                    burbujasHtml += `
+                        <div class="chat-bubble bubble-student">
+                            <strong style="color:var(--brand-blue)">👨‍🏫 Professor:</strong><br>
+                            ${procesarTexto(msg.resposta_professor)}
+                        </div>
+                    `;
+                } else {
+                    burbujasHtml += `<small style="align-self: flex-end; color:#999; font-size:0.7rem;">Enviat. Esperant resposta...</small>`;
+                }
             }
+
+            // Envoltorio Tarjeta (Separador por temas)
+            html += `
+                <div class="msg-card">
+                    <div class="msg-course-badge"><i class="fa-solid fa-graduation-cap"></i> ${msg.curs} | ${msg.tema}</div>
+                    <div class="msg-content">
+                        ${burbujasHtml}
+                    </div>
+                </div>
+            `;
         });
+
         html += '</div>';
         msgEl.innerHTML = html;
 
+        // Auto-scroll al fondo
         setTimeout(() => {
             const container = document.getElementById('chat-container');
             if(container) container.scrollTop = container.scrollHeight;
@@ -585,8 +640,9 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
 
     const token = localStorage.getItem('jwt');
     const btn = txtArea.nextElementSibling;
-    const originalText = btn.innerHTML;
-    btn.innerText = "Enviant..."; btn.disabled = true;
+    
+    btn.innerText = "Enviant..."; 
+    btn.disabled = true;
 
     try {
         const resMsg = await fetch(`${API_ROUTES.messages}/${msgId}`, {
@@ -602,6 +658,7 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
 
         if (!resMsg.ok) throw new Error("Error actualitzant missatge");
 
+        // Notificar al alumno
         if (studentId) {
             const tema = decodeURIComponent(encodedTema);
             const notifPayload = {
@@ -620,11 +677,12 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
         }
         
         document.getElementById('custom-modal').style.display = 'none';
+        
+        // Recargar para limpiar la lista
         setTimeout(() => {
             window.mostrarModalError("✅ Resposta enviada correctament.");
+            checkRealNotifications(); // Actualizar contador
         }, 300);
-        
-        checkRealNotifications();
 
     } catch (e) {
         console.error(e);
@@ -682,6 +740,7 @@ window.toggleDesc = function(id) {
     }
 };
 
+// Renderizado Cursos
 async function renderCoursesLogic(viewMode) {
     const listId = viewMode === 'dashboard' ? 'courses-list' : 'catalog-list';
     const list = document.getElementById(listId);
@@ -724,14 +783,20 @@ async function renderCoursesLogic(viewMode) {
             const cursId = curs.documentId || curs.id;
             const safeTitle = curs.titol.replace(/'/g, "\\'"); 
             let imgUrl = 'img/logo-sicap.png';
-            if(curs.imatge) { const img = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge; if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url; }
+            if(curs.imatge) { 
+                const img = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge; 
+                if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url; 
+            }
 
             const hoy = new Date();
             const fechaInicio = curs.fecha_inicio ? new Date(curs.fecha_inicio) : new Date(curs.publishedAt);
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES');
 
-            let badgeOverlay = esFuturo ? `<span class="course-badge" style="background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba;"><i class="fa-regular fa-calendar"></i> Properament: ${dateStr}</span>` : (curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : '');
+            let badgeOverlay = esFuturo 
+                ? `<span class="course-badge" style="background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba;"><i class="fa-regular fa-calendar"></i> Properament: ${dateStr}</span>` 
+                : (curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : '');
+            
             let tagsHtml = '<div class="course-tags">';
             if (!esFuturo) tagsHtml += `<span class="tag tag-date"><i class="fa-solid fa-check"></i> Iniciat: ${dateStr}</span>`;
             if (curs._matricula && viewMode === 'home') tagsHtml += `<span class="tag tag-status"><i class="fa-solid fa-user-check"></i> Ja matriculat</span>`;
@@ -760,10 +825,15 @@ async function renderCoursesLogic(viewMode) {
 
             list.innerHTML += `<div class="course-card-item"><div class="card-image-header" style="background-image: url('${imgUrl}');">${badgeOverlay}</div><div class="card-body"><h3 class="course-title">${curs.titol}</h3>${horasHtml}${descHtml}${tagsHtml}${progressHtml}${actionHtml}</div></div>`;
         });
-    } catch(e) { console.error(e); list.innerHTML = '<p style="color:red;">Error de connexió al carregar cursos.</p>'; }
+    } catch(e) { 
+        console.error(e); 
+        list.innerHTML = '<p style="color:red;">Error de connexió al carregar cursos.</p>'; 
+    }
 }
 
-window.alertFechaFutura = function(titol, fecha) { window.mostrarModalError(`El curs "${titol}" estarà disponible el ${fecha}. Encara no hi pots accedir.`); };
+window.alertFechaFutura = function(titol, fecha) { 
+    window.mostrarModalError(`El curs "${titol}" estarà disponible el ${fecha}. Encara no hi pots accedir.`); 
+};
 
 window.solicitarMatricula = function(courseId, courseTitle) {
     window.mostrarModalConfirmacion("Confirmar Matriculació", `Vols inscriure't al curs "${courseTitle}"?`, async () => {
@@ -774,13 +844,16 @@ window.solicitarMatricula = function(courseId, courseTitle) {
             const res = await fetch(`${STRAPI_URL}/api/matriculas`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) });
             if (res.ok) {
                 document.getElementById('custom-modal').style.display = 'none';
-                localStorage.setItem('notification_pending', 'true');
-                window.showView('dashboard'); window.mostrarModalError("Matrícula realitzada correctament! Ja pots accedir al curs.");
+                window.showView('dashboard'); 
+                window.mostrarModalError("Matrícula realitzada correctament! Ja pots accedir al curs.");
             } else {
                 const err = await res.json(); document.getElementById('custom-modal').style.display = 'none';
                 setTimeout(() => window.mostrarModalError("Error al matricular: " + (err.error?.message || "Dades incorrectes (400)")), 200);
             }
-        } catch (e) { document.getElementById('custom-modal').style.display = 'none'; setTimeout(() => window.mostrarModalError("Error de connexió."), 200); }
+        } catch (e) { 
+            document.getElementById('custom-modal').style.display = 'none'; 
+            setTimeout(() => window.mostrarModalError("Error de connexió."), 200); 
+        }
     });
 };
 

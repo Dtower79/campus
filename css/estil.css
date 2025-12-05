@@ -575,7 +575,7 @@ input, textarea, select {
 #diploma-print-container { display: none; }
 
 /* ==========================================================================
-   15. ESTILOS CHAT MODERNO
+   15. ESTILOS CHAT MODERNO (Ajustado: Más estrecho y centrado)
    ========================================================================== */
 .notif-list { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; text-align: left; }
 .notif-item { padding: 15px; border-radius: 8px; background: var(--bg-body); border: 1px solid var(--border-color); position: relative; transition: all 0.2s; cursor: pointer; }
@@ -585,23 +585,64 @@ input, textarea, select {
 .notif-title { font-weight: bold; color: var(--brand-blue); margin-bottom: 5px; display: block; }
 .notif-body { font-size: 0.9rem; color: var(--text-main); }
 
+/* CONTENEDOR DEL CHAT: Lo hacemos más estrecho y centrado */
 .msg-list-container {
     background-color: var(--bg-body);
-    padding: 15px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    max-height: 400px;
+    gap: 15px;
+    max-height: 500px;
     overflow-y: auto;
     border-radius: 8px;
     border: 1px solid var(--border-color);
+    
+    /* CAMBIO CLAVE: Estrechar y centrar */
+    max-width: 550px; 
+    width: 100%;
+    margin: 0 auto; /* Centrar horizontalmente */
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
 }
-.msg-card { background: transparent; border: none; padding: 0; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; }
-.msg-card:last-child { border-bottom: none; }
-.msg-course-badge { display: inline-block; background-color: var(--brand-blue); color: white; font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; margin-bottom: 12px; font-weight: 500; opacity: 0.9; }
+
+.msg-card { background: transparent; border: none; padding: 0; margin-bottom: 25px; border-bottom: 1px dashed var(--border-color); padding-bottom: 25px; }
+.msg-card:last-child { border-bottom: none; margin-bottom: 0; }
+
+.msg-course-badge { 
+    display: inline-block; 
+    background-color: var(--brand-blue); 
+    color: white; 
+    font-size: 0.7rem; 
+    padding: 4px 12px; 
+    border-radius: 12px; 
+    margin-bottom: 15px; 
+    font-weight: 500; 
+    opacity: 0.9;
+    max-width: 100%;
+}
+
 .msg-content { display: flex; flex-direction: column; gap: 8px; }
-.chat-bubble { max-width: 85%; padding: 10px 14px; border-radius: 12px; position: relative; font-size: 0.95rem; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-wrap: break-word; }
+
+/* Burbujas un poco más compactas */
+.chat-bubble { 
+    max-width: 85%; 
+    padding: 10px 15px; 
+    border-radius: 12px; 
+    position: relative; 
+    font-size: 0.95rem; 
+    line-height: 1.4; 
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
+    word-wrap: break-word; 
+}
+
 .bubble-student { align-self: flex-start; background-color: var(--chat-bg-other); color: var(--chat-text-other); border-bottom-left-radius: 2px; border: 1px solid var(--border-color); }
 .bubble-teacher { align-self: flex-end; background-color: var(--chat-bg-mine); color: var(--chat-text-mine); border-bottom-right-radius: 2px; border: 1px solid rgba(0,0,0,0.05); }
+
 .msg-date-small { font-size: 0.65rem; color: inherit; opacity: 0.6; margin-top: 4px; display: block; text-align: right; }
-.reply-area { margin-top: 15px; }
+
+/* Área de respuesta centrada también */
+.reply-area { 
+    margin-top: 15px; 
+    max-width: 550px; 
+    margin-left: auto; 
+    margin-right: auto; 
+}

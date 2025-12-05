@@ -440,15 +440,23 @@ window.abrirPanelNotificaciones = async function() {
     }
 };
 
+/* ==========================================================================
+   FIX JS: NOTIFICACIONES PERSISTENTES (Strapi v5 Compatible)
+   Sustituye esto en js/dashboard.js
+   ========================================================================== */
+
 window.marcarNotificacionLeida = async function(id, element) {
-    // 1. Feedback visual inmediato
-    element.style.opacity = '0.5';
+    // 1. Ocultar visualmente de inmediato (UX Rápida)
+    if (!element.classList.contains('unread')) return;
+    
+    element.style.opacity = '0.4';
     element.style.pointerEvents = 'none';
     element.classList.remove('unread');
+    
     const badge = element.querySelector('small');
     if(badge) badge.remove();
 
-    // Actualizar campana visualmente
+    // Actualizar contador campana visualmente
     const bellDot = document.querySelector('.notification-dot');
     if (bellDot && bellDot.innerText) {
         let current = parseInt(bellDot.innerText);
@@ -459,41 +467,57 @@ window.marcarNotificacionLeida = async function(id, element) {
         }
     }
 
-    // 2. Llamada a API
+    // 2. ENVIAR CAMBIO AL SERVIDOR
     const token = localStorage.getItem('jwt');
+    
+    // NOTA: Si 'id' es un número largo o string raro, es documentId (Strapi v5). 
+    // Si es un número corto (1, 2, 3), es ID legacy. Intentamos ambos endpoint por seguridad.
+    
     try {
-        console.log("Marcando leída ID:", id);
+        console.log(`Intentando marcar leída notif: ${id}`);
         
-        // Intento 1: Endpoint estándar Strapi
+        // Intento Principal (Estándar Strapi)
         let response = await fetch(`${API_ROUTES.notifications}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ data: { llegida: true } })
         });
 
-        // Fallback para Strapi v4 si falla el primer intento (a veces rutas difieren)
+        // Si falla (ej: 404), podría ser porque Strapi espera documentId y tenemos ID o viceversa.
         if (!response.ok) {
-            console.warn("Fallo endpoint estándar, probando alternativo...");
+            console.warn(`Fallo primer intento (${response.status}). Verificando permisos o ID...`);
+            
+            // Si da error 403 (Forbidden), es que el ROL Authenticated no tiene permiso 'update' en Notificaciones.
+            // Esto solo se puede arreglar en el Panel de Admin de Strapi (Settings > Roles > Authenticated > Notificaciones > Update: Check).
+            if (response.status === 403) {
+                console.error("ERROR DE PERMISOS: El usuario no puede actualizar notificaciones.");
+                // Revertimos visualmente para que sepa que falló
+                element.style.opacity = '1';
+                element.style.borderLeft = '4px solid red'; // Indicador de error visual
+                alert("Error: No tienes permiso para marcar notificaciones. Contacta al admin.");
+                return;
+            }
+        } else {
+            console.log("Notificación marcada como leída correctamente en servidor.");
         }
 
-        // Efecto visual final: Desaparecer de la lista
+        // 3. Limpieza final del DOM
         setTimeout(() => {
             element.style.display = 'none';
-            // Si ya no quedan elementos visibles, mostrar mensaje de vacío
-            const list = document.querySelector('.notif-list');
-            if(list) {
-                const visibles = Array.from(list.children).filter(c => c.style.display !== 'none');
-                if(visibles.length === 0) {
-                    document.getElementById('modal-msg').innerHTML = `<div style="text-align:center; padding:30px; color:#666;"><i class="fa-regular fa-bell-slash" style="font-size:2rem; margin-bottom:10px; opacity:0.5;"></i><p>No tens notificacions noves.</p></div>`;
+            // Comprobar si queda alguna visible
+            const container = document.querySelector('.notif-list');
+            if(container) {
+                const visibles = Array.from(container.children).filter(c => c.style.display !== 'none');
+                if (visibles.length === 0) {
+                    const msgEl = document.getElementById('modal-msg');
+                    if(msgEl) msgEl.innerHTML = `<div style="text-align:center; padding:30px; color:#666;"><i class="fa-regular fa-bell-slash" style="font-size:2rem; margin-bottom:10px; opacity:0.5;"></i><p>No tens notificacions noves.</p></div>`;
                 }
             }
         }, 300);
 
     } catch (e) {
-        console.error("Error al marcar leída:", e);
-        // Si falla, revertimos visualmente para que el usuario sepa que no funcionó
-        element.style.opacity = '1';
-        element.style.pointerEvents = 'auto';
+        console.error("Error de red al marcar notificacion:", e);
+        element.style.opacity = '1'; 
     }
 };
 

@@ -348,18 +348,16 @@ window.abrirPanelNotificaciones = async function() {
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    // Configuración Modal
+    // Resetear modal
     titleEl.innerText = "Notificacions"; 
     titleEl.style.color = "var(--brand-blue)";
     btnCancel.style.display = 'none'; 
     btnConfirm.innerText = "Tancar";
     
-    // Clonar botón para limpiar eventos
     const newConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     newConfirm.onclick = () => modal.style.display = 'none';
 
-    // Loader
     msgEl.innerHTML = '<div class="loader"></div>';
     modal.style.display = 'flex';
 
@@ -370,10 +368,12 @@ window.abrirPanelNotificaciones = async function() {
         let html = '<div class="notif-list">';
         let hasContent = false;
 
-        // 1. Mensajes Pendientes (Solo Profesores)
+        // 1. Mensajes Profesor
         if (user.es_professor === true) {
             try {
-                const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, {
+                // Añadimos timestamp para evitar caché
+                const ts = new Date().getTime();
+                const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent&_t=${ts}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (resMsg.ok) {
@@ -392,44 +392,39 @@ window.abrirPanelNotificaciones = async function() {
                             </div>`;
                     }
                 }
-            } catch (e) { console.warn("Error checking msg:", e); }
+            } catch (e) { console.warn("Error msg:", e); }
         }
 
-        // 2. Notificaciones del Sistema (FILTRO ESTRICTO: Solo NO leídas)
+        // 2. Notificaciones (SOLO NO LEÍDAS + ANTI-CACHE)
         try {
-            // Añadimos timestamp para evitar caché del navegador
-            const timestamp = new Date().getTime();
-            const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc&_t=${timestamp}`, {
+            // EL TRUCO: &timestamp=... obliga a traer datos frescos
+            const ts = new Date().getTime();
+            const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc&timestamp=${ts}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
             if (res.ok) {
                 const json = await res.json();
                 const notifs = json.data || [];
-
                 if (notifs.length > 0) {
                     hasContent = true;
                     notifs.forEach(n => {
-                        const fecha = new Date(n.createdAt).toLocaleDateString('ca-ES', { 
-                            day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' 
-                        });
-                        // Usamos documentId si existe (Strapi v5), si no id (Strapi v4)
+                        const fecha = new Date(n.createdAt).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' });
+                        // Usamos documentId si existe, sino id
                         const realId = n.documentId || n.id;
-                        
                         html += `
-                            <div class="notif-item unread" id="notif-${realId}" onclick="marcarNotificacionLeida('${realId}', this)">
+                            <div class="notif-item unread" onclick="marcarNotificacionLeida('${realId}', this)">
                                 <div class="notif-header">
                                     <span><i class="fa-solid fa-envelope"></i> ${fecha}</span>
                                     <small style="color:var(--brand-red); font-weight:bold;">NOVA</small>
                                 </div>
                                 <strong class="notif-title">${n.titol}</strong>
                                 <div class="notif-body">${n.missatge}</div>
-                            </div>
-                        `;
+                            </div>`;
                     });
                 }
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.warn("Error notif:", e); }
 
         html += '</div>';
 
@@ -440,7 +435,8 @@ window.abrirPanelNotificaciones = async function() {
         }
 
     } catch (e) {
-        msgEl.innerHTML = '<p style="color:red; text-align:center;">Error de connexió.</p>';
+        console.error(e);
+        msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant dades.</p>';
     }
 };
 

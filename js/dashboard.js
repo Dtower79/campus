@@ -341,6 +341,10 @@ async function checkRealNotifications() {
     }
 }
 
+/* ==========================================================================
+   FIX JS: EVITAR QUE SE QUEDE CARGANDO INFINITAMENTE
+   Sustituye esto en js/dashboard.js
+   ========================================================================== */
 window.abrirPanelNotificaciones = async function() {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -348,14 +352,18 @@ window.abrirPanelNotificaciones = async function() {
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    titleEl.innerText = "Notificacions"; titleEl.style.color = "var(--brand-blue)";
-    btnCancel.style.display = 'none'; btnConfirm.innerText = "Tancar";
+    // Resetear modal
+    titleEl.innerText = "Notificacions"; 
+    titleEl.style.color = "var(--brand-blue)";
+    btnCancel.style.display = 'none'; 
+    btnConfirm.innerText = "Tancar";
     
-    // Resetear botón confirmación
+    // Clonar botón para limpiar eventos previos
     const newConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     newConfirm.onclick = () => modal.style.display = 'none';
 
+    // 1. Mostrar loader
     msgEl.innerHTML = '<div class="loader"></div>';
     modal.style.display = 'flex';
 
@@ -366,70 +374,70 @@ window.abrirPanelNotificaciones = async function() {
         let html = '<div class="notif-list">';
         let hasContent = false;
 
-        // A. Mensajes para Profesor
+        // A. Mensajes Profesor (Pendientes)
         if (user.es_professor === true) {
-            const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, {
+            try {
+                const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (resMsg.ok) {
+                    const jsonMsg = await resMsg.json();
+                    const countMsg = jsonMsg.data ? jsonMsg.data.length : 0;
+                    if (countMsg > 0) {
+                        hasContent = true;
+                        html += `
+                            <div class="notif-item unread" onclick="document.querySelector('.notification-dot').style.display='none'; abrirPanelMensajes(); document.getElementById('custom-modal').style.display='none';">
+                                <div class="notif-header">
+                                    <span><i class="fa-solid fa-comment-dots"></i> Safata d'Entrada</span>
+                                    <small style="color:var(--brand-red); font-weight:bold;">PENDENTS</small>
+                                </div>
+                                <strong class="notif-title">Tens ${countMsg} dubtes d'alumnes per respondre</strong>
+                                <div class="notif-body">Fes clic aquí per anar a la safata de missatges.</div>
+                            </div>`;
+                    }
+                }
+            } catch (e) { console.warn("Error mensajes:", e); }
+        }
+
+        // B. Notificaciones (Solo NO leídas)
+        try {
+            const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const jsonMsg = await resMsg.json();
-            const countMsg = jsonMsg.data ? jsonMsg.data.length : 0;
-
-            if (countMsg > 0) {
-                hasContent = true;
-                html += `
-                    <div class="notif-item unread" onclick="
-                        document.querySelector('.notification-dot').style.display='none'; 
-                        abrirPanelMensajes(); 
-                        document.getElementById('custom-modal').style.display='none';
-                    ">
-                        <div class="notif-header">
-                            <span><i class="fa-solid fa-comment-dots"></i> Safata d'Entrada</span>
-                            <small style="color:var(--brand-red); font-weight:bold;">PENDENTS</small>
-                        </div>
-                        <strong class="notif-title">Tens ${countMsg} dubtes d'alumnes per respondre</strong>
-                        <div class="notif-body">Fes clic aquí per anar a la safata de missatges.</div>
-                    </div>
-                `;
+            if (res.ok) {
+                const json = await res.json();
+                const notifs = json.data || [];
+                if (notifs.length > 0) {
+                    hasContent = true;
+                    notifs.forEach(n => {
+                        const fecha = new Date(n.createdAt).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' });
+                        html += `
+                            <div class="notif-item unread" onclick="marcarNotificacionLeida('${n.documentId || n.id}', this)">
+                                <div class="notif-header">
+                                    <span><i class="fa-solid fa-envelope"></i> ${fecha}</span>
+                                    <small style="color:var(--brand-red); font-weight:bold;">NOVA</small>
+                                </div>
+                                <strong class="notif-title">${n.titol}</strong>
+                                <div class="notif-body">${n.missatge}</div>
+                            </div>`;
+                    });
+                }
             }
-        }
-
-        // B. Notificaciones de Sistema (SOLO NO LEÍDAS - FIX BUG 1)
-        const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const json = await res.json();
-        const notifs = json.data || [];
-
-        if (notifs.length > 0) {
-            hasContent = true;
-            notifs.forEach(n => {
-                const fecha = new Date(n.createdAt).toLocaleDateString('ca-ES', { 
-                    day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' 
-                });
-                
-                html += `
-                    <div class="notif-item unread" onclick="marcarNotificacionLeida('${n.documentId || n.id}', this)">
-                        <div class="notif-header">
-                            <span><i class="fa-solid fa-envelope"></i> ${fecha}</span>
-                            <small style="color:var(--brand-red); font-weight:bold;">NOVA</small>
-                        </div>
-                        <strong class="notif-title">${n.titol}</strong>
-                        <div class="notif-body">${n.missatge}</div>
-                    </div>
-                `;
-            });
-        }
+        } catch (e) { console.warn("Error notifs:", e); }
 
         html += '</div>';
 
+        // 2. Si no hay contenido, mostrar mensaje amigable
         if (!hasContent) {
-            msgEl.innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No tens notificacions noves.</p>';
+            msgEl.innerHTML = `<div style="text-align:center; padding:30px; color:#666;"><i class="fa-regular fa-bell-slash" style="font-size:2rem; margin-bottom:10px; opacity:0.5;"></i><p>No tens notificacions noves.</p></div>`;
         } else {
             msgEl.innerHTML = html;
         }
 
     } catch (e) {
-        msgEl.innerHTML = '<p style="color:red">Error carregant notificacions.</p>';
+        // 3. Fallback final si todo falla
+        console.error(e);
+        msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant notificacions.</p>';
     }
 };
 

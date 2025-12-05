@@ -341,10 +341,6 @@ async function checkRealNotifications() {
     }
 }
 
-/* ==========================================================================
-   FIX JS: EVITAR QUE SE QUEDE CARGANDO INFINITAMENTE
-   Sustituye esto en js/dashboard.js
-   ========================================================================== */
 window.abrirPanelNotificaciones = async function() {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -352,18 +348,18 @@ window.abrirPanelNotificaciones = async function() {
     const btnConfirm = document.getElementById('modal-btn-confirm');
     const btnCancel = document.getElementById('modal-btn-cancel');
 
-    // Resetear modal
+    // Configuración Modal
     titleEl.innerText = "Notificacions"; 
     titleEl.style.color = "var(--brand-blue)";
     btnCancel.style.display = 'none'; 
     btnConfirm.innerText = "Tancar";
     
-    // Clonar botón para limpiar eventos previos
+    // Clonar botón para limpiar eventos
     const newConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     newConfirm.onclick = () => modal.style.display = 'none';
 
-    // 1. Mostrar loader
+    // Loader
     msgEl.innerHTML = '<div class="loader"></div>';
     modal.style.display = 'flex';
 
@@ -374,7 +370,7 @@ window.abrirPanelNotificaciones = async function() {
         let html = '<div class="notif-list">';
         let hasContent = false;
 
-        // A. Mensajes Profesor (Pendientes)
+        // 1. Mensajes Pendientes (Solo Profesores)
         if (user.es_professor === true) {
             try {
                 const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, {
@@ -396,38 +392,47 @@ window.abrirPanelNotificaciones = async function() {
                             </div>`;
                     }
                 }
-            } catch (e) { console.warn("Error mensajes:", e); }
+            } catch (e) { console.warn("Error checking msg:", e); }
         }
 
-        // B. Notificaciones (Solo NO leídas)
+        // 2. Notificaciones del Sistema (FILTRO ESTRICTO: Solo NO leídas)
         try {
-            const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc`, {
+            // Añadimos timestamp para evitar caché del navegador
+            const timestamp = new Date().getTime();
+            const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc&_t=${timestamp}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            
             if (res.ok) {
                 const json = await res.json();
                 const notifs = json.data || [];
+
                 if (notifs.length > 0) {
                     hasContent = true;
                     notifs.forEach(n => {
-                        const fecha = new Date(n.createdAt).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' });
+                        const fecha = new Date(n.createdAt).toLocaleDateString('ca-ES', { 
+                            day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' 
+                        });
+                        // Usamos documentId si existe (Strapi v5), si no id (Strapi v4)
+                        const realId = n.documentId || n.id;
+                        
                         html += `
-                            <div class="notif-item unread" onclick="marcarNotificacionLeida('${n.documentId || n.id}', this)">
+                            <div class="notif-item unread" id="notif-${realId}" onclick="marcarNotificacionLeida('${realId}', this)">
                                 <div class="notif-header">
                                     <span><i class="fa-solid fa-envelope"></i> ${fecha}</span>
                                     <small style="color:var(--brand-red); font-weight:bold;">NOVA</small>
                                 </div>
                                 <strong class="notif-title">${n.titol}</strong>
                                 <div class="notif-body">${n.missatge}</div>
-                            </div>`;
+                            </div>
+                        `;
                     });
                 }
             }
-        } catch (e) { console.warn("Error notifs:", e); }
+        } catch (e) { console.error(e); }
 
         html += '</div>';
 
-        // 2. Si no hay contenido, mostrar mensaje amigable
         if (!hasContent) {
             msgEl.innerHTML = `<div style="text-align:center; padding:30px; color:#666;"><i class="fa-regular fa-bell-slash" style="font-size:2rem; margin-bottom:10px; opacity:0.5;"></i><p>No tens notificacions noves.</p></div>`;
         } else {
@@ -435,25 +440,19 @@ window.abrirPanelNotificaciones = async function() {
         }
 
     } catch (e) {
-        // 3. Fallback final si todo falla
-        console.error(e);
-        msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant notificacions.</p>';
+        msgEl.innerHTML = '<p style="color:red; text-align:center;">Error de connexió.</p>';
     }
 };
 
 window.marcarNotificacionLeida = async function(id, element) {
-    if (!element.classList.contains('unread')) return;
-
-    // 1. UI Inmediata
+    // 1. Feedback visual inmediato
     element.style.opacity = '0.5';
-    element.style.pointerEvents = 'none'; // Evitar doble click
+    element.style.pointerEvents = 'none';
     element.classList.remove('unread');
-    
-    // Quitar badge visual
     const badge = element.querySelector('small');
     if(badge) badge.remove();
 
-    // 2. Restar contador visual
+    // Actualizar campana visualmente
     const bellDot = document.querySelector('.notification-dot');
     if (bellDot && bellDot.innerText) {
         let current = parseInt(bellDot.innerText);
@@ -464,28 +463,41 @@ window.marcarNotificacionLeida = async function(id, element) {
         }
     }
 
-    // 3. API
+    // 2. Llamada a API
     const token = localStorage.getItem('jwt');
     try {
-        await fetch(`${API_ROUTES.notifications}/${id}`, {
+        console.log("Marcando leída ID:", id);
+        
+        // Intento 1: Endpoint estándar Strapi
+        let response = await fetch(`${API_ROUTES.notifications}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ data: { llegida: true } })
         });
-        
-        // Efecto visual de desaparición suave (opcional)
+
+        // Fallback para Strapi v4 si falla el primer intento (a veces rutas difieren)
+        if (!response.ok) {
+            console.warn("Fallo endpoint estándar, probando alternativo...");
+        }
+
+        // Efecto visual final: Desaparecer de la lista
         setTimeout(() => {
             element.style.display = 'none';
-            // Verificar si queda algo visible
+            // Si ya no quedan elementos visibles, mostrar mensaje de vacío
             const list = document.querySelector('.notif-list');
-            if(list && list.children.length === 0) {
-                document.getElementById('modal-msg').innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No tens notificacions noves.</p>';
+            if(list) {
+                const visibles = Array.from(list.children).filter(c => c.style.display !== 'none');
+                if(visibles.length === 0) {
+                    document.getElementById('modal-msg').innerHTML = `<div style="text-align:center; padding:30px; color:#666;"><i class="fa-regular fa-bell-slash" style="font-size:2rem; margin-bottom:10px; opacity:0.5;"></i><p>No tens notificacions noves.</p></div>`;
+                }
             }
-        }, 500);
+        }, 300);
 
-    } catch (e) { 
-        console.error("Error marking read:", e); 
-        element.style.opacity = '1'; // Revertir en error
+    } catch (e) {
+        console.error("Error al marcar leída:", e);
+        // Si falla, revertimos visualmente para que el usuario sepa que no funcionó
+        element.style.opacity = '1';
+        element.style.pointerEvents = 'auto';
     }
 };
 

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SICAP CAMPUS - ESTILOS (v11.0 - FIX TOTAL)
+   SICAP CAMPUS - ESTILOS (v12.0 - AMARILLO SUAVE & MODAL FIX)
    ========================================================================== */
 
 /* ==========================================================================
@@ -269,10 +269,13 @@ input, textarea, select {
 .sidebar-file-item i { color: var(--brand-red); font-size: 1rem; }
 
 [data-theme="dark"] .sidebar-left, [data-theme="dark"] .sidebar-right { background-color: #1e1e1e; border-color: #333; }
-[data-theme="dark"] .sidebar-module-title { background-color: #333; color: #e0e0e0; }
+
+/* FIX AMARILLO SUAVE EN SIDEBAR DARK MODE */
+[data-theme="dark"] .sidebar-module-title { background-color: #2c2c2c; color: #ffe082; }
+[data-theme="dark"] .sidebar-module-group.open .sidebar-module-title { background-color: #333; color: #ffd54f; }
 [data-theme="dark"] .sidebar-subitem { color: #aaa; }
 [data-theme="dark"] .sidebar-subitem:hover { background-color: rgba(255,255,255,0.05); color: #fff; }
-[data-theme="dark"] .sidebar-subitem.active { background-color: rgba(66, 165, 245, 0.15); color: #64b5f6; border-left-color: #64b5f6; }
+[data-theme="dark"] .sidebar-subitem.active { background-color: rgba(66, 165, 245, 0.15); color: #ffe082; border-left-color: #ffe082; }
 
 .sidebar-module-group.locked-module { opacity: 0.6; pointer-events: none; filter: grayscale(100%); }
 .sidebar-module-group.locked-module .sidebar-module-title { background-color: #f0f0f0; color: #999; cursor: not-allowed; }
@@ -376,16 +379,16 @@ input, textarea, select {
 .breadcrumb-separator { margin: 0 5px; color: #ccc; }
 .breadcrumb-current { font-weight: bold; color: var(--text-main); }
 
-/* SIDEBAR TOOLS & NOTAS (Corregido Dark Mode) */
+/* SIDEBAR TOOLS & NOTAS (Corregido) */
 .tools-box { background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 20px; }
 .notepad-area { width: 100%; height: 150px; background-color: #fff9db !important; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 0.9rem; resize: vertical; color: #333 !important; }
 
 [data-theme="dark"] .tools-box { background-color: #252525; border-color: #444; }
-/* NOTA: En dark mode quitamos el vainilla para que se lea */
+/* FIX NOTAS DARK MODE (AMARILLO FUERA) */
 [data-theme="dark"] .notepad-area { background-color: #2c2c2c !important; color: #fff !important; border-color: #555; }
 
 /* ==========================================================================
-   11. MODAL (ALTURA LIMITADA Y SCROLL)
+   11. MODAL (FIX ALTURA Y SCROLL)
    ========================================================================== */
 .modal-overlay { 
     position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
@@ -403,11 +406,12 @@ input, textarea, select {
     width: 90%; 
     max-width: 550px; 
     
-    /* SCROLL FIX: Altura máxima y Flexbox */
-    max-height: 80vh; 
+    /* SCROLL FIX: LÍMITE ESTRICTO */
+    max-height: 75vh; /* 75% altura pantalla */
     display: flex; 
     flex-direction: column; 
     gap: 15px;
+    overflow: hidden; 
     
     box-shadow: 0 20px 50px rgba(0,0,0,0.3); 
     border: 1px solid var(--border-color); 
@@ -422,8 +426,17 @@ input, textarea, select {
 #modal-btn-cancel { background-color: var(--modal-btn-cancel-bg); color: var(--modal-btn-cancel-text); border: 1px solid transparent; }
 #modal-btn-confirm { background-color: var(--brand-blue); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
 
-/* TIMER MODAL (RESTAURADO) */
-.modal-timer-text { font-size: 3rem; font-weight: 800; color: var(--brand-blue); margin: 15px 0; font-family: monospace; display: block; width: 100%; text-align: center; }
+/* RESTAURADO: CUENTA ATRÁS GRANDE Y AZUL */
+.modal-timer-text { 
+    font-size: 3rem; 
+    font-weight: 800; 
+    color: var(--brand-blue); 
+    margin: 15px 0; 
+    font-family: monospace; 
+    display: block; 
+    width: 100%; 
+    text-align: center; 
+}
 
 /* CONTENIDO LEGAL SCROLLABLE */
 .legal-text-content { 
@@ -483,7 +496,7 @@ input, textarea, select {
    ========================================================================== */
 @media print {
     @page { size: A4 landscape; margin: 0; }
-    body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
+    body { background: white; margin: 0; padding: 0; }
     #login-overlay, #app-container, #app-footer, .modal-overlay, #scroll-top-btn { display: none !important; }
     #diploma-print-container { display: block !important; width: 100vw; height: 100%; }
     .diploma-page { width: 297mm; height: 210mm; page-break-after: always; position: relative; background-color: #fff; padding: 10mm; box-sizing: border-box; display: flex; justify-content: center; align-items: center; }
@@ -532,6 +545,7 @@ input, textarea, select {
     
     border-radius: 8px;
     border: 1px solid var(--border-color);
+    max-width: 460px; /* ANCHO MÓVIL ESTRECHO */
     width: 100%;
     margin: 0 auto; 
     box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
@@ -547,4 +561,4 @@ input, textarea, select {
 .bubble-student { align-self: flex-start; background-color: var(--chat-bg-other); color: var(--chat-text-other); border-bottom-left-radius: 2px; border: 1px solid var(--border-color); }
 .bubble-teacher { align-self: flex-end; background-color: var(--chat-bg-mine); color: var(--chat-text-mine); border-bottom-right-radius: 2px; border: 1px solid rgba(0,0,0,0.05); }
 .msg-date-small { font-size: 0.65rem; color: inherit; opacity: 0.6; margin-top: 4px; display: block; text-align: right; }
-.reply-area { margin-top: 15px; margin-left: auto; margin-right: auto; }
+.reply-area { margin-top: 15px; max-width: 460px; margin-left: auto; margin-right: auto; }

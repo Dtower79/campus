@@ -573,3 +573,27 @@ input, textarea, select {
 .bubble-teacher { align-self: flex-end; background-color: var(--chat-bg-mine); color: var(--chat-text-mine); border-bottom-right-radius: 2px; border: 1px solid rgba(0,0,0,0.05); }
 .msg-date-small { font-size: 0.65rem; color: inherit; opacity: 0.6; margin-top: 4px; display: block; text-align: right; }
 .reply-area { margin-top: 15px; max-width: 460px; margin-left: auto; margin-right: auto; }
+
+/* ==========================================================================
+   FIX MODAL SCROLL & CHAT (Añadir al final de estil.css)
+   ========================================================================== */
+
+/* Aseguramos que el contenedor de mensajes (párrafo) se comporte como contenedor flex */
+#modal-msg {
+    flex: 1;                /* Ocupar el espacio restante disponible */
+    min-height: 0;          /* Crucial: permite que el flexbox se encoja para hacer scroll */
+    margin: 0;              /* Eliminar márgenes por defecto del <p> */
+    display: flex;          /* Para que el hijo (.msg-list-container) use flex:1 */
+    flex-direction: column;
+    overflow: hidden;       /* El scroll lo debe tener el hijo, no este contenedor */
+    width: 100%;            /* Asegurar ancho completo */
+}
+
+/* Ajuste específico para que el chat use el scroll correctamente */
+.msg-list-container {
+    height: 100%;           /* Forzar altura completa del padre */
+    max-height: 100%;       /* Evitar desbordamiento */
+    /* Manteniendo tus reglas inquebrantables existentes */
+    overflow-y: auto;
+    overscroll-behavior: contain; 
+}

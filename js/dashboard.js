@@ -661,11 +661,20 @@ async function abrirPanelMensajes(modoForzado) {
         html += '</div>';
         msgEl.innerHTML = html;
 
-        // Auto-scroll al fondo
-        setTimeout(() => {
+        // FIX: Auto-scroll al fondo (Último mensaje)
+        // Usamos requestAnimationFrame para asegurar que el renderizado CSS ha terminado
+        requestAnimationFrame(() => {
             const container = document.getElementById('chat-container');
-            if(container) container.scrollTop = container.scrollHeight;
-        }, 100);
+            if (container) {
+                // Forzamos el scroll al pixel más bajo posible
+                container.scrollTop = container.scrollHeight;
+                
+                // Doble check por si hay imágenes o estilos tardíos (fallback)
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 150);
+            }
+        });
 
     } catch (e) {
         console.error(e);

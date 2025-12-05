@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS - Lógica del LMS (v6.0 - Con Notificaciones)
+   RENDERITZADORCURS.JS - Lógica del LMS (v8.0 - FULL & OPTIMIZED)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
         timerInterval: null
     };
 
+    // UI ELEMENTS
     const elems = {
         loginOverlay: document.getElementById('login-overlay'),
         appContainer: document.getElementById('app-container'),
@@ -92,22 +93,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if(elems.examView) elems.examView.style.display = 'flex';
     if(elems.appFooter) elems.appFooter.style.display = 'block';
 
-    injectSafeCSS();
     init();
 
-    function injectSafeCSS() {
-        if (!document.getElementById('flashcard-fix-css')) {
-            const style = document.createElement('style');
-            style.id = 'flashcard-fix-css';
-            style.innerHTML = `
-                .flashcard.flipped .flashcard-front { visibility: hidden; pointer-events: none; }
-                .flashcard.flipped .flashcard-back { visibility: visible; pointer-events: auto; }
-                .btn-flash-option { position: relative; z-index: 9999; pointer-events: auto !important; user-select: none; }
-                .flashcard-inner { transform-style: preserve-3d; }
-            `;
-            document.head.appendChild(style);
-        }
-    }
+    // SETUP SIDEBAR MOVIL (ACORDEÓN)
+    setTimeout(() => {
+        const left = document.querySelector('.sidebar-left');
+        const right = document.querySelector('.sidebar-right');
+        
+        const toggleSidebar = (el) => {
+            if(window.innerWidth <= 1000) { 
+                el.classList.toggle('sidebar-mobile-open');
+            }
+        };
+
+        if(left) left.onclick = (e) => { 
+            // Evitar cerrar si clicamos en un enlace interno
+            if(!e.target.closest('a') && !e.target.closest('.sidebar-subitem')) toggleSidebar(left); 
+        };
+        if(right) right.onclick = (e) => { 
+            if(e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON') toggleSidebar(right); 
+        };
+    }, 500);
 
     async function init() {
         const container = document.getElementById('moduls-container');
@@ -172,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
 
+        // Limpieza de caché local si cambia la matrícula
         const cacheKey = `sicap_last_matricula_${SLUG}`;
         const lastMatricula = localStorage.getItem(cacheKey);
         
@@ -182,11 +189,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             if (mat.progres === 0 && state.progreso.modulos) {
+                // Reset progreso
                 state.progreso.modulos.forEach(m => {
-                    m.flashcards_done = false;
-                    m.aprobado = false;
-                    m.nota = 0;
-                    m.intentos = 0;
+                    m.flashcards_done = false; m.aprobado = false; m.nota = 0; m.intentos = 0;
                 });
                 guardarProgreso(state.progreso); 
             }
@@ -210,16 +215,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         modulos.forEach((mod, idx) => {
             const modProg = (progresoObj.modulos && progresoObj.modulos[idx]) ? progresoObj.modulos[idx] : {};
-            totalActividades++;
+            totalActividades++; // Test
             if (modProg.aprobado) actividadesCompletadas++;
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
-                totalActividades++;
+                totalActividades++; // Flashcards
                 if (modProg.flashcards_done) actividadesCompletadas++;
             }
         });
 
         if (state.curso.examen_final && state.curso.examen_final.length > 0) {
-            totalActividades++;
+            totalActividades++; // Examen
             if (progresoObj.examen_final && progresoObj.examen_final.aprobado) actividadesCompletadas++;
         }
 
@@ -252,34 +257,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 3. SISTEMA DE NOTIFICACIONES (LA PARTE QUE TE FALTABA)
+    // 3. NOTIFICACIONES
     // ------------------------------------------------------------------------
     
     async function crearNotificacion(titulo, mensaje) {
-        const user = JSON.parse(localStorage.getItem('user'));
-        const token = localStorage.getItem('jwt');
         try {
             await fetch(API_ROUTES.notifications, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
                 body: JSON.stringify({
                     data: {
-                        titol: titulo,
-                        missatge: mensaje,
-                        llegida: false,
-                        // Corrección para tu Strapi: Campo de relación correcto
-                        users_permissions_user: user.id
+                        titol: titulo, missatge: mensaje, llegida: false,
+                        users_permissions_user: USER.id
                     }
                 })
             });
-            // Refrescar campana inmediatamente
             if(window.checkRealNotifications) window.checkRealNotifications();
-        } catch(e) { 
-            console.error("Error creating notification:", e); 
-        }
+        } catch(e) { console.error("Error creating notification:", e); }
     }
 
-    // Aviso de módulo acabado
     function verificarFinModulo(modIdx) {
         const mod = state.curso.moduls[modIdx];
         const modProg = state.progreso.modulos[modIdx];
@@ -289,37 +285,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const flashOk = (mod.targetes_memoria && mod.targetes_memoria.length > 0) ? modProg.flashcards_done : true;
 
         if (testOk && flashOk) {
-            crearNotificacion(
-                `Mòdul ${modIdx + 1} Completat`, 
-                `Enhorabona! Has completat totes les activitats del mòdul: "${mod.titol}".`
-            );
+            crearNotificacion(`Mòdul ${modIdx + 1} Completat`, `Enhorabona! Has completat totes les activitats del mòdul: "${mod.titol}".`);
         }
     }
 
-    // Aviso de Curso acabado
     async function notificarAprobado(cursoTitulo) {
-        crearNotificacion(
-            "Curs Completat! 🎓",
-            `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`
-        );
+        crearNotificacion("Curs Completat! 🎓", `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`);
     }
 
     // ------------------------------------------------------------------------
-    // 4. FUNCIONES DE UTILIDAD LOCAL
+    // 4. UTILS LOCAL STORAGE
     // ------------------------------------------------------------------------
     function getStorageKey(tipo) { return `sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`; }
+    
     function guardarRespuestaLocal(tipo, preguntaId, opcionIdx) {
         const key = getStorageKey(tipo);
         let data = JSON.parse(localStorage.getItem(key)) || {};
         data[preguntaId] = opcionIdx; data.timestamp = Date.now();
         localStorage.setItem(key, JSON.stringify(data));
     }
+    
     function cargarRespuestasLocales(tipo) {
         const key = getStorageKey(tipo);
         const data = JSON.parse(localStorage.getItem(key));
         if (data) { delete data.timestamp; return data; }
         return {};
     }
+    
     function limpiarRespuestasLocales(tipo) {
         localStorage.removeItem(getStorageKey(tipo));
         if(tipo === 'examen_final') {
@@ -327,9 +319,11 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.removeItem(`sicap_exam_order_${USER.id}_${SLUG}`); 
         }
     }
+    
     function getFlippedCards(modIdx) {
         return JSON.parse(localStorage.getItem(`sicap_flipped_${USER.id}_${state.curso.slug}_mod_${modIdx}`)) || [];
     }
+    
     function addFlippedCard(modIdx, cardIdx) {
         const key = `sicap_flipped_${USER.id}_${state.curso.slug}_mod_${modIdx}`;
         let current = getFlippedCards(modIdx);
@@ -389,6 +383,12 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSidebar();
         renderMainContent();
         window.scrollTo(0,0);
+        
+        // Auto-close sidebar on mobile after selection
+        if(window.innerWidth <= 1000) {
+            document.querySelector('.sidebar-left').classList.remove('sidebar-mobile-open');
+        }
+
         setTimeout(() => {
             const activeItem = document.querySelector('.sidebar-subitem.active');
             if(activeItem) {
@@ -397,6 +397,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 100);
     }
+
+    window.downloadNotes = function() {
+        const noteKey = `sicap_notes_${USER.id}_${state.curso.slug}`;
+        const content = localStorage.getItem(noteKey) || '';
+        if(!content) return alert("No tens apunts guardats per descarregar.");
+        
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Notes_${state.curso.slug}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
 
     // --- RENDERIZADORES ---
     function renderSidebar() {
@@ -484,6 +500,11 @@ document.addEventListener('DOMContentLoaded', () => {
         detenerCronometro(); 
         document.body.classList.remove('exam-active');
 
+        // ANIMACIÓN DE ENTRADA SUAVE
+        container.classList.remove('fade-in-active');
+        void container.offsetWidth; // Trigger reflow
+        container.classList.add('fade-in-active');
+
         if (state.currentView === 'intro') { container.innerHTML = `<h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2><div class="module-content-text" style="margin-top:20px;">${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}</div>`; renderSidebarTools(gridRight, { titol: 'Programa' }); return; }
         if (state.currentView === 'glossary') { const contenidoGlossari = state.curso.glossari ? parseStrapiRichText(state.curso.glossari) : "<p>No hi ha entrades al glossari.</p>"; container.innerHTML = `<h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2><div class="dashboard-card" style="margin-top:20px;"><div class="module-content-text">${contenidoGlossari}</div></div>`; renderSidebarTools(gridRight, { titol: 'Glossari' }); return; }
         if (state.currentView === 'examen_final') { renderExamenFinal(container); return; }
@@ -509,6 +530,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderSidebarTools(gridRight, mod);
             }
         }
+    }
+
+    function renderTeoria(container, mod) {
+        let html = `<h2>${mod.titol}</h2>`;
+        if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
+        if (mod.material_pdf) {
+            const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
+            if(archivos.length > 0) {
+                html += `<div class="materials-section"><span class="materials-title">Material Descarregable</span>`;
+                archivos.forEach(a => {
+                    let pdfUrl = a.url.startsWith('/') ? STRAPI_URL + a.url : a.url;
+                    html += `<a href="${pdfUrl}" target="_blank" class="btn-pdf"><i class="fa-solid fa-file-pdf"></i> ${a.name}</a>`;
+                });
+                html += `</div>`;
+            }
+        }
+        container.innerHTML = html;
     }
 
     function renderSidebarTools(container, mod) {
@@ -546,11 +584,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedNote = localStorage.getItem(noteKey) || '';
         const modTitleSafe = mod && mod.titol ? mod.titol.replace(/'/g, "\\'") : 'General';
         
-        container.innerHTML = `${breadcrumbsHtml}${extraTools}<div class="sidebar-header"><h3>Eines d'Estudi</h3></div><div class="tools-box"><div class="tools-title"><i class="fa-regular fa-note-sticky"></i> Les meves notes</div><textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea><small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small></div><div class="tools-box" style="border-color: var(--brand-blue);"><div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div><p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquí'}"</strong>?</p><button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')"><i class="fa-regular fa-paper-plane"></i> Enviar Dubte</button></div>`;
+        container.innerHTML = `
+            ${breadcrumbsHtml}${extraTools}
+            <div class="sidebar-header"><h3>Eines d'Estudi</h3></div>
+            <div class="tools-box">
+                <div class="tools-title" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="fa-regular fa-note-sticky"></i> Les meves notes</span>
+                    <button class="btn-small" onclick="window.downloadNotes()" title="Descarregar .txt" style="padding:2px 8px; font-size:0.7rem;"><i class="fa-solid fa-download"></i></button>
+                </div>
+                <textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea>
+                <small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small>
+            </div>
+            <div class="tools-box" style="border-color: var(--brand-blue);">
+                <div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div>
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquí'}"</strong>?</p>
+                <button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')"><i class="fa-regular fa-paper-plane"></i> Enviar Dubte</button>
+            </div>`;
+            
         const noteArea = document.getElementById('quick-notes');
         if(noteArea) noteArea.addEventListener('input', (e) => localStorage.setItem(noteKey, e.target.value));
     }
 
+    // --- FLASHCARDS LOGIC ---
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
         
@@ -711,23 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderTeoria(container, mod) {
-        let html = `<h2>${mod.titol}</h2>`;
-        if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
-        if (mod.material_pdf) {
-            const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
-            if(archivos.length > 0) {
-                html += `<div class="materials-section"><span class="materials-title">Material Descarregable</span>`;
-                archivos.forEach(a => {
-                    let pdfUrl = a.url.startsWith('/') ? STRAPI_URL + a.url : a.url;
-                    html += `<a href="${pdfUrl}" target="_blank" class="btn-pdf"><i class="fa-solid fa-file-pdf"></i> ${a.name}</a>`;
-                });
-                html += `</div>`;
-            }
-        }
-        container.innerHTML = html;
-    }
-    
+    // --- TEST LOGIC ---
     function renderTestIntro(container, mod, modIdx) { 
         const progreso = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx] : { aprobado: false, intentos: 0, nota: 0 };
         if (progreso.aprobado) {
@@ -770,6 +809,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
         window.currentQuestions = mod.preguntes; 
     }
+
     window.selectTestOption = function(qId, valIdx, storageKeyType) {
         state.respuestasTemp[qId] = valIdx;
         const card = document.getElementById(`card-${qId}`);
@@ -778,6 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const gridItem = document.getElementById(gridItemId); if(gridItem) gridItem.classList.add('answered');
         guardarRespuestaLocal(storageKeyType, qId, valIdx);
     }
+
     window.entregarTest = function(modIdx) {
         window.mostrarModalConfirmacion("Entregar Test", "Estàs segur?", async () => {
             document.getElementById('custom-modal').style.display = 'none';
@@ -794,6 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
             mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, modIdx, false);
         });
     }
+
     function mostrarFeedback(preguntas, respuestasUsuario, nota, aprobado, modIdx, esFinal) {
         const container = document.getElementById('moduls-container'); const color = aprobado ? 'green' : 'red';
         let html = `<div class="dashboard-card" style="border-top:5px solid ${color}; text-align:center; margin-bottom:30px;"><h2 style="color:${color}">${aprobado ? 'Superat!' : 'No Superat'}</h2><div style="font-size:4rem; font-weight:bold; margin:10px 0;">${nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')">Continuar</button></div></div><h3>Revisió:</h3>`;
@@ -810,6 +852,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         container.innerHTML = html; window.scrollTo(0,0);
     }
+
     window.revisarTest = function(modIdx) {
         const mod = state.curso.moduls[modIdx];
         if (!mod || !mod.preguntes) return;
@@ -829,6 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html; window.scrollTo(0,0);
     }
 
+    // --- FINAL EXAM LOGIC ---
     window.revisarExamenFinal = function() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid'); 
@@ -934,6 +978,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`; 
         }
     }
+
     window.iniciarExamenFinal = function() {
         if (!state.curso.examen_final || state.curso.examen_final.length === 0) { alert("Error: No s'han carregat preguntes."); return; }
         state.preguntasExamenFinal = [...state.curso.examen_final].sort(() => 0.5 - Math.random());
@@ -942,6 +987,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.testEnCurso = true; state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime);
         state.respuestasTemp = {}; renderExamenFinal(document.getElementById('moduls-container'));
     }
+
     function renderFinalQuestions(container, savedData) {
         const storedOrder = JSON.parse(localStorage.getItem(`sicap_exam_order_${USER.id}_${SLUG}`));
         if (storedOrder && state.curso.examen_final) { state.preguntasExamenFinal = []; storedOrder.forEach(id => { const found = state.curso.examen_final.find(p => (p.id || p.documentId) === id); if(found) state.preguntasExamenFinal.push(found); }); if(state.preguntasExamenFinal.length === 0) state.preguntasExamenFinal = state.curso.examen_final; } else if (state.preguntasExamenFinal.length === 0) { state.preguntasExamenFinal = state.curso.examen_final; }
@@ -966,10 +1012,10 @@ document.addEventListener('DOMContentLoaded', () => {
         html += `<div class="btn-centered-container"><button class="btn-primary" onclick="entregarExamenFinal()">${btnText}</button></div>`;
         container.innerHTML = html; window.currentQuestions = state.preguntasExamenFinal;
     }
+
     function iniciarCronometro() { const display = document.getElementById('exam-timer'); if(!display) return; const LIMIT_MS = 30 * 60 * 1000; clearInterval(state.timerInterval); state.timerInterval = setInterval(() => { const now = Date.now(); const elapsed = now - state.testStartTime; const remaining = LIMIT_MS - elapsed; if (remaining <= 0) { detenerCronometro(); display.innerText = "00:00"; alert("Temps esgotat!"); entregarExamenFinal(true); return; } const min = Math.floor(remaining / 60000); const sec = Math.floor((remaining % 60000) / 1000); display.innerText = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }, 1000); }
     function detenerCronometro() { clearInterval(state.timerInterval); }
     
-    // --- HELPER PARA NOTIFICACIÓN AUTOMÁTICA ---
     window.entregarExamenFinal = function(forzado = false) {
         const doDelivery = async () => {
             detenerCronometro(); const preguntas = window.currentQuestions; let aciertos = 0;
@@ -984,8 +1030,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (aprobado) { 
                 payload.data.estat = 'completat'; 
                 payload.data.nota_final = nota; 
-                
-                // NOTIFICAR AL ALUMNO
                 notificarAprobado(state.curso.titol);
             }
             
@@ -1005,21 +1049,72 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- MODAL DE DUDAS (FIX PROFESIONAL) ---
     window.obrirFormulariDubte = function(moduloTitulo) {
-        const modal = document.getElementById('custom-modal'); const titleEl = document.getElementById('modal-title'); const msgEl = document.getElementById('modal-msg'); const btnConfirm = document.getElementById('modal-btn-confirm'); const btnCancel = document.getElementById('modal-btn-cancel');
-        titleEl.innerText = "Enviar Dubte"; titleEl.style.color = "var(--brand-blue)";
-        msgEl.innerHTML = `<p>Escriu la teva pregunta sobre: <strong>${moduloTitulo}</strong></p><textarea id="modal-doubt-text" class="modal-textarea" placeholder="Explica el teu dubte detalladament..."></textarea><small>El professor rebrà una notificació instantània.</small>`;
-        btnCancel.style.display = 'block'; btnConfirm.innerText = "Enviar"; btnConfirm.disabled = false; btnConfirm.style.background = "var(--brand-blue)";
-        const newConfirm = btnConfirm.cloneNode(true); const newCancel = btnCancel.cloneNode(true); btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm); btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+        const modal = document.getElementById('custom-modal');
+        const titleEl = document.getElementById('modal-title');
+        const msgEl = document.getElementById('modal-msg'); // Contenedor flex
+        const btnConfirm = document.getElementById('modal-btn-confirm');
+        const btnCancel = document.getElementById('modal-btn-cancel');
+
+        titleEl.innerText = "Enviar Dubte";
+        titleEl.style.color = "var(--brand-blue)";
+        
+        // Inyectamos HTML limpio usando la nueva clase .modal-textarea
+        msgEl.innerHTML = `
+            <div style="padding: 5px 0;">
+                <p style="margin-bottom:10px; color:var(--text-main);">Escriu la teva pregunta sobre: <strong>${moduloTitulo}</strong></p>
+                <textarea id="modal-doubt-text" class="modal-textarea" placeholder="Explica el teu dubte detalladament..."></textarea>
+                <small style="color:#666; display:flex; align-items:center; gap:5px;"><i class="fa-regular fa-bell"></i> El professor rebrà una notificació instantània.</small>
+            </div>
+        `;
+
+        btnCancel.style.display = 'block';
+        btnConfirm.innerText = "Enviar";
+        btnConfirm.disabled = false;
+        btnConfirm.style.background = "var(--brand-blue)";
+
+        const newConfirm = btnConfirm.cloneNode(true);
+        const newCancel = btnCancel.cloneNode(true);
+        btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+        btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
         newCancel.onclick = () => modal.style.display = 'none';
+        
         newConfirm.onclick = async () => {
-            const text = document.getElementById('modal-doubt-text').value.trim(); if(!text) return alert("Escriu alguna cosa!"); newConfirm.innerText = "Enviant..."; newConfirm.disabled = true;
+            const text = document.getElementById('modal-doubt-text').value.trim();
+            if(!text) {
+                document.getElementById('modal-doubt-text').style.borderColor = "red";
+                return;
+            }
+            newConfirm.innerText = "Enviant...";
+            newConfirm.disabled = true;
             try {
-                const payload = { data: { missatge: text, tema: moduloTitulo, curs: state.curso.titol, alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`, users_permissions_user: USER.id, estat: 'pendent', data_envio: new Date().toISOString() } };
-                const res = await fetch(`${STRAPI_URL}/api/missatges`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) });
-                if(res.ok) { modal.style.display = 'none'; window.mostrarModalError("Dubte enviat correctament!"); } else { throw new Error("Error API"); }
-            } catch(e) { console.error(e); modal.style.display = 'none'; window.mostrarModalError("Error al connectar amb el servidor."); }
+                const payload = { 
+                    data: { 
+                        missatge: text, tema: moduloTitulo, curs: state.curso.titol, 
+                        alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`, 
+                        users_permissions_user: USER.id, estat: 'pendent', data_envio: new Date().toISOString() 
+                    } 
+                };
+                const res = await fetch(`${STRAPI_URL}/api/missatges`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, 
+                    body: JSON.stringify(payload) 
+                });
+                
+                if(res.ok) {
+                    modal.style.display = 'none';
+                    window.mostrarModalError("✅ Dubte enviat correctament!");
+                } else { throw new Error("API Error"); }
+            } catch(e) { 
+                console.error(e); 
+                modal.style.display = 'none'; 
+                window.mostrarModalError("Error al connectar amb el servidor."); 
+            }
         };
         modal.style.display = 'flex';
     };
+
+    window.tornarAlDashboard = function() { window.location.href = 'index.html'; };
 });

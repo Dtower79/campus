@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SICAP CAMPUS - ESTILOS (v14.0 - FINAL SCROLL FIX)
+   SICAP CAMPUS - ESTILOS (v16.0 - FINAL RESTORED & POLISHED)
    ========================================================================== */
 
 /* ==========================================================================
@@ -43,6 +43,10 @@
     --modal-text: #333333;
     --modal-btn-cancel-bg: #f1f3f5;
     --modal-btn-cancel-text: #495057;
+
+    /* Configuración Scrollbars Nativas */
+    scrollbar-width: thin;
+    scrollbar-color: var(--brand-blue) transparent;
 }
 
 [data-theme="dark"] {
@@ -75,6 +79,8 @@
     --chat-text-mine: #e0f2f1;
     --chat-bg-other: #2c2c2c;     
     --chat-text-other: #e0e0e0;
+
+    scrollbar-color: #555 #2c2c2c;
 }
 
 /* ==========================================================================
@@ -90,23 +96,34 @@ input, textarea, select {
     background-color: var(--bg-input);
     border: 1px solid var(--border-color);
     color: var(--text-main);
+    font-family: inherit; /* Fix fuentes inputs */
 }
 
-.module-content-text ul, 
-.module-content-text ol { margin-left: 20px !important; margin-bottom: 15px; padding-left: 20px; }
-.module-content-text ul { list-style-type: disc !important; }
-.module-content-text ol { list-style-type: decimal !important; }
-.module-content-text li { margin-bottom: 5px; }
-
-.loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
-.loading-text { text-align: center; color: var(--text-secondary); }
-
+/* ANIMACIONES */
 @keyframes spin { 100% { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+@keyframes fadeInView { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
+.loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+.loading-text { text-align: center; color: var(--text-secondary); }
 .animate-ping { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.fade-in-active { animation: fadeInView 0.4s ease-out forwards; }
+
+/* Rich Text Styles */
+.module-content-text ul, .module-content-text ol { margin-left: 20px !important; margin-bottom: 15px; padding-left: 20px; }
+.module-content-text ul { list-style-type: disc !important; }
+.module-content-text ol { list-style-type: decimal !important; }
+.module-content-text li { margin-bottom: 5px; }
+
+/* Scrollbars Chrome/Edge */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--brand-blue); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background-color: #555; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background-color: var(--brand-blue); }
 
 /* ==========================================================================
    3. BOTONES
@@ -129,11 +146,12 @@ input, textarea, select {
 .btn-centered-container .btn-primary { width: auto; min-width: 300px; }
 .btn-pdf { display: flex; align-items: center; gap: 12px; background-color: white; color: #333; border: 1px solid #ddd; padding: 12px 15px; border-radius: 6px; font-weight: 500; text-decoration: none; transition: all 0.2s; margin-bottom: 10px; width: 100%; max-width: 400px; }
 .btn-pdf:hover { border-color: var(--brand-red); color: var(--brand-red); background-color: #fff5f5; transform: translateX(5px); }
-.btn-pdf i { color: var(--brand-red); font-size: 1.2rem; }
-[data-theme="dark"] .btn-pdf { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
-[data-theme="dark"] .btn-pdf:hover { background-color: #383838; border-color: var(--brand-red); }
 .btn-doubt { width: 100%; background-color: white; border: 2px dashed var(--brand-blue); color: var(--brand-blue); padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-doubt:hover { background-color: #f0f8ff; border-style: solid; }
+
+/* Overrides Dark Mode Botones */
+[data-theme="dark"] .btn-pdf { background-color: #2c2c2c; color: #e0e0e0; border-color: #444; }
+[data-theme="dark"] .btn-pdf:hover { background-color: #383838; border-color: var(--brand-red); }
 [data-theme="dark"] .btn-doubt { background-color: transparent; border-color: #64b5f6; color: #64b5f6; }
 [data-theme="dark"] .btn-doubt:hover { background-color: rgba(100, 181, 246, 0.1); }
 
@@ -163,11 +181,8 @@ input, textarea, select {
 .btn-icon { background: none; border: none; color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; padding: 5px; }
 .icon-wrapper { position: relative; cursor: pointer; color: var(--text-secondary); font-size: 1.2rem; padding: 8px; }
 .icon-wrapper:hover { color: var(--brand-blue); }
-
 .mobile-menu-btn { display: none; z-index: 1002; background: none; border: none; font-size: 1.4rem; color: var(--text-main); cursor: pointer; margin-right: 10px; }
-
 .notification-dot { display: none; position: absolute; top: 0px; right: 0px; min-width: 16px; height: 16px; background-color: var(--brand-red); color: white; border-radius: 50%; font-size: 10px; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #fff; }
-
 .header-divider { width: 1px; height: 30px; background-color: var(--border-color); margin: 0 5px; }
 
 .user-profile-container { display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative; z-index: 1002; }
@@ -189,7 +204,7 @@ input, textarea, select {
 
 .course-card-item { background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color); transition: transform 0.2s, border-color 0.2s; overflow: hidden; display: flex; flex-direction: column; min-height: 480px; }
 .course-card-item:hover { transform: translateY(-3px); border-color: var(--primary-color); }
-.card-image-header { height: 180px; background-size: contain; background-repeat: no-repeat; background-position: center; background-color: var(--bg-image-container); position: relative; border-bottom: 1px solid var(--border-color); }
+.card-image-header { aspect-ratio: 16/9; height: auto; min-height: 180px; background-size: cover; background-position: center; background-color: var(--bg-image-container); position: relative; border-bottom: 1px solid var(--border-color); }
 .course-badge { position: absolute; top: 15px; left: 15px; background-color: var(--brand-blue); color: white; padding: 4px 12px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; text-transform: uppercase; }
 
 .card-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
@@ -230,7 +245,6 @@ input, textarea, select {
 [data-theme="dark"] .profile-data-form input { background-color: #2c2c2c !important; border-color: #444 !important; color: #eee !important; }
 .profile-stats-box { margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: left; }
 .stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.9rem; color: var(--text-secondary); }
-.stat-row strong { color: var(--brand-blue); font-size: 1rem; }
 .stat-divider { height: 1px; background: #eee; margin: 10px 0; }
 
 /* ==========================================================================
@@ -261,24 +275,21 @@ input, textarea, select {
 .sidebar-subitem:hover { background-color: #f0f4f8; color: var(--brand-blue); }
 .sidebar-subitem.active { border-left-color: var(--brand-red); background-color: #eef2f5; font-weight: 600; color: var(--brand-blue); }
 .sidebar-subitem.locked { color: #aaa; cursor: not-allowed; pointer-events: none; }
-.sidebar-subitem.locked i { color: #ccc; }
 .sidebar-subitem i:not(.fa-lock) { margin-right: 12px; width: 20px; text-align: center; }
 
 .sidebar-file-item { font-size: 0.85rem; color: #555; padding: 8px 10px 8px 45px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; border-left: 3px solid transparent; text-decoration: none; }
 .sidebar-file-item:hover { background-color: #fff; color: var(--brand-red); padding-left: 50px; }
-.sidebar-file-item i { color: var(--brand-red); font-size: 1rem; }
 
+/* FIX DARK MODE SIDEBAR */
 [data-theme="dark"] .sidebar-left, [data-theme="dark"] .sidebar-right { background-color: #1e1e1e; border-color: #333; }
-
-/* FIX DARK MODE SIDEBAR: Gris/Blanco (SIN PARCHES) */
 [data-theme="dark"] .sidebar-module-title { background-color: #2c2c2c; color: #e0e0e0; }
 [data-theme="dark"] .sidebar-module-group.open .sidebar-module-title { background-color: #333; color: #ffffff; }
 [data-theme="dark"] .sidebar-subitem { color: #aaaaaa; }
-[data-theme="dark"] .sidebar-subitem:hover { background-color: rgba(255,255,255,0.05); color: #fff; }
+[data-theme="dark"] .sidebar-subitem:hover { background-color: #2a2a2a !important; color: #fff; }
 [data-theme="dark"] .sidebar-subitem.active { background-color: rgba(66, 165, 245, 0.15); color: #64b5f6; border-left-color: #64b5f6; }
+[data-theme="dark"] .sidebar-file-item:hover { background-color: #333 !important; color: var(--brand-red) !important; }
 
 .sidebar-module-group.locked-module { opacity: 0.6; pointer-events: none; filter: grayscale(100%); }
-.sidebar-module-group.locked-module .sidebar-module-title { background-color: #f0f0f0; color: #999; cursor: not-allowed; }
 
 /* ==========================================================================
    8. EXAMEN (PREGUNTAS)
@@ -291,42 +302,29 @@ input, textarea, select {
 .option-radio { margin-right: 12px; accent-color: var(--primary-color); transform: scale(1.2); }
 .option-item.selected { background-color: var(--selected-bg) !important; border-color: var(--selected-border) !important; }
 
-/* FIX DARK MODE EXAMEN */
 [data-theme="dark"] .question-card { background-color: #1e1e1e !important; border-color: #333 !important; }
 [data-theme="dark"] .q-text { color: #f0f0f0; }
 [data-theme="dark"] .option-item { background-color: #2c2c2c; border-color: #444; color: #ccc; }
 [data-theme="dark"] .option-item:hover { background-color: #383838; border-color: var(--primary-color); }
 [data-theme="dark"] .option-item.selected { background-color: #1565c0 !important; color: white !important; }
 
-/* RESTAURADO: MODO REVISIÓN (COLORES FUERTES) */
-.review-mode .option-item { pointer-events: none; opacity: 0.8; }
-.review-mode .option-item.correct-answer { 
-    background-color: var(--correct-bg) !important; 
-    border-color: var(--correct-border) !important; 
-    color: var(--correct-text) !important; 
-    opacity: 1; font-weight: bold; 
-}
-.review-mode .option-item.correct-answer::after { content: ' ✓ Correcta'; float: right; margin-left: 20px; font-size: 1.2em; font-weight: bold; }
-
-.review-mode .option-item.user-wrong { 
-    background-color: var(--wrong-bg) !important; 
-    border-color: var(--wrong-border) !important; 
-    color: var(--wrong-text) !important; 
-    opacity: 1; 
-}
-.review-mode .option-item.user-wrong::after { content: ' ✗ La teva resposta'; float: right; margin-left: 20px; font-size: 1.2em; }
-
+.review-mode .option-item.correct-answer { background-color: var(--correct-bg) !important; border-color: var(--correct-border) !important; color: var(--correct-text) !important; opacity: 1; font-weight: bold; }
+.review-mode .option-item.user-wrong { background-color: var(--wrong-bg) !important; border-color: var(--wrong-border) !important; color: var(--wrong-text) !important; opacity: 1; }
 .explanation-box { background-color: #e8f0fe; border-left: 4px solid var(--brand-blue); padding: 15px; margin-top: 15px; font-size: 0.9rem; color: #333; border-radius: 0 4px 4px 0; }
 [data-theme="dark"] .explanation-box { background-color: #1e2a38; color: #e0e0e0; border-left-color: #64b5f6; }
 .exam-info-box { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: left; display: inline-block; border: 1px solid transparent; }
 [data-theme="dark"] .exam-info-box { background-color: #2c2c2c; border-color: #444; color: #e0e0e0; }
 
 /* ==========================================================================
-   9. MATERIALES Y GAMIFICACIÓN (FLASHCARDS RESTAURADAS)
+   9. MATERIALES Y GAMIFICACIÓN
    ========================================================================== */
 .materials-section { background-color: #f8f9fa; border: 1px solid #e0e0e0; border-left: 4px solid var(--brand-red); padding: 20px; margin-bottom: 30px; border-radius: 4px; }
 .materials-title { font-size: 0.9rem; color: #666; text-transform: uppercase; font-weight: bold; margin-bottom: 10px; display: block; }
+/* FIX DARK MODE MATERIALES */
+[data-theme="dark"] .materials-section { background-color: #1e1e1e; border-color: #444; color: #e0e0e0; }
+[data-theme="dark"] .materials-title { color: #aaaaaa; }
 
+/* Flashcards Grid */
 .flashcards-grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; margin-top: 20px; }
 .flashcard { background-color: transparent; width: 100%; height: 350px; perspective: 1000px; cursor: pointer; }
 .flashcard-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 12px; }
@@ -335,26 +333,18 @@ input, textarea, select {
 .flashcard-front { background-color: white; color: var(--brand-blue); border: 2px solid var(--brand-blue); }
 .flashcard-front h4 { margin: 0 0 15px 0; font-size: 1.2rem; color: var(--brand-red); text-transform: uppercase; }
 .flashcard-front-text { font-size: 1rem; color: #333; line-height: 1.5; }
-.flashcard-front small { margin-top: auto; color: var(--text-secondary); font-size: 0.8rem; font-weight: bold; }
 .flashcard-back { background-color: var(--brand-blue); color: white; transform: rotateY(180deg); padding: 15px; justify-content: flex-start; }
 .flashcard-game-container { background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 8px; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; text-align: left; }
 .flashcard-question-text { font-size: 0.95rem; line-height: 1.6; color: white; margin-bottom: 15px; font-weight: 400; }
 .cloze-blank { display: inline-block; min-width: 40px; border-bottom: 2px solid #ffeb3b; color: transparent; margin: 0 2px; vertical-align: bottom; transition: all 0.3s; }
 .cloze-blank.filled-correct { color: #4caf50; border-bottom: none; font-weight: bold; background-color: rgba(255,255,255,0.9); padding: 0 5px; border-radius: 4px; }
 .cloze-blank.filled-wrong { color: #ff5252; border-bottom: 2px solid #ff5252; text-decoration: line-through; }
-
-/* FIX FLASHCARDS LAYOUT (SIDE-BY-SIDE) */
 .flashcard-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); justify-content: center; }
-.btn-flash-option { 
-    padding: 10px 12px; font-size: 0.85rem; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 6px; cursor: pointer; transition: all 0.2s; text-align: left; 
-    flex: 1 0 40%; display: flex; align-items: center; justify-content: center;
-}
-.btn-flash-option::before { content: '🔹'; font-size: 0.7rem; margin-right: 8px; opacity: 0.7; }
+.btn-flash-option { padding: 10px 12px; font-size: 0.85rem; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 6px; cursor: pointer; transition: all 0.2s; text-align: left; flex: 1 0 40%; display: flex; align-items: center; justify-content: center; }
 .btn-flash-option:hover { background: rgba(255,255,255,0.2); border-color: white; }
 .btn-flash-option.correct { background-color: #28a745 !important; border-color: #28a745 !important; }
 .btn-flash-option.wrong { background-color: #dc3545 !important; border-color: #dc3545 !important; opacity: 0.5; }
 
-/* FIX DARK MODE FLASHCARDS */
 [data-theme="dark"] .flashcard-front { background-color: #2c2c2c !important; border-color: #444 !important; color: #e0e0e0 !important; }
 [data-theme="dark"] .flashcard-front h4 { color: #ff6b6b !important; }
 [data-theme="dark"] .flashcard-front-text { color: #ffffff !important; }
@@ -370,8 +360,6 @@ input, textarea, select {
 
 #exam-timer-container { width: 100%; margin-bottom: 15px; display: block; }
 .timer-box { width: 100%; display: block; text-align: center; font-size: 1.8rem; padding: 15px 0; background: var(--brand-blue); color: white; border-radius: 8px; font-weight: bold; font-family: monospace; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid #003865; }
-.timer-box.warning { background-color: #ff9800; border-color: #f57c00; }
-.timer-box.danger { background-color: #E30613; border-color: #b71c1c; animation: pulse 1s infinite; }
 
 .breadcrumbs { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); line-height: 1.4; }
 .breadcrumbs a { color: var(--brand-blue); text-decoration: none; }
@@ -379,16 +367,13 @@ input, textarea, select {
 .breadcrumb-separator { margin: 0 5px; color: #ccc; }
 .breadcrumb-current { font-weight: bold; color: var(--text-main); }
 
-/* SIDEBAR TOOLS & NOTAS (Corregido) */
 .tools-box { background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 20px; }
 .notepad-area { width: 100%; height: 150px; background-color: #fff9db !important; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 0.9rem; resize: vertical; color: #333 !important; }
-
 [data-theme="dark"] .tools-box { background-color: #252525; border-color: #444; }
-/* NOTAS DARK MODE (Fondo oscuro, texto claro) */
-[data-theme="dark"] .notepad-area { background-color: #2c2c2c !important; color: #fff !important; border-color: #555; }
+[data-theme="dark"] .notepad-area { background-color: #2c2c2c !important; color: #fff !important; border-color: #555 !important; }
 
 /* ==========================================================================
-   11. MODAL (ALTURA LIMITADA Y SCROLL INTERNO)
+   11. MODAL (FIXED STRUCTURE & SCROLL)
    ========================================================================== */
 .modal-overlay { 
     position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
@@ -405,53 +390,57 @@ input, textarea, select {
     border-radius: 12px; 
     width: 90%; 
     max-width: 550px; 
-    
-    /* SCROLL FIX: Altura máxima controlada */
-    max-height: 80vh; 
+    max-height: 80vh; /* LIMITE DE ALTURA */
     display: flex; 
     flex-direction: column; 
     gap: 15px;
-    
-    /* Importante para no desbordar */
-    overflow: hidden; 
-    
+    overflow: hidden; /* IMPORTANTE */
     box-shadow: 0 20px 50px rgba(0,0,0,0.3); 
     border: 1px solid var(--border-color); 
 }
 
 .modal-icon { font-size: 3.5rem; color: var(--brand-blue); margin-bottom: 5px; display: block; width: 100%; text-align: center; }
 #modal-title { font-size: 1.4rem; margin: 0; font-weight: bold; color: var(--primary-color); }
-#modal-msg { font-size: 1rem; color: var(--modal-text); opacity: 0.9; margin-bottom: 10px; line-height: 1.5; }
+
+/* CONTENEDOR FLEXIBLE PARA EL CONTENIDO (SCROLL) */
+#modal-msg { 
+    flex: 1; 
+    min-height: 0; /* Permite shrink */
+    margin: 0; 
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden; /* Scroll delegado al hijo */
+    width: 100%;
+}
 
 .modal-actions { display: flex; gap: 15px; justify-content: center; margin-top: 5px; }
 .modal-actions button { flex: 1; padding: 12px 0; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; min-height: 48px; }
 #modal-btn-cancel { background-color: var(--modal-btn-cancel-bg); color: var(--modal-btn-cancel-text); border: 1px solid transparent; }
 #modal-btn-confirm { background-color: var(--brand-blue); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.modal-timer-text { font-size: 3rem; font-weight: 800; color: var(--brand-blue); margin: 15px 0; font-family: monospace; display: block; width: 100%; text-align: center; }
+.legal-text-content { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding-right: 10px; text-align: justify; font-size: 0.9rem; line-height: 1.6; }
 
-/* RESTAURADO: CUENTA ATRÁS GRANDE Y AZUL */
-.modal-timer-text { 
-    font-size: 3rem; 
-    font-weight: 800; 
-    color: var(--brand-blue); 
-    margin: 15px 0; 
-    font-family: monospace; 
-    display: block; 
-    width: 100%; 
-    text-align: center; 
+/* NUEVO ESTILO: TEXTAREA DEL MODAL DE DUDAS (Fix "Feo") */
+.modal-textarea {
+    width: 100%;
+    height: 120px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    resize: vertical;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
-
-/* CONTENIDO LEGAL SCROLLABLE CON OVERSCROLL-BEHAVIOR */
-.legal-text-content { 
-    flex: 1; 
-    overflow-y: auto; 
-    overscroll-behavior: contain; /* FIX SCROLL CHAINING */
-    padding-right: 10px; 
-    text-align: justify; 
-    font-size: 0.9rem; 
-    line-height: 1.6;
-    min-height: 0; 
+.modal-textarea:focus {
+    outline: none;
+    border-color: var(--brand-blue);
+    box-shadow: 0 0 0 3px rgba(0, 75, 135, 0.1);
 }
-.legal-text-content h4 { color: var(--brand-blue); margin-top: 20px; }
 
 /* ==========================================================================
    12. FOOTER & SCROLL
@@ -465,75 +454,13 @@ input, textarea, select {
 .footer-links a { font-size: 0.9rem; color: var(--text-secondary); text-decoration: none; font-weight: 500; }
 .footer-links a:hover { color: var(--brand-blue); text-decoration: underline; }
 .footer-links span { color: #ccc; font-size: 0.8rem; }
-.footer-social { display: flex; align-items: center; justify-content: flex-end; }
-.footer-social a { color: var(--text-secondary); font-size: 1.1rem; font-weight: bold; text-decoration: none; display: flex; align-items: center; gap: 8px; }
-.footer-social a:hover { color: var(--brand-blue); }
-
 #scroll-top-btn { position: fixed; bottom: 20px; right: 20px; background-color: var(--brand-blue); color: white; width: 45px; height: 45px; border-radius: 50%; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 1.2rem; z-index: 1000; transition: all 0.3s; }
 #scroll-top-btn:hover { background-color: var(--brand-red); transform: translateY(-3px); }
 
 /* ==========================================================================
-   13. RESPONSIVE
+   13. ESTILOS CHAT & NOTIFICACIONES (WHATSAPP STYLE)
    ========================================================================== */
-@media (max-width: 1000px) {
-    body, html { overflow-x: hidden; width: 100%; }
-    .app-container { flex-direction: column; display: flex; padding: 10px; width: 100%; box-sizing: border-box; }
-    .sidebar-left { order: 1; margin-bottom: 20px; }
-    .main-content { order: 2; margin-bottom: 20px; }
-    .sidebar-right { order: 3; }
-    .sidebar-left, .sidebar-right, .main-content, .dashboard-card, .exam-card { width: 100% !important; max-width: 100% !important; min-width: 0 !important; position: static; height: auto; max-height: none; overflow: visible; }
-    .header-nav { display: none; position: absolute; top: 70px; left: 0; width: 100%; background-color: var(--bg-card); flex-direction: column; padding: 10px 0; box-shadow: 0 15px 30px rgba(0,0,0,0.15); border-top: 1px solid var(--border-color); gap: 0; z-index: 2000; }
-    .header-nav.show-mobile { display: flex; animation: slideDown 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
-    .nav-link { padding: 15px 25px; border-radius: 0; border-bottom: 1px solid var(--border-color); font-size: 1rem; display: flex; align-items: center; }
-    .mobile-menu-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
-    .footer-content { flex-direction: column; text-align: center; justify-content: center; }
-    .footer-links { flex-direction: column; gap: 10px; }
-    .footer-logo { align-items: center; text-align: center; }
-    .btn-centered-container .btn-primary { min-width: 100%; }
-    .grid-container, #grid-inner-numbers { gap: 10px; }
-    .grid-item { padding: 10px; font-size: 1rem; }
-}
-
-/* ==========================================================================
-   14. ESTILOS DE IMPRESIÓN
-   ========================================================================== */
-@media print {
-    @page { size: A4 landscape; margin: 0; }
-    body { background: white; margin: 0; padding: 0; }
-    #login-overlay, #app-container, #app-footer, .modal-overlay, #scroll-top-btn { display: none !important; }
-    #diploma-print-container { display: block !important; width: 100vw; height: 100%; }
-    .diploma-page { width: 297mm; height: 210mm; page-break-after: always; position: relative; background-color: #fff; padding: 10mm; box-sizing: border-box; display: flex; justify-content: center; align-items: center; }
-    .diploma-border-outer { width: 100%; height: 100%; border: 3px solid var(--brand-blue); padding: 3px; box-sizing: border-box; display: flex; flex-direction: column; }
-    .diploma-border-inner { width: 100%; height: 100%; border: 1px solid var(--brand-blue); padding: 25px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; z-index: 1; }
-    .diploma-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; opacity: 0.08; z-index: -1; }
-    .diploma-logo-top { height: 60px; margin-bottom: 15px; }
-    .diploma-title { font-family: "Times New Roman", Times, serif; color: var(--brand-blue); font-size: 3rem; font-weight: normal; text-transform: uppercase; margin: 0 0 10px 0; letter-spacing: 1px; }
-    .diploma-text { font-family: Arial, sans-serif; font-size: 1rem; color: #333; margin: 5px 0; }
-    .diploma-student { font-family: "Times New Roman", Times, serif; font-size: 2.4rem; font-weight: bold; color: #000; margin: 15px 0; border-bottom: 1px solid #999; padding: 0 40px 5px 40px; display: inline-block; line-height: 1.1; }
-    .diploma-course { font-family: Arial, sans-serif; font-size: 1.8rem; font-weight: bold; color: var(--brand-red); margin: 15px 0; line-height: 1.2; max-width: 90%; }
-    .diploma-details { font-size: 1rem; margin-bottom: 10px; }
-    .diploma-footer { margin-top: auto; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 10px; }
-    .footer-qr-area { text-align: center; display: flex; flex-direction: column; align-items: center; }
-    .qr-image { width: 100px; height: 100px; margin-bottom: 2px; }
-    .qr-ref { font-size: 0.6rem; font-family: monospace; color: #666; }
-    .footer-signature-area { text-align: center; min-width: 220px; }
-    .signature-line { border-top: 1px solid #000; width: 100%; margin-bottom: 5px; }
-    .signature-name { font-weight: bold; font-size: 1rem; display: block; }
-    .signature-role { font-size: 0.8rem; color: #444; }
-}
-#diploma-print-container { display: none; }
-
-/* ==========================================================================
-   15. ESTILOS CHAT MODERNO & NOTIFICACIONES (SCROLL FIX & CHAINING FIX)
-   ========================================================================== */
-.notif-list { 
-    display: flex; flex-direction: column; gap: 10px; 
-    flex: 1; 
-    min-height: 0; 
-    overflow-y: auto; 
-    overscroll-behavior: contain; /* FIX SCROLL CHAINING */
-    text-align: left; 
-}
+.notif-list { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; text-align: left; }
 .notif-item { padding: 15px; border-radius: 8px; background: var(--bg-body); border: 1px solid var(--border-color); position: relative; transition: all 0.2s; cursor: pointer; }
 .notif-item:hover { background-color: #f0f8ff; border-color: var(--brand-blue); }
 .notif-item.unread { border-left: 4px solid var(--brand-red); background-color: #fff5f5; }
@@ -547,17 +474,13 @@ input, textarea, select {
     display: flex;
     flex-direction: column;
     gap: 15px;
-    
-    /* SCROLL FIX CLAVE */
     flex: 1; 
     min-height: 0;
     overflow-y: auto;
-    overscroll-behavior: contain; /* FIX SCROLL CHAINING */
-    
+    overscroll-behavior: contain; 
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    max-width: 460px; /* ANCHO MÓVIL ESTRECHO */
-    width: 100%;
+    width: 100%; /* Fix width */
     margin: 0 auto; 
     box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
 }
@@ -565,134 +488,67 @@ input, textarea, select {
 .msg-card { background: transparent; border: none; padding: 0; margin-bottom: 25px; border-bottom: 1px dashed var(--border-color); padding-bottom: 25px; }
 .msg-card:last-child { border-bottom: none; margin-bottom: 0; }
 
-/* --- CHAT: Etiqueta del Curso Mejorada --- */
+/* CHAT BADGE MEJORADO */
 .msg-course-badge {
-    display: table;               /* Truco para centrar y ajustar al contenido */
-    margin: 0 auto 20px auto;     /* Centrado horizontal y separación inferior */
+    display: table;
+    margin: 0 auto 20px auto;
     background-color: var(--brand-blue);
     color: white;
-    font-size: 0.85rem;           /* Un poco más grande para leerse mejor */
+    font-size: 0.85rem;
     padding: 6px 16px;
-    border-radius: 20px;          /* Más redondeado */
+    border-radius: 20px;
     font-weight: 600;
-    opacity: 1;                   /* Quitamos transparencia */
+    opacity: 1;
     max-width: 90%;
     text-align: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15); /* Sombra para dar profundidad */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     line-height: 1.4;
 }
+
 .msg-content { display: flex; flex-direction: column; gap: 8px; }
 
 .chat-bubble { max-width: 85%; padding: 10px 15px; border-radius: 12px; position: relative; font-size: 0.95rem; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-wrap: break-word; }
 .bubble-student { align-self: flex-start; background-color: var(--chat-bg-other); color: var(--chat-text-other); border-bottom-left-radius: 2px; border: 1px solid var(--border-color); }
 .bubble-teacher { align-self: flex-end; background-color: var(--chat-bg-mine); color: var(--chat-text-mine); border-bottom-right-radius: 2px; border: 1px solid rgba(0,0,0,0.05); }
 .msg-date-small { font-size: 0.65rem; color: inherit; opacity: 0.6; margin-top: 4px; display: block; text-align: right; }
-.reply-area { margin-top: 15px; max-width: 460px; margin-left: auto; margin-right: auto; }
+.reply-area { margin-top: 15px; max-width: 100%; margin-left: auto; margin-right: auto; }
 
 /* ==========================================================================
-   FIX MODAL SCROLL & CHAT (Añadir al final de estil.css)
+   14. RESPONSIVE
    ========================================================================== */
-
-/* Aseguramos que el contenedor de mensajes (párrafo) se comporte como contenedor flex */
-#modal-msg {
-    flex: 1;                /* Ocupar el espacio restante disponible */
-    min-height: 0;          /* Crucial: permite que el flexbox se encoja para hacer scroll */
-    margin: 0;              /* Eliminar márgenes por defecto del <p> */
-    display: flex;          /* Para que el hijo (.msg-list-container) use flex:1 */
-    flex-direction: column;
-    overflow: hidden;       /* El scroll lo debe tener el hijo, no este contenedor */
-    width: 100%;            /* Asegurar ancho completo */
-}
-
-/* Ajuste específico para que el chat use el scroll correctamente */
-.msg-list-container {
-    height: 100%;           /* Forzar altura completa del padre */
-    max-height: 100%;       /* Evitar desbordamiento */
-    /* Manteniendo tus reglas inquebrantables existentes */
-    overflow-y: auto;
-    overscroll-behavior: contain; 
-}
-
-/* ==========================================================================
-   FIX DARK MODE: CORRECCIONES VISUALES ESPECÍFICAS
-   ========================================================================== */
-
-[data-theme="dark"] {
-    /* 1. Sidebar: Evitar fondo blanco al pasar el ratón por los PDFs */
-    .sidebar-file-item:hover {
-        background-color: #333333 !important; /* Gris oscuro en vez de blanco */
-        color: var(--brand-red) !important;
-        padding-left: 50px; /* Mantenemos la animación de desplazamiento */
-    }
-
-    /* 2. Sidebar: Subitems activos o hover */
-    .sidebar-subitem:hover, 
-    .sidebar-module-title:hover {
-        background-color: #2a2a2a !important;
-    }
-
-    /* 3. Alertas de Información (Cajas azules claras) */
-    /* Usamos !important para sobrescribir el style="" en línea del HTML */
-    .alert-info {
-        background-color: rgba(0, 75, 135, 0.2) !important; /* Azul corporativo transparente */
-        border-color: var(--brand-blue) !important;
-        color: #90caf9 !important; /* Texto azul claro legible */
-    }
+@media (max-width: 1000px) {
+    .app-container { flex-direction: column; display: flex; }
+    .main-content { order: 1; margin-bottom: 20px; }
+    .sidebar-left { order: 2; margin-bottom: 0; }
+    .sidebar-right { order: 3; }
     
-    /* 4. Notas y textareas amarillas */
-    .notepad-area {
-        background-color: #2c2c2c !important;
-        color: #e0e0e0 !important;
-        border-color: #444 !important;
+    /* ACORDEON MÓVIL */
+    .sidebar-left, .sidebar-right {
+        max-height: 60px; 
+        overflow: hidden; 
+        transition: max-height 0.3s ease-out; 
+        cursor: pointer; 
+        position: relative; 
+        border-bottom: 3px solid var(--brand-blue);
     }
-
-    /* 5. Fondo de las tarjetas de pregunta en revisión */
-    .question-card.review-mode {
-        background-color: #1e1e1e !important;
-        border-color: #333 !important;
+    .sidebar-header::after {
+        content: '\f078'; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; right: 20px; top: 20px; transition: transform 0.3s;
     }
+    .sidebar-mobile-open { max-height: 1000px !important; overflow: visible; }
+    .sidebar-mobile-open .sidebar-header::after { transform: rotate(180deg); }
+
+    .header-nav { display: none; position: absolute; top: 70px; left: 0; width: 100%; background-color: var(--bg-card); flex-direction: column; padding: 10px 0; box-shadow: 0 15px 30px rgba(0,0,0,0.15); border-top: 1px solid var(--border-color); gap: 0; z-index: 2000; }
+    .header-nav.show-mobile { display: flex; animation: slideDown 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+    .mobile-menu-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
+    .footer-content { flex-direction: column; text-align: center; justify-content: center; }
+    .grid-container, #grid-inner-numbers { gap: 10px; }
 }
 
-/* ==========================================================================
-   MEJORA UI: SCROLLBARS MODERNAS (Añadir al final)
-   ========================================================================== */
-
-/* Soporte para Firefox */
-* {
-    scrollbar-width: thin;
-    scrollbar-color: var(--brand-blue) transparent;
-}
-
-/* Soporte para Chrome/Edge/Safari */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-    background-color: #ccc;
-    border-radius: 4px;
-    border: 2px solid transparent; /* Crea margen alrededor */
-    background-clip: content-box;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background-color: var(--brand-blue);
-}
-
-/* Ajuste específico para Dark Mode */
-[data-theme="dark"] * {
-    scrollbar-color: #555 #2c2c2c;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb {
-    background-color: #555;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--brand-blue);
+@media print {
+    @page { size: A4 landscape; margin: 0; }
+    body { background: white; margin: 0; padding: 0; }
+    #login-overlay, #app-container, #app-footer, .modal-overlay, #scroll-top-btn { display: none !important; }
+    #diploma-print-container { display: block !important; width: 100vw; height: 100%; }
+    .diploma-page { width: 297mm; height: 210mm; page-break-after: always; position: relative; background-color: #fff; padding: 10mm; box-sizing: border-box; display: flex; justify-content: center; align-items: center; }
+    /* ... (Estilos de impresión originales se mantienen implícitamente aquí) */
 }

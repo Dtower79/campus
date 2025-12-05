@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SICAP CAMPUS - ESTILOS MAESTROS (v8.0 - Final)
+   SICAP CAMPUS - ESTILOS MAESTROS (v9.0 - Final Scroll Fix)
    ========================================================================== */
 
 /* ==========================================================================
@@ -22,6 +22,7 @@
     --text-secondary: #666666;
     --border-color: #dfe1e5;
     --bg-image-container: #f8f9fa; 
+    --bg-input: #ffffff;
     
     /* Examen y Feedback */
     --quiz-question-bg: #f8f9fa;
@@ -53,6 +54,8 @@
     --text-secondary: #aaaaaa;
     --border-color: #333333;
     --bg-image-container: #1e1e1e; 
+    --bg-input: #2c2c2c;
+    
     --quiz-question-bg: #2c3e50;
     --quiz-feedback-bg: #4a3b20;
     --quiz-feedback-text: #ffd700;
@@ -84,9 +87,9 @@ a { text-decoration: none; color: inherit; cursor: pointer; }
 ul { list-style: none; padding: 0; margin: 0; }
 
 input, textarea, select {
-    background-color: var(--bg-card) !important;
-    border: 1px solid var(--border-color) !important;
-    color: var(--text-main) !important;
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
 }
 
 .module-content-text ul, 
@@ -265,7 +268,7 @@ input, textarea, select {
 .sidebar-file-item:hover { background-color: #fff; color: var(--brand-red); padding-left: 50px; }
 .sidebar-file-item i { color: var(--brand-red); font-size: 1rem; }
 
-[data-theme="dark"] .sidebar-left, [data-theme="dark"] .sidebar-right { background-color: var(--bg-card); border-color: var(--border-color); }
+[data-theme="dark"] .sidebar-left, [data-theme="dark"] .sidebar-right { background-color: #1e1e1e; border-color: #333; }
 [data-theme="dark"] .sidebar-module-title { background-color: #333; color: #e0e0e0; }
 [data-theme="dark"] .sidebar-subitem { color: #aaa; }
 [data-theme="dark"] .sidebar-subitem:hover { background-color: rgba(255,255,255,0.05); color: #fff; }
@@ -373,24 +376,62 @@ input, textarea, select {
 .breadcrumb-separator { margin: 0 5px; color: #ccc; }
 .breadcrumb-current { font-weight: bold; color: var(--text-main); }
 
+/* SIDEBAR TOOLS & NOTAS (Corregido) */
+.tools-box { background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+.notepad-area { width: 100%; height: 150px; background-color: #fff9db !important; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 0.9rem; resize: vertical; color: #333 !important; }
+
+[data-theme="dark"] .tools-box { background-color: #252525; border-color: #444; }
+[data-theme="dark"] .notepad-area { background-color: #3e3b30 !important; color: #f0e6d2 !important; border-color: #555; }
+
 /* ==========================================================================
-   11. MODAL (ICONO ARREGLADO)
+   11. MODAL (SCROLL FIX & ICONO)
    ========================================================================== */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 20000; display: flex; justify-content: center; align-items: center; animation: fadeIn 0.2s ease-out; }
-.modal-card { background: var(--modal-bg); color: var(--modal-text); padding: 30px 25px; border-radius: 12px; width: 90%; max-width: 420px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px; }
+.modal-overlay { 
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); 
+    z-index: 20000; 
+    display: flex; justify-content: center; align-items: center; 
+    animation: fadeIn 0.2s ease-out; 
+}
 
-/* FIX ICONO MODAL */
+.modal-card { 
+    background: var(--modal-bg); 
+    color: var(--modal-text); 
+    padding: 25px; 
+    border-radius: 12px; 
+    width: 90%; 
+    max-width: 550px; /* Ancho ideal */
+    
+    /* SCROLL FIX */
+    max-height: 80vh; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 15px; 
+    
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3); 
+    border: 1px solid var(--border-color); 
+}
+
 .modal-icon { font-size: 3.5rem; color: var(--brand-blue); margin-bottom: 5px; display: block; width: 100%; text-align: center; }
-
 #modal-title { font-size: 1.4rem; margin: 0; font-weight: bold; color: var(--primary-color); }
 #modal-msg { font-size: 1rem; color: var(--modal-text); opacity: 0.9; margin-bottom: 10px; line-height: 1.5; }
-.modal-actions { display: flex; gap: 15px; justify-content: center; margin-top: 10px; }
-.modal-actions button { flex: 1; padding: 12px 0; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.2s; border: none; min-height: 48px; display: flex; align-items: center; justify-content: center; }
+
+.modal-actions { display: flex; gap: 15px; justify-content: center; margin-top: 5px; }
+.modal-actions button { flex: 1; padding: 12px 0; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; min-height: 48px; }
 #modal-btn-cancel { background-color: var(--modal-btn-cancel-bg); color: var(--modal-btn-cancel-text); border: 1px solid transparent; }
-#modal-btn-cancel:hover { filter: brightness(0.95); }
 #modal-btn-confirm { background-color: var(--brand-blue); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-#modal-btn-confirm:hover { filter: brightness(1.1); transform: translateY(-1px); }
-.modal-timer-text { font-size: 2rem; font-weight: bold; color: var(--brand-red); margin: 10px 0; }
+
+/* CONTENIDO LEGAL SCROLLABLE */
+.legal-text-content { 
+    flex: 1; 
+    overflow-y: auto; 
+    padding-right: 10px; 
+    text-align: justify; 
+    font-size: 0.9rem; 
+    line-height: 1.6;
+    min-height: 0; 
+}
+.legal-text-content h4 { color: var(--brand-blue); margin-top: 20px; }
 
 /* ==========================================================================
    12. FOOTER & SCROLL
@@ -424,10 +465,7 @@ input, textarea, select {
     .header-nav { display: none; position: absolute; top: 70px; left: 0; width: 100%; background-color: var(--bg-card); flex-direction: column; padding: 10px 0; box-shadow: 0 15px 30px rgba(0,0,0,0.15); border-top: 1px solid var(--border-color); gap: 0; z-index: 2000; }
     .header-nav.show-mobile { display: flex; animation: slideDown 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
     .nav-link { padding: 15px 25px; border-radius: 0; border-bottom: 1px solid var(--border-color); font-size: 1rem; display: flex; align-items: center; }
-    
-    /* Mostrar Hamburguesa en móvil */
     .mobile-menu-btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
-    
     .footer-content { flex-direction: column; text-align: center; justify-content: center; }
     .footer-links { flex-direction: column; gap: 10px; }
     .footer-logo { align-items: center; text-align: center; }
@@ -441,7 +479,7 @@ input, textarea, select {
    ========================================================================== */
 @media print {
     @page { size: A4 landscape; margin: 0; }
-    body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
+    body { background: white; margin: 0; padding: 0; }
     #login-overlay, #app-container, #app-footer, .modal-overlay, #scroll-top-btn { display: none !important; }
     #diploma-print-container { display: block !important; width: 100vw; height: 100%; }
     .diploma-page { width: 297mm; height: 210mm; page-break-after: always; position: relative; background-color: #fff; padding: 10mm; box-sizing: border-box; display: flex; justify-content: center; align-items: center; }
@@ -466,9 +504,9 @@ input, textarea, select {
 #diploma-print-container { display: none; }
 
 /* ==========================================================================
-   15. ESTILOS CHAT MODERNO (Ajustado: Más estrecho y centrado)
+   15. ESTILOS CHAT MODERNO & NOTIFICACIONES (SCROLLABLE)
    ========================================================================== */
-.notif-list { display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto; text-align: left; }
+.notif-list { display: flex; flex-direction: column; gap: 10px; flex: 1; overflow-y: auto; text-align: left; min-height: 0; }
 .notif-item { padding: 15px; border-radius: 8px; background: var(--bg-body); border: 1px solid var(--border-color); position: relative; transition: all 0.2s; cursor: pointer; }
 .notif-item:hover { background-color: #f0f8ff; border-color: var(--brand-blue); }
 .notif-item.unread { border-left: 4px solid var(--brand-red); background-color: #fff5f5; }
@@ -476,64 +514,34 @@ input, textarea, select {
 .notif-title { font-weight: bold; color: var(--brand-blue); margin-bottom: 5px; display: block; }
 .notif-body { font-size: 0.9rem; color: var(--text-main); }
 
-/* CONTENEDOR DEL CHAT: Estrecho y centrado */
 .msg-list-container {
     background-color: var(--bg-body);
     padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 15px;
-    max-height: 500px;
+    
+    /* SCROLL FIX */
+    flex: 1;
     overflow-y: auto;
+    min-height: 0;
+    
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    
-    /* CAMBIO CLAVE: Estrechar y centrar */
     max-width: 550px; 
     width: 100%;
-    margin: 0 auto; /* Centrar horizontalmente */
+    margin: 0 auto; 
     box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
 }
 
 .msg-card { background: transparent; border: none; padding: 0; margin-bottom: 25px; border-bottom: 1px dashed var(--border-color); padding-bottom: 25px; }
 .msg-card:last-child { border-bottom: none; margin-bottom: 0; }
 
-.msg-course-badge { 
-    display: inline-block; 
-    background-color: var(--brand-blue); 
-    color: white; 
-    font-size: 0.7rem; 
-    padding: 4px 12px; 
-    border-radius: 12px; 
-    margin-bottom: 15px; 
-    font-weight: 500; 
-    opacity: 0.9;
-    max-width: 100%;
-}
-
+.msg-course-badge { display: inline-block; background-color: var(--brand-blue); color: white; font-size: 0.7rem; padding: 4px 12px; border-radius: 12px; margin-bottom: 15px; font-weight: 500; opacity: 0.9; max-width: 100%; }
 .msg-content { display: flex; flex-direction: column; gap: 8px; }
 
-/* Burbujas un poco más compactas */
-.chat-bubble { 
-    max-width: 85%; 
-    padding: 10px 15px; 
-    border-radius: 12px; 
-    position: relative; 
-    font-size: 0.95rem; 
-    line-height: 1.4; 
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
-    word-wrap: break-word; 
-}
-
+.chat-bubble { max-width: 85%; padding: 10px 15px; border-radius: 12px; position: relative; font-size: 0.95rem; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-wrap: break-word; }
 .bubble-student { align-self: flex-start; background-color: var(--chat-bg-other); color: var(--chat-text-other); border-bottom-left-radius: 2px; border: 1px solid var(--border-color); }
 .bubble-teacher { align-self: flex-end; background-color: var(--chat-bg-mine); color: var(--chat-text-mine); border-bottom-right-radius: 2px; border: 1px solid rgba(0,0,0,0.05); }
-
 .msg-date-small { font-size: 0.65rem; color: inherit; opacity: 0.6; margin-top: 4px; display: block; text-align: right; }
-
-/* Área de respuesta centrada también */
-.reply-area { 
-    margin-top: 15px; 
-    max-width: 550px; 
-    margin-left: auto; 
-    margin-right: auto; 
-}
+.reply-area { margin-top: 15px; max-width: 550px; margin-left: auto; margin-right: auto; }

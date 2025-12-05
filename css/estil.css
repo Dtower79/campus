@@ -630,3 +630,168 @@ ul { list-style: none; padding: 0; margin: 0; }
 }
 .view-toggle-btn:hover { background-color: #f0f8ff; }
 .view-toggle-btn.active { background-color: var(--brand-blue); color: white; }
+
+/* ==========================================================================
+   MEJORA 1: ÉNFASIS EN EL NOMBRE DEL CURSO (CHAT)
+   ========================================================================== */
+.msg-card {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid transparent; /* Prepara borde para estados */
+    border-radius: 8px;
+    padding: 0; /* Quitamos padding global para manejar cabecera */
+    overflow: hidden;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* Cabecera del mensaje rediseñada */
+.msg-header {
+    background-color: rgba(0, 75, 135, 0.05); /* Azul muy suave */
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* NOMBRE DEL CURSO DESTACADO */
+.msg-course-highlight {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--brand-blue);
+    font-weight: 800; /* Muy negrita */
+    display: block;
+    margin-bottom: 2px;
+}
+
+.msg-meta-info {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+.msg-content {
+    padding: 15px;
+}
+
+/* Ajuste de la fecha */
+.msg-date-badge {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    color: #666;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-family: monospace;
+}
+
+/* ==========================================================================
+   MEJORA 3: MODO NOCHE PROFESIONAL (DARK MODE COHERENTE)
+   ========================================================================== */
+[data-theme="dark"] {
+    /* Paleta Base Oscura (Suave, no negro puro) */
+    --bg-body: #121212;       /* Fondo principal muy oscuro */
+    --bg-card: #1e1e1e;       /* Fondo tarjetas (elevación 1) */
+    --bg-input: #2c2c2c;      /* Fondo inputs */
+    
+    /* Textos */
+    --text-main: #e0e0e0;     /* Blanco roto para leer mejor */
+    --text-secondary: #a0a0a0; /* Gris suave */
+    
+    /* Bordes */
+    --border-color: #333333;
+
+    /* Variables Específicas ajustadas */
+    --quiz-question-bg: #252525;
+    
+    /* Alertas (Colores Pastel Oscuros) */
+    --alert-info-bg: #1a3b5c; /* Azul oscuro */
+    --alert-info-text: #90caf9;
+    
+    --alert-success-bg: #1b3320; /* Verde oscuro */
+    --alert-success-text: #a5d6a7;
+    
+    --alert-warning-bg: #3e2723; /* Marrón/Naranja oscuro */
+    --alert-warning-text: #ffcc80;
+
+    /* Modales */
+    --modal-bg: #1e1e1e;
+    --modal-text: #ffffff;
+    --modal-btn-cancel-bg: #333333;
+    --modal-btn-cancel-text: #cccccc;
+}
+
+/* APLICACIÓN GLOBAL DEL MODO OSCURO A ELEMENTOS ESPECÍFICOS */
+
+[data-theme="dark"] .dashboard-card, 
+[data-theme="dark"] .exam-card, 
+[data-theme="dark"] .sidebar-left, 
+[data-theme="dark"] .sidebar-right,
+[data-theme="dark"] .modal-card,
+[data-theme="dark"] .msg-card,
+[data-theme="dark"] .tools-box {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+/* Inputs y Textareas en Dark Mode */
+[data-theme="dark"] input, 
+[data-theme="dark"] textarea, 
+[data-theme="dark"] select {
+    background-color: var(--bg-input) !important;
+    border: 1px solid #444 !important;
+    color: #fff !important;
+}
+
+/* Cabeceras de Mensajes en Dark Mode */
+[data-theme="dark"] .msg-header {
+    background-color: #252525;
+    border-bottom-color: #333;
+}
+[data-theme="dark"] .msg-course-highlight {
+    color: #64b5f6; /* Azul claro pastel */
+}
+[data-theme="dark"] .msg-date-badge {
+    background-color: #333;
+    border-color: #444;
+    color: #ccc;
+}
+
+/* Burbujas de Chat en Dark Mode */
+[data-theme="dark"] .bubble-student {
+    background-color: #2c2c2c;
+    border-color: #444;
+    color: #eee;
+}
+[data-theme="dark"] .bubble-teacher {
+    background-color: #102a44; /* Azul muy oscuro */
+    border-color: #1565c0;
+    color: #bbdefb; /* Texto azul claro */
+}
+
+/* Botones secundarios en Dark Mode */
+[data-theme="dark"] .btn-secondary,
+[data-theme="dark"] .btn-small {
+    background-color: transparent !important;
+    border-color: #666 !important;
+    color: #ccc !important;
+}
+[data-theme="dark"] .btn-secondary:hover,
+[data-theme="dark"] .btn-small:hover {
+    border-color: #fff !important;
+    color: #fff !important;
+}
+
+/* Listas y Módulos */
+[data-theme="dark"] .sidebar-module-title {
+    background-color: #252525;
+    color: #eee;
+}
+[data-theme="dark"] .sidebar-module-group.open .sidebar-module-title {
+    background-color: #333;
+}
+[data-theme="dark"] .sidebar-subitem:hover {
+    background-color: #333;
+}

@@ -394,7 +394,28 @@ window.abrirPanelNotificaciones = async function() {
 };
 
 window.marcarNotificacionLeida = async function(id, element) {
-    if (!element.classList.contains('unread')) return; 
+    if (!element.classList.contains('unread')) return; // Ya estaba leída
+
+    // 1. Actualización Visual Inmediata (UX)
+    element.classList.remove('unread');
+    const badge = element.querySelector('small');
+    if(badge) badge.remove();
+
+    // 2. Restar 1 a la campana visualmente sin esperar al servidor
+    const bellDot = document.querySelector('.notification-dot');
+    if (bellDot && bellDot.innerText) {
+        let current = parseInt(bellDot.innerText);
+        if (!isNaN(current) && current > 0) {
+            current--;
+            if (current === 0) {
+                bellDot.style.display = 'none';
+            } else {
+                bellDot.innerText = current > 9 ? '+9' : current;
+            }
+        }
+    }
+
+    // 3. Petición al servidor (Background)
     const token = localStorage.getItem('jwt');
     try {
         await fetch(`${API_ROUTES.notifications}/${id}`, {
@@ -402,20 +423,23 @@ window.marcarNotificacionLeida = async function(id, element) {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ data: { llegida: true } })
         });
-        element.classList.remove('unread');
-        const badge = element.querySelector('small');
-        if(badge) badge.remove();
-        checkRealNotifications();
-    } catch (e) { console.error("Error marking read:", e); }
+        // Opcional: Hacer un check real por si acaso
+        // checkRealNotifications(); 
+    } catch (e) { 
+        console.error("Error marking read:", e); 
+        // Si falla, revertimos (opcional, pero para UX simple mejor no molestar)
+    }
 };
+
 
 // ==========================================
 // 5. MENSAJERÍA (MODO HÍBRIDO + FECHAS ARREGLADAS)
 // ==========================================
 
+// MODIFICADO: Función de abrir chat para usar el NUEVO DISEÑO
 async function abrirPanelMensajes(modoForzado) {
-    // Hack para reiniciar modal si venimos de notificaciones
     const modal = document.getElementById('custom-modal');
+    // Reinicio limpio
     modal.style.display = 'none';
     setTimeout(() => { modal.style.display = 'flex'; }, 50);
 
@@ -426,32 +450,17 @@ async function abrirPanelMensajes(modoForzado) {
     
     const user = JSON.parse(localStorage.getItem('user'));
     const esProfe = user.es_professor === true;
-
-    // Determinar qué modo mostrar: 'profesor' (responder) o 'alumno' (mis dudas)
-    // Si se fuerza un modo, se usa ese. Si no, si es profe, ve la bandeja. Si es alumno, ve sus dudas.
     let modoActual = modoForzado ? modoForzado : (esProfe ? 'profesor' : 'alumno');
 
-    // Construcción del título y botón de Switch (si es profe)
+    // Cabecera con Switch
     let headerHtml = "";
     if (esProfe) {
         if (modoActual === 'profesor') {
-            headerHtml = `
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                    <span>👨‍🏫 Safata de Dubtes (Professor)</span>
-                    <button class="view-toggle-btn" onclick="abrirPanelMensajes('alumno')">
-                        <i class="fa-solid fa-user"></i> Veure com Alumne
-                    </button>
-                </div>`;
+            headerHtml = `<div style="display:flex; justify-content:space-between; align-items:center; width:100%;"><span>👨‍🏫 Safata (Profe)</span><button class="btn-small" onclick="abrirPanelMensajes('alumno')">Veure com Alumne</button></div>`;
         } else {
-            headerHtml = `
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                    <span>💬 Els meus Dubtes (Alumne)</span>
-                    <button class="view-toggle-btn" onclick="abrirPanelMensajes('profesor')">
-                        <i class="fa-solid fa-chalkboard-user"></i> Veure com Professor
-                    </button>
-                </div>`;
+            headerHtml = `<div style="display:flex; justify-content:space-between; align-items:center; width:100%;"><span>💬 Els meus Dubtes</span><button class="btn-small" onclick="abrirPanelMensajes('profesor')">Veure com Professor</button></div>`;
         }
-        titleEl.innerHTML = headerHtml; // Usamos innerHTML para meter el botón
+        titleEl.innerHTML = headerHtml;
     } else {
         titleEl.innerText = "💬 Els meus Dubtes";
     }
@@ -464,17 +473,15 @@ async function abrirPanelMensajes(modoForzado) {
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     newConfirm.onclick = () => modal.style.display = 'none';
 
-    msgEl.innerHTML = '<div class="loader"></div><p style="text-align:center">Carregant missatges...</p>';
+    msgEl.innerHTML = '<div class="loader"></div><p style="text-align:center">Carregant...</p>';
 
     try {
         const token = localStorage.getItem('jwt');
         let endpoint = '';
 
         if (modoActual === 'profesor') {
-            // Ver dudas de otros (Pendientes de responder)
             endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user`;
         } else {
-            // Ver mis dudas propias (como alumno)
             endpoint = `${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:asc`;
         }
 
@@ -483,21 +490,15 @@ async function abrirPanelMensajes(modoForzado) {
         const mensajes = json.data || [];
 
         if (mensajes.length === 0) {
-            let emptyMsg = modoActual === 'profesor' 
-                ? 'No hi ha dubtes pendents! 🎉' 
-                : 'No has enviat cap dubte encara.';
-                
-            msgEl.innerHTML = `<div style="text-align:center; padding:30px;">
-                <i class="fa-regular fa-comment-dots" style="font-size:3rem; color:#ccc; margin-bottom:10px;"></i>
-                <p>${emptyMsg}</p>
-            </div>`;
+            msgEl.innerHTML = `<div style="text-align:center; padding:30px; color:#999;"><i class="fa-regular fa-comment-dots" style="font-size:2rem;"></i><p>No hi ha missatges.</p></div>`;
             return;
         }
 
+        // NUEVO HTML DEL CHAT (MEJORA 1)
         let html = '<div class="msg-list-container" id="chat-container">';
         mensajes.forEach(msg => {
             const fecha = new Date(msg.createdAt).toLocaleDateString('ca-ES', { 
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
             });
             const alumnoId = msg.users_permissions_user ? (msg.users_permissions_user.id || msg.users_permissions_user.documentId) : null;
             
@@ -506,41 +507,42 @@ async function abrirPanelMensajes(modoForzado) {
                 return txt.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
             };
 
-            // RENDERIZADO SEGÚN EL MODO ACTIVO
             if (modoActual === 'profesor') {
-                // MODO PROFESOR: Tarjeta de respuesta
+                // VISTA PROFESOR
                 html += `
                     <div class="msg-card" style="border-left: 4px solid var(--brand-red);">
                         <div class="msg-header">
                             <div class="msg-info-group">
-                                <span class="msg-user-name">${msg.alumne_nom || 'Alumne'}</span>
-                                <span class="msg-course-name">${msg.curs}</span>
+                                <span class="msg-course-highlight"><i class="fa-solid fa-book"></i> ${msg.curs}</span>
+                                <div class="msg-meta-info">
+                                    <i class="fa-solid fa-user"></i> <strong>${msg.alumne_nom || 'Alumne'}</strong> | Tema: ${msg.tema}
+                                </div>
                             </div>
                             <span class="msg-date-badge">${fecha}</span>
                         </div>
-                        <div class="chat-meta">Tema: ${msg.tema}</div>
-                        <div class="chat-bubble bubble-student">
-                            ${procesarTexto(msg.missatge)}
-                        </div>
                         
-                        <div class="reply-area">
-                            <textarea id="reply-${msg.documentId || msg.id}" placeholder="Escriu la resposta aquí... (Pots enganxar enllaços)"></textarea>
-                            <button class="btn-small" style="background:var(--brand-blue); color:white; width:100%; justify-content:center;" 
-                                onclick="enviarRespostaProfessor('${msg.documentId || msg.id}', ${alumnoId}, '${encodeURIComponent(msg.tema)}')">
-                                <i class="fa-regular fa-paper-plane"></i> Enviar i Notificar
-                            </button>
+                        <div class="msg-content">
+                            <div class="chat-bubble bubble-student">"${procesarTexto(msg.missatge)}"</div>
+                            
+                            <div class="reply-area">
+                                <textarea id="reply-${msg.documentId || msg.id}" placeholder="Escriu la resposta..."></textarea>
+                                <button class="btn-primary" style="min-height:35px; font-size:0.9rem;" 
+                                    onclick="enviarRespostaProfessor('${msg.documentId || msg.id}', ${alumnoId}, '${encodeURIComponent(msg.tema)}')">
+                                    <i class="fa-regular fa-paper-plane"></i> Enviar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
             } else {
-                // MODO ALUMNO: Burbujas de chat
+                // VISTA ALUMNO
                 const estadoClass = msg.estat === 'pendent' ? 'status-pending' : 'status-replied';
                 const estadoTexto = msg.estat === 'pendent' ? 'Pendent' : 'Respost';
                 
                 let respuestaHtml = '';
                 if (msg.resposta_professor) {
                     respuestaHtml = `
-                        <div class="chat-meta" style="text-align:right; margin-top:10px;">👨‍🏫 Professor:</div>
+                        <div class="chat-meta" style="text-align:right; margin-top:10px; font-weight:bold; color:var(--brand-blue);">👨‍🏫 Professor:</div>
                         <div class="chat-bubble bubble-teacher">${procesarTexto(msg.resposta_professor)}</div>
                     `;
                 }
@@ -549,13 +551,15 @@ async function abrirPanelMensajes(modoForzado) {
                     <div class="msg-card">
                         <div class="msg-header">
                             <div class="msg-info-group">
-                                <span class="msg-course-name">${msg.curs}</span>
-                                <span class="msg-status-badge ${estadoClass}" style="width:fit-content; margin-top:2px;">${estadoTexto}</span>
+                                <span class="msg-course-highlight">${msg.curs}</span>
+                                <span class="msg-status-badge ${estadoClass}" style="font-size:0.65rem;">${estadoTexto}</span>
                             </div>
                             <span class="msg-date-badge">${fecha}</span>
                         </div>
-                        <div class="chat-bubble bubble-student">${procesarTexto(msg.missatge)}</div>
-                        ${respuestaHtml}
+                        <div class="msg-content">
+                            <div class="chat-bubble bubble-student">${procesarTexto(msg.missatge)}</div>
+                            ${respuestaHtml}
+                        </div>
                     </div>
                 `;
             }

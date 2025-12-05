@@ -565,7 +565,22 @@ input, textarea, select {
 .msg-card { background: transparent; border: none; padding: 0; margin-bottom: 25px; border-bottom: 1px dashed var(--border-color); padding-bottom: 25px; }
 .msg-card:last-child { border-bottom: none; margin-bottom: 0; }
 
-.msg-course-badge { display: inline-block; background-color: var(--brand-blue); color: white; font-size: 0.7rem; padding: 4px 12px; border-radius: 12px; margin-bottom: 15px; font-weight: 500; opacity: 0.9; max-width: 100%; }
+/* --- CHAT: Etiqueta del Curso Mejorada --- */
+.msg-course-badge {
+    display: table;               /* Truco para centrar y ajustar al contenido */
+    margin: 0 auto 20px auto;     /* Centrado horizontal y separación inferior */
+    background-color: var(--brand-blue);
+    color: white;
+    font-size: 0.85rem;           /* Un poco más grande para leerse mejor */
+    padding: 6px 16px;
+    border-radius: 20px;          /* Más redondeado */
+    font-weight: 600;
+    opacity: 1;                   /* Quitamos transparencia */
+    max-width: 90%;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15); /* Sombra para dar profundidad */
+    line-height: 1.4;
+}
 .msg-content { display: flex; flex-direction: column; gap: 8px; }
 
 .chat-bubble { max-width: 85%; padding: 10px 15px; border-radius: 12px; position: relative; font-size: 0.95rem; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-wrap: break-word; }
@@ -596,4 +611,44 @@ input, textarea, select {
     /* Manteniendo tus reglas inquebrantables existentes */
     overflow-y: auto;
     overscroll-behavior: contain; 
+}
+
+/* ==========================================================================
+   FIX DARK MODE: CORRECCIONES VISUALES ESPECÍFICAS
+   ========================================================================== */
+
+[data-theme="dark"] {
+    /* 1. Sidebar: Evitar fondo blanco al pasar el ratón por los PDFs */
+    .sidebar-file-item:hover {
+        background-color: #333333 !important; /* Gris oscuro en vez de blanco */
+        color: var(--brand-red) !important;
+        padding-left: 50px; /* Mantenemos la animación de desplazamiento */
+    }
+
+    /* 2. Sidebar: Subitems activos o hover */
+    .sidebar-subitem:hover, 
+    .sidebar-module-title:hover {
+        background-color: #2a2a2a !important;
+    }
+
+    /* 3. Alertas de Información (Cajas azules claras) */
+    /* Usamos !important para sobrescribir el style="" en línea del HTML */
+    .alert-info {
+        background-color: rgba(0, 75, 135, 0.2) !important; /* Azul corporativo transparente */
+        border-color: var(--brand-blue) !important;
+        color: #90caf9 !important; /* Texto azul claro legible */
+    }
+    
+    /* 4. Notas y textareas amarillas */
+    .notepad-area {
+        background-color: #2c2c2c !important;
+        color: #e0e0e0 !important;
+        border-color: #444 !important;
+    }
+
+    /* 5. Fondo de las tarjetas de pregunta en revisión */
+    .question-card.review-mode {
+        background-color: #1e1e1e !important;
+        border-color: #333 !important;
+    }
 }

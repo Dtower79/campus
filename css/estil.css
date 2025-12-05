@@ -652,3 +652,47 @@ input, textarea, select {
         border-color: #333 !important;
     }
 }
+
+/* ==========================================================================
+   MEJORA UI: SCROLLBARS MODERNAS (Añadir al final)
+   ========================================================================== */
+
+/* Soporte para Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--brand-blue) transparent;
+}
+
+/* Soporte para Chrome/Edge/Safari */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 4px;
+    border: 2px solid transparent; /* Crea margen alrededor */
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--brand-blue);
+}
+
+/* Ajuste específico para Dark Mode */
+[data-theme="dark"] * {
+    scrollbar-color: #555 #2c2c2c;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background-color: #555;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--brand-blue);
+}

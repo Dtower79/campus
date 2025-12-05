@@ -1,5 +1,9 @@
 /* ==========================================================================
-   SICAP CAMPUS - ESTILOS (BASE ORIGINAL CORREGIDA)
+   SICAP CAMPUS - ESTILOS MAESTROS (v8.0 - Final)
+   ========================================================================== */
+
+/* ==========================================================================
+   1. VARIABLES Y TEMA
    ========================================================================== */
 :root {
     /* --- COLORES CORPORATIVOS --- */
@@ -27,17 +31,17 @@
     --wrong-bg: #f8d7da; --wrong-border: #f5c6cb; --wrong-text: #721c24;
     --selected-bg: #e3f2fd; --selected-border: #2196f3; --selected-text: #0d47a1;
     
-    /* Modales */
-    --modal-bg: #ffffff;
-    --modal-text: #333333;
-    --modal-btn-cancel-bg: #f1f3f5;
-    --modal-btn-cancel-text: #495057;
-
     /* Chat Variables */
     --chat-bg-mine: #dcf8c6;      
     --chat-text-mine: #075e54;
     --chat-bg-other: #ffffff;     
     --chat-text-other: #333333;
+
+    /* Modales */
+    --modal-bg: #ffffff;
+    --modal-text: #333333;
+    --modal-btn-cancel-bg: #f1f3f5;
+    --modal-btn-cancel-text: #495057;
 }
 
 [data-theme="dark"] {
@@ -53,7 +57,7 @@
     --quiz-feedback-bg: #4a3b20;
     --quiz-feedback-text: #ffd700;
     
-    /* Ajuste colores revisión para Dark Mode */
+    /* Ajustes Dark Mode */
     --correct-bg: #1b4d3e; --correct-border: #2e7d32; --correct-text: #d4edda;
     --wrong-bg: #5c1e23; --wrong-border: #7a282e; --wrong-text: #f8d7da;
     --selected-bg: #1565c0; --selected-border: #42a5f5; --selected-text: #ffffff;
@@ -62,7 +66,7 @@
     --modal-text: #ffffff;
     --modal-btn-cancel-bg: #333333;
     --modal-btn-cancel-text: #e0e0e0;
-
+    
     /* Chat Dark */
     --chat-bg-mine: #005c4b;      
     --chat-text-mine: #e0f2f1;
@@ -75,17 +79,15 @@
    ========================================================================== */
 * { box-sizing: border-box; }
 body { font-family: 'Roboto', sans-serif; background-color: var(--bg-body); color: var(--text-main); line-height: 1.6; margin: 0; min-height: 100vh; display: flex; flex-direction: column; }
-h1, h2, h3, h4 { color: var(--primary-color); margin-top: 0; }
+h1, h2, h3 { color: var(--primary-color); margin-top: 0; }
 a { text-decoration: none; color: inherit; cursor: pointer; }
 ul { list-style: none; padding: 0; margin: 0; }
 
-/* FIX INPUTS DARK MODE */
 input, textarea, select {
-    background-color: var(--bg-input); /* Quitamos !important para permitir overrides */
-    border: 1px solid var(--border-color);
-    color: var(--text-main);
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-main) !important;
 }
-
 
 .module-content-text ul, 
 .module-content-text ol { margin-left: 20px !important; margin-bottom: 15px; padding-left: 20px; }
@@ -99,7 +101,6 @@ input, textarea, select {
 @keyframes spin { 100% { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
 @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
 
 .animate-ping { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
@@ -160,10 +161,8 @@ input, textarea, select {
 .icon-wrapper { position: relative; cursor: pointer; color: var(--text-secondary); font-size: 1.2rem; padding: 8px; }
 .icon-wrapper:hover { color: var(--brand-blue); }
 
-/* FIX HAMBURGUESA: Oculta por defecto */
 .mobile-menu-btn { display: none; z-index: 1002; background: none; border: none; font-size: 1.4rem; color: var(--text-main); cursor: pointer; margin-right: 10px; }
 
-/* FIX NOTIFICACIONES */
 .notification-dot { display: none; position: absolute; top: 0px; right: 0px; min-width: 16px; height: 16px; background-color: var(--brand-red); color: white; border-radius: 50%; font-size: 10px; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #fff; }
 
 .header-divider { width: 1px; height: 30px; background-color: var(--border-color); margin: 0 5px; }
@@ -373,120 +372,12 @@ input, textarea, select {
 .breadcrumbs a:hover { text-decoration: underline; }
 .breadcrumb-separator { margin: 0 5px; color: #ccc; }
 .breadcrumb-current { font-weight: bold; color: var(--text-main); }
-.tools-box { 
-    background: var(--bg-body); 
-    border: 1px solid var(--border-color); 
-    border-radius: 8px; 
-    padding: 15px; 
-    margin-bottom: 20px; 
-}
-.notepad-area { 
-    width: 100%; 
-    height: 150px; 
-    background-color: #fff9db !important; /* Vainilla en modo claro */
-    border: 1px solid #e0e0e0; 
-    border-radius: 4px; 
-    padding: 10px; 
-    font-family: monospace; 
-    font-size: 0.9rem; 
-    resize: vertical; 
-    color: #333 !important; /* Texto oscuro siempre en la nota clara */
-    transition: all 0.2s;
-}
-
-/* AJUSTES DARK MODE ESPECÍFICOS PARA LA SIDEBAR */
-[data-theme="dark"] .sidebar-left, 
-[data-theme="dark"] .sidebar-right { 
-    background-color: #1e1e1e; 
-    border-color: #333; 
-}
-
-[data-theme="dark"] .tools-box {
-    background-color: #252525; /* Fondo un poco más claro que la sidebar */
-    border-color: #444;
-}
-
-/* NOTAS EN DARK MODE (Vainilla Oscuro / Beige apagado) */
-[data-theme="dark"] .notepad-area { 
-    background-color: #3e3b30 !important; /* Color "Vainilla oscuro" */
-    color: #f0e6d2 !important; /* Texto crema */
-    border-color: #555; 
-}
-
-/* Botón enviar duda en Dark Mode */
-[data-theme="dark"] .btn-doubt { 
-    background-color: transparent; 
-    border-color: #64b5f6; 
-    color: #64b5f6; 
-}
-[data-theme="dark"] .btn-doubt:hover { 
-    background-color: rgba(100, 181, 246, 0.1); 
-}
 
 /* ==========================================================================
    11. MODAL (ICONO ARREGLADO)
    ========================================================================== */
-.modal-overlay { 
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); 
-    z-index: 20000; 
-    display: flex; 
-    justify-content: center; 
-    align-items: center; /* Centrado vertical */
-    animation: fadeIn 0.2s ease-out; 
-}
-.modal-card { 
-    background: var(--modal-bg); 
-    color: var(--modal-text); 
-    padding: 30px 25px; 
-    border-radius: 12px; 
-    width: 90%; 
-    max-width: 800px; /* Un poco más ancho para textos legales */
-    
-    /* FIX SCROLL: Limitar altura y permitir flexbox interno */
-    max-height: 90vh; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 15px; 
-    
-    box-shadow: 0 20px 50px rgba(0,0,0,0.3); 
-    border: 1px solid var(--border-color); 
-}
-
-/* CONTENIDO LEGAL CON SCROLL INTERNO */
-.legal-text-content { 
-    overflow-y: auto;      /* El scroll ocurre AQUÍ dentro */
-    padding-right: 10px;   /* Espacio para la barra de scroll */
-    text-align: justify; 
-    font-size: 0.9rem; 
-    line-height: 1.6;
-    border-top: 1px solid var(--border-color);
-    border-bottom: 1px solid var(--border-color);
-    padding-top: 15px;
-    padding-bottom: 15px;
-}
-
-.legal-text-content h4 { color: var(--brand-blue); margin-top: 20px; margin-bottom: 10px; }
-.legal-text-content p { margin-bottom: 15px; }
-
-/* Resto de estilos del modal */
-.modal-icon { font-size: 3.5rem; color: var(--brand-blue); margin-bottom: 5px; display: block; width: 100%; text-align: center; }
-#modal-title { font-size: 1.4rem; margin: 0; font-weight: bold; color: var(--primary-color); }
-#modal-msg { font-size: 1rem; color: var(--modal-text); opacity: 0.9; margin-bottom: 10px; line-height: 1.5; }
-
-.modal-actions { display: flex; gap: 15px; justify-content: center; margin-top: 5px; }
-.modal-actions button { flex: 1; padding: 12px 0; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; min-height: 48px; }
-
-#modal-btn-cancel { background-color: var(--modal-btn-cancel-bg); color: var(--modal-btn-cancel-text); border: 1px solid transparent; }
-#modal-btn-cancel:hover { filter: brightness(0.95); }
-#modal-btn-confirm { background-color: var(--brand-blue); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-#modal-btn-confirm:hover { filter: brightness(1.1); transform: translateY(-1px); }
-
-/* TABLA COOKIES (Para que no rompa el ancho) */
-.cookie-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.8rem; }
-.cookie-table th, .cookie-table td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
-.cookie-table th { background-color: var(--brand-blue); color: white; }
-.cookie-table tr:nth-child(even) { background-color: rgba(0,0,0,0.05); }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 20000; display: flex; justify-content: center; align-items: center; animation: fadeIn 0.2s ease-out; }
+.modal-card { background: var(--modal-bg); color: var(--modal-text); padding: 30px 25px; border-radius: 12px; width: 90%; max-width: 420px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px; }
 
 /* FIX ICONO MODAL */
 .modal-icon { font-size: 3.5rem; color: var(--brand-blue); margin-bottom: 5px; display: block; width: 100%; text-align: center; }
@@ -585,7 +476,7 @@ input, textarea, select {
 .notif-title { font-weight: bold; color: var(--brand-blue); margin-bottom: 5px; display: block; }
 .notif-body { font-size: 0.9rem; color: var(--text-main); }
 
-/* CONTENEDOR DEL CHAT: Lo hacemos más estrecho y centrado */
+/* CONTENEDOR DEL CHAT: Estrecho y centrado */
 .msg-list-container {
     background-color: var(--bg-body);
     padding: 20px;

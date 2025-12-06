@@ -1,3 +1,7 @@
+/* ==========================================================================
+   AUTH.JS - Gestión de Usuarios y Login
+   ========================================================================== */
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- DETECCIÓN DE DEEP LINKING (NUEVO) ---
     const urlParams = new URLSearchParams(window.location.search);
@@ -31,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
         msgEl.innerHTML = mensaje; 
         btnCancel.style.display = 'none'; 
         btnConfirm.innerText = "Entesos"; btnConfirm.style.background = esError ? "var(--brand-red)" : "var(--brand-blue)"; 
+        btnConfirm.disabled = false;
         
         const newConfirm = btnConfirm.cloneNode(true);
         btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
@@ -72,17 +77,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Registro simplificado (Asumiendo que mantienes la lógica de registro existente, si no, avísame para pegarla entera también)
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const dni = document.getElementById('reg-dni').value.trim().toUpperCase();
             const pass = document.getElementById('reg-pass').value;
             const passConf = document.getElementById('reg-pass-conf').value;
+            const btnSubmit = registerForm.querySelector('button[type="submit"]');
+
             if(pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
             
-            // ... lógica de registro igual a versiones previas ...
-            // (La he abreviado aquí porque no ha cambiado, pero si la necesitas entera pídela)
+            btnSubmit.innerText = "Verificant..."; btnSubmit.disabled = true;
+
+            try {
+                // Verificar si es afiliado
+                const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dni}`);
+                const jsonAfi = await resAfi.json();
+                
+                if(!jsonAfi.data || jsonAfi.data.length === 0) {
+                     lanzarModal("DNI no autoritzat", "No constes com a afiliat actiu.");
+                     btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
+                     return;
+                }
+
+                // Crear usuario
+                const regRes = await fetch(API_ROUTES.register, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: dni, email: `${dni}@sicap.cat`, password: pass })
+                });
+                
+                if(regRes.ok) {
+                    alert("Compte creat! Ara inicia sessió.");
+                    window.location.reload();
+                } else {
+                    const errData = await regRes.json();
+                    lanzarModal("Error", errData.error?.message || "Error al crear compte.");
+                    btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
+                }
+
+            } catch(e) { 
+                lanzarModal("Error", "Error de connexió."); 
+                btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
+            }
         });
     }
 });

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DASHBOARD.JS (v34.0 - FIX PROFESSOR MODE & CHAT)
+   DASHBOARD.JS (v36.0 - FINAL STABLE RELEASE)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -57,20 +57,24 @@ window.iniciarApp = function() {
 };
 
 window.showView = function(viewName) {
+    // Ocultar todo
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
+    // Mapeo
     const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';
 
+    // Actualizar menú activo
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     if(viewName === 'home') document.getElementById('nav-catalog')?.classList.add('active');
     if(viewName === 'dashboard') document.getElementById('nav-dashboard')?.classList.add('active');
     if(viewName === 'profile') document.getElementById('nav-profile')?.classList.add('active');
 
+    // Cargas de datos
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
@@ -78,9 +82,11 @@ window.showView = function(viewName) {
 };
 
 function setupDirectClicks() {
+    // Botones Header
     document.getElementById('btn-notifs').onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     document.getElementById('btn-messages').onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
 
+    // Navegación
     const navCatalog = document.getElementById('nav-catalog');
     if(navCatalog) navCatalog.onclick = (e) => { e.preventDefault(); window.showView('home'); };
     
@@ -90,6 +96,7 @@ function setupDirectClicks() {
     const navDashboard = document.getElementById('nav-dashboard');
     if(navDashboard) navDashboard.onclick = (e) => { e.preventDefault(); window.showView('dashboard'); };
 
+    // Dropdown User
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
     if (btnUser && userDropdown) {
@@ -104,6 +111,7 @@ function setupDirectClicks() {
         });
     }
 
+    // Links del Dropdown
     document.querySelectorAll('[data-action]').forEach(btn => {
         btn.onclick = (e) => { e.preventDefault(); window.showView(btn.getAttribute('data-action')); };
     });
@@ -111,6 +119,7 @@ function setupDirectClicks() {
     const btnLogout = document.getElementById('btn-logout-dropdown');
     if(btnLogout) btnLogout.onclick = (e) => { e.preventDefault(); localStorage.clear(); window.location.href = 'index.html'; };
     
+    // Menú móvil
     const btnMob = document.getElementById('mobile-menu-btn');
     const navMob = document.getElementById('main-nav');
     if(btnMob) btnMob.onclick = (e) => { e.stopPropagation(); navMob.classList.toggle('show-mobile'); };
@@ -174,7 +183,7 @@ window.abrirPanelNotificaciones = async function() {
         let html = '<div class="notif-list">';
         let hasContent = false;
 
-        // 1. Mensajes Profesor (Si aplica)
+        // 1. Mensajes Profesor
         if(user.es_professor === true) {
              const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, { headers: { 'Authorization': `Bearer ${token}` } });
              const jsonMsg = await resMsg.json();
@@ -258,7 +267,6 @@ window.abrirPanelMensajes = async function(modoForzado) {
 
     try {
         let endpoint = '';
-        // Si es profesor, ve los mensajes PENDIENTES de todos. Si es alumno, ve LOS SUYOS.
         if (modoActual === 'profesor') {
             endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user`;
         } else {
@@ -284,7 +292,6 @@ window.abrirPanelMensajes = async function(modoForzado) {
                 const dateProfe = new Date(m.updatedAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
                 const headerBadge = `<strong>${m.curs}</strong> | ${m.tema}`;
                 
-                // MODO PROFESOR (Ves alumnos a la izquierda, tú a la derecha)
                 if (modoActual === 'profesor') {
                     const alumnoNombre = m.alumne_nom || 'Alumne';
                     const alumnoId = m.users_permissions_user?.id || m.users_permissions_user?.documentId;
@@ -307,9 +314,7 @@ window.abrirPanelMensajes = async function(modoForzado) {
                                 </div>
                             </div>
                         </div>`;
-                } 
-                // MODO ALUMNO (Ves tus mensajes a la derecha, profe a la izquierda)
-                else {
+                } else {
                     html += `
                         <div class="msg-card">
                             <div class="msg-course-badge">${headerBadge}</div>
@@ -334,7 +339,6 @@ window.abrirPanelMensajes = async function(modoForzado) {
             html += '</div>';
             msgEl.innerHTML = html;
             
-            // Scroll al final
             requestAnimationFrame(() => {
                 const c = document.getElementById('chat-container');
                 if(c) { c.scrollTop = c.scrollHeight; setTimeout(() => c.scrollTop = c.scrollHeight, 150); }
@@ -353,14 +357,12 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     btn.innerText = "Enviant..."; btn.disabled = true;
 
     try {
-        // 1. Actualizar mensaje
         await fetch(`${API_ROUTES.messages}/${msgId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ data: { resposta_professor: respuesta, estat: 'respost' } })
         });
 
-        // 2. Notificar alumno (si tiene ID valido)
         if(studentId && studentId !== 'undefined') {
             const tema = decodeURIComponent(encodedTema);
             await fetch(API_ROUTES.notifications, {
@@ -376,8 +378,6 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
                 })
             });
         }
-
-        // Recargar panel
         abrirPanelMensajes('profesor');
         
     } catch(e) {
@@ -647,7 +647,38 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                     </div>
                 </div>
             </div>
-        </div>`;
+        </div>
+        
+        <!-- PÁGINA 2 -->
+        <div class="diploma-page">
+            <div class="diploma-border-outer">
+                <div class="diploma-border-inner" style="align-items:flex-start; text-align:left; padding:40px;">
+                    <div class="page-back-content">
+                        <div class="expedient-header" style="display:flex; justify-content:space-between; width:100%; border-bottom:2px solid var(--brand-blue); margin-bottom:20px; padding-bottom:10px;">
+                            <h3 style="margin:0; color:var(--brand-blue);">Expedient Formatiu</h3>
+                            <img src="img/logo-sicap.png" style="height:30px; opacity:0.6;">
+                        </div>
+                        
+                        <div class="info-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:30px;">
+                            <div><span style="display:block; font-size:0.8rem; color:#666;">Alumne</span><strong>${nombreAlumno}</strong></div>
+                            <div><span style="display:block; font-size:0.8rem; color:#666;">DNI</span><strong>${user.username}</strong></div>
+                            <div><span style="display:block; font-size:0.8rem; color:#666;">Curs</span><strong>${nombreCurso}</strong></div>
+                            <div><span style="display:block; font-size:0.8rem; color:#666;">Hores</span><strong>${horas}h</strong></div>
+                        </div>
+
+                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:15px;">CONTINGUTS DEL CURS</h4>
+                        <div class="modules-list" style="font-size:0.9rem; line-height:1.6;">
+                            ${temarioHtml}
+                        </div>
+                        
+                        <div class="back-footer" style="position:absolute; bottom:20px; width:100%; text-align:center; font-size:0.8rem; color:#666; border-top:1px solid #eee; padding-top:10px;">
+                            SICAP - Sindicat Català de Presons - Unitat de Formació
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 
     setTimeout(() => window.print(), 500);
 };
@@ -658,9 +689,14 @@ window.mostrarModalError = function(msg) {
     document.getElementById('modal-title').style.color = "var(--brand-blue)";
     document.getElementById('modal-msg').innerHTML = msg;
     document.getElementById('modal-btn-cancel').style.display = 'none';
+    
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "D'acord";
-    const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
+    btn.disabled = false; // FIX IMPORTANTE: Asegurar que el botón "OK" esté activo
+    
+    const newBtn = btn.cloneNode(true); 
+    btn.parentNode.replaceChild(newBtn, btn);
+    
     newBtn.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
 };

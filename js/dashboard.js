@@ -1,18 +1,17 @@
 /* ==========================================================================
-   DASHBOARD.JS (v9.0 - VERSIÓN FINAL DEFINITIVA SIN RECORTES)
+   DASHBOARD.JS (v20.0 - FIXED NAVIGATION & CHAT)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. CHEQUEO DE SESIÓN
     const token = localStorage.getItem('jwt');
     if (token) {
-        const overlay = document.getElementById('login-overlay');
-        const app = document.getElementById('app-container');
-        if (overlay) overlay.style.display = 'none';
-        if (app) app.style.display = 'block';
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('app-container').style.display = 'block';
         if (!window.appIniciada) window.iniciarApp();
     }
-    
-    // Botón flotante scroll
+
+    // 2. SCROLL BTN
     const scrollBtn = document.getElementById('scroll-top-btn');
     if(scrollBtn) {
         window.onscroll = () => { scrollBtn.style.display = (document.documentElement.scrollTop > 300) ? "flex" : "none"; };
@@ -34,9 +33,17 @@ window.iniciarApp = function() {
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
         let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
+        if(user.apellidos) initials += user.apellidos.charAt(0);
         document.getElementById('user-initials').innerText = initials.toUpperCase();
-        document.getElementById('dropdown-username').innerText = user.nombre || user.username;
+        document.getElementById('dropdown-username').innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
         document.getElementById('dropdown-email').innerText = user.email;
+        // También en perfil
+        const avatarBig = document.getElementById('profile-avatar-big');
+        if(avatarBig) avatarBig.innerText = initials.toUpperCase();
+        const nameDisplay = document.getElementById('profile-name-display');
+        if(nameDisplay) nameDisplay.innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
+        const dniDisplay = document.getElementById('profile-dni-display');
+        if(dniDisplay) dniDisplay.innerText = user.username;
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -49,11 +56,13 @@ window.iniciarApp = function() {
 };
 
 window.showView = function(viewName) {
+    // Ocultar todo
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
+    // Mapeo
     const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';
@@ -64,6 +73,7 @@ window.showView = function(viewName) {
     if(viewName === 'dashboard') document.getElementById('nav-dashboard')?.classList.add('active');
     if(viewName === 'profile') document.getElementById('nav-profile')?.classList.add('active');
 
+    // Cargas perezosas
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
@@ -71,21 +81,36 @@ window.showView = function(viewName) {
 };
 
 function setupDirectClicks() {
-    const btnBell = document.getElementById('btn-notifs');
-    const btnMsg = document.getElementById('btn-messages');
-    if (btnBell) btnBell.onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
-    if (btnMsg) btnMsg.onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
+    // Botones Header
+    document.getElementById('btn-notifs').onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
+    document.getElementById('btn-messages').onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
 
+    // Botones Navegación (CORREGIDO)
+    const navCatalog = document.getElementById('nav-catalog');
+    if(navCatalog) navCatalog.onclick = (e) => { e.preventDefault(); window.showView('home'); };
+    
+    const navProfile = document.getElementById('nav-profile');
+    if(navProfile) navProfile.onclick = (e) => { e.preventDefault(); window.showView('profile'); };
+    
+    const navDashboard = document.getElementById('nav-dashboard');
+    if(navDashboard) navDashboard.onclick = (e) => { e.preventDefault(); window.showView('dashboard'); };
+
+    // Dropdown User
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
     if (btnUser && userDropdown) {
         btnUser.onclick = (e) => {
             e.stopPropagation();
             userDropdown.style.display = (userDropdown.style.display === 'flex') ? 'none' : 'flex';
+            userDropdown.classList.toggle('show');
         };
-        document.body.addEventListener('click', () => userDropdown.style.display = 'none');
+        document.body.addEventListener('click', () => { 
+            userDropdown.style.display = 'none';
+            userDropdown.classList.remove('show');
+        });
     }
 
+    // Links del Dropdown (Data Attributes)
     document.querySelectorAll('[data-action]').forEach(btn => {
         btn.onclick = (e) => { e.preventDefault(); window.showView(btn.getAttribute('data-action')); };
     });
@@ -182,7 +207,7 @@ window.marcarLeida = async function(id, el) {
     } catch(e) { console.error(e); }
 };
 
-// --- MENSAJERÍA (CHAT) ---
+// --- MENSAJERÍA (CHAT CON HORA) ---
 window.abrirPanelMensajes = async function() {
     const modal = document.getElementById('custom-modal');
     const title = document.getElementById('modal-title');
@@ -245,7 +270,6 @@ window.abrirPanelMensajes = async function() {
             html += '</div>';
             msg.innerHTML = html;
             
-            // Scroll al final
             requestAnimationFrame(() => {
                 const c = document.getElementById('chat-container');
                 if(c) { c.scrollTop = c.scrollHeight; setTimeout(() => c.scrollTop = c.scrollHeight, 150); }
@@ -289,7 +313,6 @@ async function renderCoursesLogic(viewMode) {
             });
         }
 
-        // Ordenar por fecha
         cursosAMostrar.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 
         list.innerHTML = '';
@@ -360,8 +383,13 @@ function generarHtmlDescripcion(text, id) {
     if(!text) return '';
     if(typeof text !== 'string') text = "Descripció disponible al curs.";
     
+    // Convertir Rich Text a plano si es necesario, o usarlo tal cual
+    if(text.includes('type')) {
+        // Simple parser fallback si llega objeto
+        try { return `<div class="course-desc-container"><p class="course-desc short">Veure detalls al curs.</p></div>`; } catch(e){}
+    }
+    
     const plain = text.substring(0, 100) + '...';
-    // Aquí podrías implementar la lógica de expandir si quieres, simplificado:
     return `<div class="course-desc-container"><p class="course-desc short">${plain}</p></div>`;
 }
 
@@ -384,13 +412,10 @@ window.solicitarMatricula = function(id, title) {
 async function loadFullProfile() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
-    
-    // Rellenar campos estáticos del user
     const emailInput = document.getElementById('prof-email');
     if(emailInput) emailInput.value = user.email;
 
     try {
-        // Datos Afiliado
         const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': `Bearer ${token}` }});
         const jsonAfi = await resAfi.json();
         if(jsonAfi.data && jsonAfi.data.length > 0) {
@@ -400,7 +425,6 @@ async function loadFullProfile() {
                 const el = document.getElementById(id);
                 if(el) {
                     el.value = afi[key] || '-';
-                    // Activar copiado
                     el.style.cursor = "copy";
                     el.title = "Copiar";
                     el.onclick = () => { if(el.value !== '-') navigator.clipboard.writeText(el.value); };
@@ -408,7 +432,6 @@ async function loadFullProfile() {
             }
         }
         
-        // Estadísticas
         const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`, { headers: { 'Authorization': `Bearer ${token}` }});
         const jsonMat = await resMat.json();
         let started = 0, finished = 0, hours = 0;
@@ -471,7 +494,7 @@ window.callPrintDiploma = function(idx) {
     if(data) window.imprimirDiplomaCompleto(data.matricula, data.curso);
 };
 
-// --- GENERACIÓN DE DIPLOMA (IMPRESIÓN) ---
+// --- GENERACIÓN DE DIPLOMA ---
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
     const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
@@ -482,11 +505,9 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     
     const fechaHoy = new Date().toLocaleDateString('ca-ES', { year:'numeric', month:'long', day:'numeric' });
     
-    // QR
     const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentDomain + '/verify.html?ref=' + matId)}`;
 
-    // Contenido Temario
     let temarioHtml = '';
     if(cursoData.moduls) {
         temarioHtml = '<ul>' + cursoData.moduls.map((m,i) => `<li><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`).join('') + '</ul>';
@@ -500,7 +521,6 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     }
 
     printDiv.innerHTML = `
-        <!-- PÁGINA 1: DIPLOMA -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner">
@@ -526,24 +546,6 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                     </div>
                 </div>
             </div>
-        </div>
-        <!-- PÁGINA 2: EXPEDIENTE -->
-        <div class="diploma-page">
-            <div class="diploma-border-outer">
-                <div class="diploma-border-inner" style="align-items:flex-start; text-align:left; padding:40px;">
-                    <div class="page-back-content">
-                        <div class="expedient-header"><h3 class="expedient-title">Expedient Formatiu</h3><img src="img/logo-sicap.png" style="height:30px;"></div>
-                        <div class="info-grid">
-                            <div class="info-item"><span>Alumne</span><strong>${nombreAlumno}</strong></div>
-                            <div class="info-item"><span>DNI</span><strong>${user.username}</strong></div>
-                            <div class="info-item"><span>Curs</span><strong>${nombreCurso}</strong></div>
-                            <div class="info-item"><span>Hores</span><strong>${horas}h</strong></div>
-                        </div>
-                        <h4 style="color:var(--brand-blue); border-bottom:2px solid var(--brand-blue); padding-bottom:5px;">CONTINGUTS</h4>
-                        <div class="modules-list">${temarioHtml}</div>
-                    </div>
-                </div>
-            </div>
         </div>`;
 
     setTimeout(() => window.print(), 500);
@@ -558,7 +560,11 @@ window.mostrarModalError = function(msg) {
     document.getElementById('modal-btn-cancel').style.display = 'none';
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "D'acord";
-    const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
+    
+    // Clonar para limpiar eventos
+    const newBtn = btn.cloneNode(true); 
+    btn.parentNode.replaceChild(newBtn, btn);
+    
     newBtn.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
 };
@@ -568,11 +574,16 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     document.getElementById('modal-title').innerText = titulo;
     document.getElementById('modal-msg').innerHTML = msg;
     document.getElementById('modal-btn-cancel').style.display = 'block';
+    
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "Confirmar";
-    const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
+    
+    const newBtn = btn.cloneNode(true); 
+    btn.parentNode.replaceChild(newBtn, btn);
+    
     const btnC = document.getElementById('modal-btn-cancel');
-    const newBtnC = btnC.cloneNode(true); btnC.parentNode.replaceChild(newBtnC, btnC);
+    const newBtnC = btnC.cloneNode(true); 
+    btnC.parentNode.replaceChild(newBtnC, btnC);
     
     newBtn.onclick = () => { m.style.display = 'none'; callback(); };
     newBtnC.onclick = () => m.style.display = 'none';

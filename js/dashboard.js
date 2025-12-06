@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DASHBOARD.JS (v26.0 - FINAL MOBILE OPTIMIZED)
+   DASHBOARD.JS (v34.0 - FIX PROFESSOR MODE & CHAT)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,6 +38,7 @@ window.iniciarApp = function() {
         document.getElementById('dropdown-username').innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
         document.getElementById('dropdown-email').innerText = user.email;
         
+        // Datos Perfil
         const avatarBig = document.getElementById('profile-avatar-big');
         if(avatarBig) avatarBig.innerText = initials.toUpperCase();
         const nameDisplay = document.getElementById('profile-name-display');
@@ -56,24 +57,20 @@ window.iniciarApp = function() {
 };
 
 window.showView = function(viewName) {
-    // Ocultar todo
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
-    // Mapeo
     const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';
 
-    // Actualizar menú activo
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     if(viewName === 'home') document.getElementById('nav-catalog')?.classList.add('active');
     if(viewName === 'dashboard') document.getElementById('nav-dashboard')?.classList.add('active');
     if(viewName === 'profile') document.getElementById('nav-profile')?.classList.add('active');
 
-    // Cargas de datos
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
@@ -81,11 +78,9 @@ window.showView = function(viewName) {
 };
 
 function setupDirectClicks() {
-    // Botones Header
     document.getElementById('btn-notifs').onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     document.getElementById('btn-messages').onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
 
-    // Navegación
     const navCatalog = document.getElementById('nav-catalog');
     if(navCatalog) navCatalog.onclick = (e) => { e.preventDefault(); window.showView('home'); };
     
@@ -95,7 +90,6 @@ function setupDirectClicks() {
     const navDashboard = document.getElementById('nav-dashboard');
     if(navDashboard) navDashboard.onclick = (e) => { e.preventDefault(); window.showView('dashboard'); };
 
-    // Dropdown User
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
     if (btnUser && userDropdown) {
@@ -110,7 +104,6 @@ function setupDirectClicks() {
         });
     }
 
-    // Links del Dropdown
     document.querySelectorAll('[data-action]').forEach(btn => {
         btn.onclick = (e) => { e.preventDefault(); window.showView(btn.getAttribute('data-action')); };
     });
@@ -118,7 +111,6 @@ function setupDirectClicks() {
     const btnLogout = document.getElementById('btn-logout-dropdown');
     if(btnLogout) btnLogout.onclick = (e) => { e.preventDefault(); localStorage.clear(); window.location.href = 'index.html'; };
     
-    // Menú móvil
     const btnMob = document.getElementById('mobile-menu-btn');
     const navMob = document.getElementById('main-nav');
     if(btnMob) btnMob.onclick = (e) => { e.stopPropagation(); navMob.classList.toggle('show-mobile'); };
@@ -132,16 +124,29 @@ async function checkRealNotifications() {
     if(!user || !token) return;
 
     try {
+        let total = 0;
         const ts = new Date().getTime();
+        
+        // Notificaciones normales
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&_t=${ts}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
-        const count = json.data ? json.data.length : 0;
+        total += json.data ? json.data.length : 0;
+
+        // Si es profesor, sumar mensajes pendientes
+        if(user.es_professor === true) {
+            const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent&_t=${ts}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const jsonMsg = await resMsg.json();
+            total += jsonMsg.data ? jsonMsg.data.length : 0;
+        }
+
         if(bellDot) {
-            bellDot.style.display = count > 0 ? 'flex' : 'none';
-            bellDot.innerText = count > 9 ? '+9' : count;
-            if(count > 0) bellDot.classList.add('animate-ping');
+            bellDot.style.display = total > 0 ? 'flex' : 'none';
+            bellDot.innerText = total > 9 ? '+9' : total;
+            if(total > 0) bellDot.classList.add('animate-ping');
             else bellDot.classList.remove('animate-ping');
         }
     } catch(e) { console.warn(e); }
@@ -149,18 +154,14 @@ async function checkRealNotifications() {
 
 window.abrirPanelNotificaciones = async function() {
     const modal = document.getElementById('custom-modal');
-    const title = document.getElementById('modal-title');
     const msg = document.getElementById('modal-msg');
     const btnC = document.getElementById('modal-btn-confirm');
-    const btnCancel = document.getElementById('modal-btn-cancel');
-
-    title.innerText = "Notificacions";
-    title.style.color = "var(--brand-blue)";
-    btnCancel.style.display = 'none';
+    document.getElementById('modal-title').innerText = "Notificacions";
+    document.getElementById('modal-title').style.color = "var(--brand-blue)";
+    document.getElementById('modal-btn-cancel').style.display = 'none';
     btnC.innerText = "Tancar";
     
-    const newBtn = btnC.cloneNode(true); 
-    btnC.parentNode.replaceChild(newBtn, btnC);
+    const newBtn = btnC.cloneNode(true); btnC.parentNode.replaceChild(newBtn, btnC);
     newBtn.onclick = () => modal.style.display = 'none';
     
     msg.innerHTML = '<div class="loader"></div>';
@@ -170,26 +171,40 @@ window.abrirPanelNotificaciones = async function() {
     const token = localStorage.getItem('jwt');
 
     try {
-        const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        let html = '<div class="notif-list">';
+        let hasContent = false;
+
+        // 1. Mensajes Profesor (Si aplica)
+        if(user.es_professor === true) {
+             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, { headers: { 'Authorization': `Bearer ${token}` } });
+             const jsonMsg = await resMsg.json();
+             if(jsonMsg.data && jsonMsg.data.length > 0) {
+                 hasContent = true;
+                 html += `<div class="notif-item unread" onclick="document.querySelector('.notification-dot').style.display='none'; abrirPanelMensajes('profesor'); document.getElementById('custom-modal').style.display='none';">
+                            <strong style="color:var(--brand-red)">👨‍🏫 Safata Professor</strong>
+                            <p>Tens ${jsonMsg.data.length} dubtes d'alumnes per respondre.</p>
+                          </div>`;
+             }
+        }
+
+        // 2. Notificaciones normales
+        const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
         
-        if(!json.data || json.data.length === 0) {
-            msg.innerHTML = '<div style="text-align:center; padding:30px; color:#999;"><p>No tens notificacions noves.</p></div>';
-        } else {
-            let html = '<div class="notif-list">';
+        if(json.data && json.data.length > 0) {
+            hasContent = true;
             json.data.forEach(n => {
-                const idNotif = n.documentId || n.id;
-                html += `
-                    <div class="notif-item unread" onclick="marcarLeida('${idNotif}', this)">
-                        <strong style="color:var(--brand-blue); display:block; margin-bottom:5px;">${n.titol}</strong>
-                        <div style="font-size:0.9rem;">${n.missatge}</div>
-                    </div>`;
+                html += `<div class="notif-item unread" onclick="marcarLeida('${n.documentId||n.id}', this)">
+                            <strong style="color:var(--brand-blue)">${n.titol}</strong><p>${n.missatge}</p>
+                         </div>`;
             });
-            html += '</div>';
-            msg.innerHTML = html;
         }
+
+        html += '</div>';
+        
+        if(!hasContent) msg.innerHTML = '<div style="text-align:center; padding:30px; color:#999;"><p>No tens notificacions noves.</p></div>';
+        else msg.innerHTML = html;
+
     } catch(e) { msg.innerHTML = 'Error al carregar.'; }
 };
 
@@ -198,84 +213,178 @@ window.marcarLeida = async function(id, el) {
     const token = localStorage.getItem('jwt');
     try {
         await fetch(`${API_ROUTES.notifications}/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ data: { llegida: true } })
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ data: { llegida: true } })
         });
         el.style.display = 'none';
         checkRealNotifications();
     } catch(e) { console.error(e); }
 };
 
-// --- MENSAJERÍA ---
-window.abrirPanelMensajes = async function() {
+// --- MENSAJERÍA (CHAT CON MODOS Y FECHAS) ---
+window.abrirPanelMensajes = async function(modoForzado) {
     const modal = document.getElementById('custom-modal');
-    const title = document.getElementById('modal-title');
-    const msg = document.getElementById('modal-msg');
+    const titleEl = document.getElementById('modal-title');
+    const msgEl = document.getElementById('modal-msg');
     const btnC = document.getElementById('modal-btn-confirm');
     document.getElementById('modal-btn-cancel').style.display = 'none';
-    
-    title.innerText = "💬 Els meus Dubtes";
-    title.style.color = "var(--brand-blue)";
+
+    // Determinar modo
+    const user = JSON.parse(localStorage.getItem('user'));
+    const esProfe = user.es_professor === true;
+    let modoActual = modoForzado ? modoForzado : (esProfe ? 'profesor' : 'alumno');
+
+    // Header dinámico con botón de cambio de vista
+    if (esProfe) {
+        titleEl.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                <span>${modoActual === 'profesor' ? '👨‍🏫 Bústia Professor' : '💬 Els meus Dubtes'}</span>
+                                <button class="btn-small" onclick="abrirPanelMensajes('${modoActual === 'profesor' ? 'alumno' : 'profesor'}')" style="font-size:0.75rem; padding:4px 8px;">
+                                    ${modoActual === 'profesor' ? 'Veure com Alumne' : 'Veure com Professor'}
+                                </button>
+                             </div>`;
+    } else {
+        titleEl.innerText = "💬 Els meus Dubtes";
+        titleEl.style.color = "var(--brand-blue)";
+    }
+
     btnC.innerText = "Tancar";
-    
     const newBtn = btnC.cloneNode(true);
     btnC.parentNode.replaceChild(newBtn, btnC);
     newBtn.onclick = () => modal.style.display = 'none';
     
-    msg.innerHTML = '<div class="loader"></div>';
+    msgEl.innerHTML = '<div class="loader"></div>';
     modal.style.display = 'flex';
     
-    const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
 
     try {
-        const res = await fetch(`${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:asc`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        let endpoint = '';
+        // Si es profesor, ve los mensajes PENDIENTES de todos. Si es alumno, ve LOS SUYOS.
+        if (modoActual === 'profesor') {
+            endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user`;
+        } else {
+            endpoint = `${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:asc`;
+        }
+
+        const res = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
         
         if(!json.data || json.data.length === 0) {
-            msg.innerHTML = `
+            msgEl.innerHTML = `
                 <div style="text-align:center; padding:40px 20px; color:#999;">
                     <div style="background:#f5f5f5; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px auto;">
                         <i class="fa-regular fa-comments" style="font-size:2.5rem; color:#ccc;"></i>
                     </div>
-                    <h4>No tens missatges</h4>
+                    <h4>No hi ha missatges ${modoActual === 'profesor' ? 'pendents' : ''}</h4>
                 </div>`;
         } else {
             let html = '<div class="msg-list-container" id="chat-container">';
+            
             json.data.forEach(m => {
                 const dateUser = new Date(m.createdAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
                 const dateProfe = new Date(m.updatedAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
                 const headerBadge = `<strong>${m.curs}</strong> | ${m.tema}`;
-
-                html += `
-                    <div class="msg-card">
-                        <div class="msg-course-badge"><i class="fa-solid fa-graduation-cap"></i> ${headerBadge}</div>
-                        <div class="msg-content">
-                            <div class="chat-bubble bubble-teacher">
-                                ${m.missatge}
-                                <span class="msg-date-small">${dateUser}</span>
-                            </div>
-                            ${m.resposta_professor ? `
+                
+                // MODO PROFESOR (Ves alumnos a la izquierda, tú a la derecha)
+                if (modoActual === 'profesor') {
+                    const alumnoNombre = m.alumne_nom || 'Alumne';
+                    const alumnoId = m.users_permissions_user?.id || m.users_permissions_user?.documentId;
+                    
+                    html += `
+                        <div class="msg-card">
+                            <div class="msg-course-badge">${headerBadge}</div>
+                            <div class="msg-content">
                                 <div class="chat-bubble bubble-student">
-                                    <strong style="color:var(--brand-blue)">👨‍🏫 Professor:</strong><br>
-                                    ${m.resposta_professor}
-                                    <span class="msg-date-small" style="margin-top:5px;">${dateProfe}</span>
-                                </div>` : ''
-                            }
-                        </div>
-                    </div>`;
+                                    <strong>👤 ${alumnoNombre}</strong><br>
+                                    ${m.missatge}
+                                    <span class="msg-date-small">${dateUser}</span>
+                                </div>
+                                <div class="reply-area">
+                                    <textarea id="reply-${m.documentId||m.id}" class="modal-textarea" placeholder="Escriu la resposta..." style="height:80px;"></textarea>
+                                    <button class="btn-primary" style="margin-top:5px; padding:5px 15px; font-size:0.85rem;" 
+                                        onclick="enviarRespostaProfessor('${m.documentId||m.id}', '${alumnoId}', '${encodeURIComponent(m.tema)}')">
+                                        Enviar Resposta
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                } 
+                // MODO ALUMNO (Ves tus mensajes a la derecha, profe a la izquierda)
+                else {
+                    html += `
+                        <div class="msg-card">
+                            <div class="msg-course-badge">${headerBadge}</div>
+                            <div class="msg-content">
+                                <div class="chat-bubble bubble-teacher">
+                                    ${m.missatge}
+                                    <span class="msg-date-small">${dateUser}</span>
+                                </div>
+                                ${m.resposta_professor ? `
+                                    <div class="chat-bubble bubble-student">
+                                        <strong style="color:var(--brand-blue)">👨‍🏫 Professor:</strong><br>
+                                        ${m.resposta_professor}
+                                        <span class="msg-date-small" style="margin-top:5px;">${dateProfe}</span>
+                                    </div>` : 
+                                    '<small style="text-align:right; color:#999; font-size:0.75rem;">Esperant resposta...</small>'
+                                }
+                            </div>
+                        </div>`;
+                }
             });
+            
             html += '</div>';
-            msg.innerHTML = html;
+            msgEl.innerHTML = html;
+            
+            // Scroll al final
             requestAnimationFrame(() => {
                 const c = document.getElementById('chat-container');
                 if(c) { c.scrollTop = c.scrollHeight; setTimeout(() => c.scrollTop = c.scrollHeight, 150); }
             });
         }
-    } catch(e) { msg.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>'; }
+    } catch(e) { msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>'; }
+};
+
+window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
+    const txt = document.getElementById(`reply-${msgId}`);
+    const respuesta = txt.value.trim();
+    if(!respuesta) return alert("Escriu una resposta.");
+    
+    const token = localStorage.getItem('jwt');
+    const btn = txt.nextElementSibling;
+    btn.innerText = "Enviant..."; btn.disabled = true;
+
+    try {
+        // 1. Actualizar mensaje
+        await fetch(`${API_ROUTES.messages}/${msgId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ data: { resposta_professor: respuesta, estat: 'respost' } })
+        });
+
+        // 2. Notificar alumno (si tiene ID valido)
+        if(studentId && studentId !== 'undefined') {
+            const tema = decodeURIComponent(encodedTema);
+            await fetch(API_ROUTES.notifications, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    data: {
+                        titol: "Dubte Respost",
+                        missatge: `El professor ha respost al teu dubte sobre: "${tema}".`,
+                        llegida: false,
+                        users_permissions_user: studentId
+                    }
+                })
+            });
+        }
+
+        // Recargar panel
+        abrirPanelMensajes('profesor');
+        
+    } catch(e) {
+        console.error(e);
+        alert("Error al enviar la resposta.");
+        btn.innerText = "Enviar Resposta"; btn.disabled = false;
+    }
 };
 
 window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
@@ -471,7 +580,6 @@ async function loadGrades() {
                 ? `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>` 
                 : '<small>Pendent</small>';
 
-            // AQUI ESTÁ EL CAMBIO PARA MÓVIL: data-label
             tbody.innerHTML += `
                 <tr style="border-bottom:1px solid #eee;">
                     <td data-label="Curs" style="padding:15px;"><strong>${curs.titol}</strong></td>

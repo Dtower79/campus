@@ -1,9 +1,8 @@
 /* ==========================================================================
-   DASHBOARD.JS (v36.0 - FINAL STABLE RELEASE)
+   DASHBOARD.JS (v37.0 - FIX NOTIFICATIONS INTERACTION & ANIMATION)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. CHEQUEO DE SESIÓN
     const token = localStorage.getItem('jwt');
     if (token) {
         document.getElementById('login-overlay').style.display = 'none';
@@ -11,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.appIniciada) window.iniciarApp();
     }
 
-    // 2. SCROLL BTN
     const scrollBtn = document.getElementById('scroll-top-btn');
     if(scrollBtn) {
         window.onscroll = () => { scrollBtn.style.display = (document.documentElement.scrollTop > 300) ? "flex" : "none"; };
@@ -26,10 +24,9 @@ window.iniciarApp = function() {
     checkRealNotifications();
     setupDirectClicks();
     
-    // Iniciar polling
+    // Polling cada 60s
     setInterval(checkRealNotifications, 60000);
 
-    // Datos cabecera
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
         let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
@@ -38,7 +35,6 @@ window.iniciarApp = function() {
         document.getElementById('dropdown-username').innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
         document.getElementById('dropdown-email').innerText = user.email;
         
-        // Datos Perfil
         const avatarBig = document.getElementById('profile-avatar-big');
         if(avatarBig) avatarBig.innerText = initials.toUpperCase();
         const nameDisplay = document.getElementById('profile-name-display');
@@ -57,24 +53,20 @@ window.iniciarApp = function() {
 };
 
 window.showView = function(viewName) {
-    // Ocultar todo
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
-    // Mapeo
     const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';
 
-    // Actualizar menú activo
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     if(viewName === 'home') document.getElementById('nav-catalog')?.classList.add('active');
     if(viewName === 'dashboard') document.getElementById('nav-dashboard')?.classList.add('active');
     if(viewName === 'profile') document.getElementById('nav-profile')?.classList.add('active');
 
-    // Cargas de datos
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
@@ -82,11 +74,9 @@ window.showView = function(viewName) {
 };
 
 function setupDirectClicks() {
-    // Botones Header
     document.getElementById('btn-notifs').onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     document.getElementById('btn-messages').onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
 
-    // Navegación
     const navCatalog = document.getElementById('nav-catalog');
     if(navCatalog) navCatalog.onclick = (e) => { e.preventDefault(); window.showView('home'); };
     
@@ -96,7 +86,6 @@ function setupDirectClicks() {
     const navDashboard = document.getElementById('nav-dashboard');
     if(navDashboard) navDashboard.onclick = (e) => { e.preventDefault(); window.showView('dashboard'); };
 
-    // Dropdown User
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
     if (btnUser && userDropdown) {
@@ -111,7 +100,6 @@ function setupDirectClicks() {
         });
     }
 
-    // Links del Dropdown
     document.querySelectorAll('[data-action]').forEach(btn => {
         btn.onclick = (e) => { e.preventDefault(); window.showView(btn.getAttribute('data-action')); };
     });
@@ -119,13 +107,12 @@ function setupDirectClicks() {
     const btnLogout = document.getElementById('btn-logout-dropdown');
     if(btnLogout) btnLogout.onclick = (e) => { e.preventDefault(); localStorage.clear(); window.location.href = 'index.html'; };
     
-    // Menú móvil
     const btnMob = document.getElementById('mobile-menu-btn');
     const navMob = document.getElementById('main-nav');
     if(btnMob) btnMob.onclick = (e) => { e.stopPropagation(); navMob.classList.toggle('show-mobile'); };
 }
 
-// --- NOTIFICACIONES ---
+// --- NOTIFICACIONES (LÓGICA MEJORADA) ---
 async function checkRealNotifications() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
@@ -136,14 +123,14 @@ async function checkRealNotifications() {
         let total = 0;
         const ts = new Date().getTime();
         
-        // Notificaciones normales
+        // 1. Notificaciones base
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&_t=${ts}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
         total += json.data ? json.data.length : 0;
 
-        // Si es profesor, sumar mensajes pendientes
+        // 2. Mensajes Profesor pendientes
         if(user.es_professor === true) {
             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent&_t=${ts}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -153,10 +140,14 @@ async function checkRealNotifications() {
         }
 
         if(bellDot) {
-            bellDot.style.display = total > 0 ? 'flex' : 'none';
-            bellDot.innerText = total > 9 ? '+9' : total;
-            if(total > 0) bellDot.classList.add('animate-ping');
-            else bellDot.classList.remove('animate-ping');
+            if(total > 0) {
+                bellDot.style.display = 'flex';
+                bellDot.innerText = total > 9 ? '+9' : total;
+                bellDot.classList.add('animate-ping'); // Recuperar movimiento
+            } else {
+                bellDot.style.display = 'none';
+                bellDot.classList.remove('animate-ping');
+            }
         }
     } catch(e) { console.warn(e); }
 }
@@ -183,20 +174,21 @@ window.abrirPanelNotificaciones = async function() {
         let html = '<div class="notif-list">';
         let hasContent = false;
 
-        // 1. Mensajes Profesor
+        // 1. AVISO PROFESOR (FIXED ONCLICK)
         if(user.es_professor === true) {
              const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, { headers: { 'Authorization': `Bearer ${token}` } });
              const jsonMsg = await resMsg.json();
              if(jsonMsg.data && jsonMsg.data.length > 0) {
                  hasContent = true;
-                 html += `<div class="notif-item unread" onclick="document.querySelector('.notification-dot').style.display='none'; abrirPanelMensajes('profesor'); document.getElementById('custom-modal').style.display='none';">
+                 // Usamos una función dedicada 'openTeacherInbox' para manejar la lógica limpia
+                 html += `<div class="notif-item unread" onclick="openTeacherInbox(this)">
                             <strong style="color:var(--brand-red)">👨‍🏫 Safata Professor</strong>
                             <p>Tens ${jsonMsg.data.length} dubtes d'alumnes per respondre.</p>
                           </div>`;
              }
         }
 
-        // 2. Notificaciones normales
+        // 2. NOTIFICACIONES NORMALES
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
         
@@ -217,19 +209,57 @@ window.abrirPanelNotificaciones = async function() {
     } catch(e) { msg.innerHTML = 'Error al carregar.'; }
 };
 
+// NUEVA FUNCIÓN: Maneja el clic en la notificación de profesor
+window.openTeacherInbox = function(element) {
+    // 1. Ocultar visualmente la notificación clicada
+    element.style.display = 'none';
+    
+    // 2. Restar 1 a la campana inmediatamente
+    const bellDot = document.querySelector('.notification-dot');
+    if(bellDot) {
+        let count = parseInt(bellDot.innerText) || 0;
+        count = Math.max(0, count - 1);
+        if(count === 0) {
+            bellDot.style.display = 'none';
+            bellDot.classList.remove('animate-ping');
+        } else {
+            bellDot.innerText = count > 9 ? '+9' : count;
+        }
+    }
+
+    // 3. Cerrar modal notificaciones y abrir chat
+    document.getElementById('custom-modal').style.display = 'none';
+    abrirPanelMensajes('profesor');
+};
+
 window.marcarLeida = async function(id, el) {
     el.style.opacity = '0.5';
+    el.style.pointerEvents = 'none'; // Evitar doble clic
     const token = localStorage.getItem('jwt');
+    
+    // Actualizar campana visualmente YA (sin esperar fetch)
+    const bellDot = document.querySelector('.notification-dot');
+    if(bellDot) {
+        let count = parseInt(bellDot.innerText) || 0;
+        count = Math.max(0, count - 1);
+        if(count === 0) {
+            bellDot.style.display = 'none';
+            bellDot.classList.remove('animate-ping');
+        } else {
+            bellDot.innerText = count > 9 ? '+9' : count;
+        }
+    }
+
     try {
         await fetch(`${API_ROUTES.notifications}/${id}`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ data: { llegida: true } })
         });
         el.style.display = 'none';
-        checkRealNotifications();
+        // checkRealNotifications(); // Opcional: re-verificar en background
     } catch(e) { console.error(e); }
 };
 
-// --- MENSAJERÍA (CHAT CON MODOS Y FECHAS) ---
+// --- MENSAJERÍA (CHAT) ---
 window.abrirPanelMensajes = async function(modoForzado) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -242,7 +272,6 @@ window.abrirPanelMensajes = async function(modoForzado) {
     const esProfe = user.es_professor === true;
     let modoActual = modoForzado ? modoForzado : (esProfe ? 'profesor' : 'alumno');
 
-    // Header dinámico con botón de cambio de vista
     if (esProfe) {
         titleEl.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
                                 <span>${modoActual === 'profesor' ? '👨‍🏫 Bústia Professor' : '💬 Els meus Dubtes'}</span>
@@ -596,6 +625,7 @@ window.callPrintDiploma = function(idx) {
     if(data) window.imprimirDiplomaCompleto(data.matricula, data.curso);
 };
 
+// ... (Resto de funciones de Diploma y Modales helpers sin cambios, se incluyen implícitamente) ...
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
     const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
@@ -648,8 +678,6 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                 </div>
             </div>
         </div>
-        
-        <!-- PÁGINA 2 -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner" style="align-items:flex-start; text-align:left; padding:40px;">
@@ -658,45 +686,32 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                             <h3 style="margin:0; color:var(--brand-blue);">Expedient Formatiu</h3>
                             <img src="img/logo-sicap.png" style="height:30px; opacity:0.6;">
                         </div>
-                        
                         <div class="info-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:30px;">
                             <div><span style="display:block; font-size:0.8rem; color:#666;">Alumne</span><strong>${nombreAlumno}</strong></div>
                             <div><span style="display:block; font-size:0.8rem; color:#666;">DNI</span><strong>${user.username}</strong></div>
                             <div><span style="display:block; font-size:0.8rem; color:#666;">Curs</span><strong>${nombreCurso}</strong></div>
                             <div><span style="display:block; font-size:0.8rem; color:#666;">Hores</span><strong>${horas}h</strong></div>
                         </div>
-
                         <h4 style="color:var(--brand-blue); border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:15px;">CONTINGUTS DEL CURS</h4>
-                        <div class="modules-list" style="font-size:0.9rem; line-height:1.6;">
-                            ${temarioHtml}
-                        </div>
-                        
-                        <div class="back-footer" style="position:absolute; bottom:20px; width:100%; text-align:center; font-size:0.8rem; color:#666; border-top:1px solid #eee; padding-top:10px;">
-                            SICAP - Sindicat Català de Presons - Unitat de Formació
-                        </div>
+                        <div class="modules-list" style="font-size:0.9rem; line-height:1.6;">${temarioHtml}</div>
+                        <div class="back-footer" style="position:absolute; bottom:20px; width:100%; text-align:center; font-size:0.8rem; color:#666; border-top:1px solid #eee; padding-top:10px;">SICAP - Sindicat Català de Presons - Unitat de Formació</div>
                     </div>
                 </div>
             </div>
         </div>
     `;
-
     setTimeout(() => window.print(), 500);
 };
 
 window.mostrarModalError = function(msg) {
     const m = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = "Informació";
-    document.getElementById('modal-title').style.color = "var(--brand-blue)";
     document.getElementById('modal-msg').innerHTML = msg;
     document.getElementById('modal-btn-cancel').style.display = 'none';
-    
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "D'acord";
-    btn.disabled = false; // FIX IMPORTANTE: Asegurar que el botón "OK" esté activo
-    
-    const newBtn = btn.cloneNode(true); 
-    btn.parentNode.replaceChild(newBtn, btn);
-    
+    btn.disabled = false; 
+    const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
     newBtn.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
 };
@@ -711,7 +726,6 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
     const btnC = document.getElementById('modal-btn-cancel');
     const newBtnC = btnC.cloneNode(true); btnC.parentNode.replaceChild(newBtnC, btnC);
-    
     newBtn.onclick = () => { m.style.display = 'none'; callback(); };
     newBtnC.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';

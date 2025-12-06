@@ -1,17 +1,16 @@
 /* ==========================================================================
-   DASHBOARD.JS (v20.0 - FIXED NAVIGATION & CHAT)
+   DASHBOARD.JS (v21.0 - FIX COURSE NAME & FOOTER LOGIC)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. CHEQUEO DE SESIÓN
     const token = localStorage.getItem('jwt');
     if (token) {
         document.getElementById('login-overlay').style.display = 'none';
         document.getElementById('app-container').style.display = 'block';
         if (!window.appIniciada) window.iniciarApp();
     }
-
-    // 2. SCROLL BTN
+    
+    // Botón flotante scroll
     const scrollBtn = document.getElementById('scroll-top-btn');
     if(scrollBtn) {
         window.onscroll = () => { scrollBtn.style.display = (document.documentElement.scrollTop > 300) ? "flex" : "none"; };
@@ -25,21 +24,20 @@ window.iniciarApp = function() {
     window.appIniciada = true;
     checkRealNotifications();
     setupDirectClicks();
-    
-    // Iniciar polling
     setInterval(checkRealNotifications, 60000);
 
-    // Datos cabecera
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
         let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
         if(user.apellidos) initials += user.apellidos.charAt(0);
-        document.getElementById('user-initials').innerText = initials.toUpperCase();
+        const initialsStr = initials.toUpperCase();
+        
+        document.getElementById('user-initials').innerText = initialsStr;
         document.getElementById('dropdown-username').innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
         document.getElementById('dropdown-email').innerText = user.email;
-        // También en perfil
+        
         const avatarBig = document.getElementById('profile-avatar-big');
-        if(avatarBig) avatarBig.innerText = initials.toUpperCase();
+        if(avatarBig) avatarBig.innerText = initialsStr;
         const nameDisplay = document.getElementById('profile-name-display');
         if(nameDisplay) nameDisplay.innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
         const dniDisplay = document.getElementById('profile-dni-display');
@@ -56,24 +54,20 @@ window.iniciarApp = function() {
 };
 
 window.showView = function(viewName) {
-    // Ocultar todo
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
-    // Mapeo
     const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';
 
-    // Actualizar menú activo
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     if(viewName === 'home') document.getElementById('nav-catalog')?.classList.add('active');
     if(viewName === 'dashboard') document.getElementById('nav-dashboard')?.classList.add('active');
     if(viewName === 'profile') document.getElementById('nav-profile')?.classList.add('active');
 
-    // Cargas perezosas
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
@@ -81,11 +75,9 @@ window.showView = function(viewName) {
 };
 
 function setupDirectClicks() {
-    // Botones Header
     document.getElementById('btn-notifs').onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     document.getElementById('btn-messages').onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
 
-    // Botones Navegación (CORREGIDO)
     const navCatalog = document.getElementById('nav-catalog');
     if(navCatalog) navCatalog.onclick = (e) => { e.preventDefault(); window.showView('home'); };
     
@@ -95,7 +87,6 @@ function setupDirectClicks() {
     const navDashboard = document.getElementById('nav-dashboard');
     if(navDashboard) navDashboard.onclick = (e) => { e.preventDefault(); window.showView('dashboard'); };
 
-    // Dropdown User
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
     if (btnUser && userDropdown) {
@@ -110,7 +101,6 @@ function setupDirectClicks() {
         });
     }
 
-    // Links del Dropdown (Data Attributes)
     document.querySelectorAll('[data-action]').forEach(btn => {
         btn.onclick = (e) => { e.preventDefault(); window.showView(btn.getAttribute('data-action')); };
     });
@@ -118,13 +108,11 @@ function setupDirectClicks() {
     const btnLogout = document.getElementById('btn-logout-dropdown');
     if(btnLogout) btnLogout.onclick = (e) => { e.preventDefault(); localStorage.clear(); window.location.href = 'index.html'; };
     
-    // Menú móvil
     const btnMob = document.getElementById('mobile-menu-btn');
     const navMob = document.getElementById('main-nav');
     if(btnMob) btnMob.onclick = (e) => { e.stopPropagation(); navMob.classList.toggle('show-mobile'); };
 }
 
-// --- NOTIFICACIONES ---
 async function checkRealNotifications() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
@@ -207,7 +195,7 @@ window.marcarLeida = async function(id, el) {
     } catch(e) { console.error(e); }
 };
 
-// --- MENSAJERÍA (CHAT CON HORA) ---
+// --- MENSAJERÍA (CHAT) ---
 window.abrirPanelMensajes = async function() {
     const modal = document.getElementById('custom-modal');
     const title = document.getElementById('modal-title');
@@ -249,9 +237,12 @@ window.abrirPanelMensajes = async function() {
                 const dateUser = new Date(m.createdAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
                 const dateProfe = new Date(m.updatedAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
                 
+                // CORRECCIÓN: NOMBRE DEL CURSO + TEMA
+                const headerBadge = `<strong>${m.curs}</strong> | ${m.tema}`;
+
                 html += `
                     <div class="msg-card">
-                        <div class="msg-course-badge"><i class="fa-solid fa-graduation-cap"></i> ${m.tema}</div>
+                        <div class="msg-course-badge"><i class="fa-solid fa-graduation-cap"></i> ${headerBadge}</div>
                         <div class="msg-content">
                             <div class="chat-bubble bubble-teacher">
                                 ${m.missatge}
@@ -278,7 +269,6 @@ window.abrirPanelMensajes = async function() {
     } catch(e) { msg.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>'; }
 };
 
-// --- RENDERIZADO DE CURSOS ---
 window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
 window.loadCatalog = async function() { await renderCoursesLogic('home'); };
 
@@ -382,12 +372,7 @@ async function renderCoursesLogic(viewMode) {
 function generarHtmlDescripcion(text, id) {
     if(!text) return '';
     if(typeof text !== 'string') text = "Descripció disponible al curs.";
-    
-    // Convertir Rich Text a plano si es necesario, o usarlo tal cual
-    if(text.includes('type')) {
-        // Simple parser fallback si llega objeto
-        try { return `<div class="course-desc-container"><p class="course-desc short">Veure detalls al curs.</p></div>`; } catch(e){}
-    }
+    if(text.includes('type')) try { return `<div class="course-desc-container"><p class="course-desc short">Veure detalls al curs.</p></div>`; } catch(e){}
     
     const plain = text.substring(0, 100) + '...';
     return `<div class="course-desc-container"><p class="course-desc short">${plain}</p></div>`;
@@ -408,7 +393,6 @@ window.solicitarMatricula = function(id, title) {
     });
 };
 
-// --- PERFIL Y NOTAS ---
 async function loadFullProfile() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
@@ -494,7 +478,6 @@ window.callPrintDiploma = function(idx) {
     if(data) window.imprimirDiplomaCompleto(data.matricula, data.curso);
 };
 
-// --- GENERACIÓN DE DIPLOMA ---
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
     const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
@@ -502,9 +485,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const horas = cursoData.hores || 'N/A';
     const matId = matriculaData.documentId || matriculaData.id;
     const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'APTE';
-    
     const fechaHoy = new Date().toLocaleDateString('ca-ES', { year:'numeric', month:'long', day:'numeric' });
-    
     const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentDomain + '/verify.html?ref=' + matId)}`;
 
@@ -551,7 +532,6 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     setTimeout(() => window.print(), 500);
 };
 
-// MODALES HELPERS
 window.mostrarModalError = function(msg) {
     const m = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = "Informació";
@@ -560,11 +540,7 @@ window.mostrarModalError = function(msg) {
     document.getElementById('modal-btn-cancel').style.display = 'none';
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "D'acord";
-    
-    // Clonar para limpiar eventos
-    const newBtn = btn.cloneNode(true); 
-    btn.parentNode.replaceChild(newBtn, btn);
-    
+    const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
     newBtn.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
 };
@@ -574,16 +550,11 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     document.getElementById('modal-title').innerText = titulo;
     document.getElementById('modal-msg').innerHTML = msg;
     document.getElementById('modal-btn-cancel').style.display = 'block';
-    
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "Confirmar";
-    
-    const newBtn = btn.cloneNode(true); 
-    btn.parentNode.replaceChild(newBtn, btn);
-    
+    const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
     const btnC = document.getElementById('modal-btn-cancel');
-    const newBtnC = btnC.cloneNode(true); 
-    btnC.parentNode.replaceChild(newBtnC, btnC);
+    const newBtnC = btnC.cloneNode(true); btnC.parentNode.replaceChild(newBtnC, btnC);
     
     newBtn.onclick = () => { m.style.display = 'none'; callback(); };
     newBtnC.onclick = () => m.style.display = 'none';

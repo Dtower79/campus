@@ -11,8 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- ESTILOS (Actualiza la versión para forzar recarga) -->
-    <link rel="stylesheet" href="css/estil.css?v=18.0">
+    <!-- ESTILOS -->
+    <link rel="stylesheet" href="css/estil.css?v=21.0">
     <link rel="icon" href="img/favicon.png" type="image/png">
 </head>
 <body>
@@ -145,14 +145,24 @@
         </div>
     </div>
 
-    <!-- FOOTER -->
+    <!-- FOOTER RESTAURADO (3 COLUMNAS) -->
     <footer class="main-footer" style="display: none;" id="app-footer">
         <div class="footer-content">
-            <div class="footer-logo"><img src="img/logo-sicap.png" alt="SICAP Logo"><p>&copy; 2025 SICAP. Tots els drets reservats.</p></div>
+            <div class="footer-logo">
+                <img src="img/logo-sicap.png" alt="SICAP Logo">
+                <p>&copy; 2025 SICAP. Tots els drets reservats.</p>
+                <p>Carrer Malats, 27 | 08030 Barcelona</p>
+            </div>
             <div class="footer-links">
                 <a href="#" onclick="document.getElementById('modal-avis').style.display='flex'; return false;">Avís Legal</a><span>|</span>
                 <a href="#" onclick="document.getElementById('modal-privacitat').style.display='flex'; return false;">Política de Privacitat</a><span>|</span>
-                <a href="#" onclick="document.getElementById('modal-cookies').style.display='flex'; return false;">Política de Cookies</a>
+                <a href="#" onclick="document.getElementById('modal-cookies').style.display='flex'; return false;">Política de Cookies</a><span>|</span>
+                <a href="mailto:sicap@sicap.cat">Contacte</a>
+            </div>
+            <div class="footer-social">
+                <a href="https://sicap.cat" target="_blank" title="Web Oficial SICAP">
+                    <i class="fa-solid fa-globe"></i> sicap.cat
+                </a>
             </div>
         </div>
     </footer>
@@ -170,14 +180,16 @@
         </div>
     </div>
 
-    <!-- SCRIPTS -->
+    <!-- MODALES LEGALES (Omitidos por brevedad, mantener los originales) -->
+    <!-- ... -->
+
     <script>
         (function() { const savedTheme = localStorage.getItem('theme'); if(savedTheme) document.documentElement.setAttribute('data-theme', savedTheme); })();
     </script>
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/dashboard.js?v=8.0"></script>
-    <script src="js/renderitzadorCurs.js?v=8.0"></script>
+    <script src="js/dashboard.js?v=21.0"></script>
+    <script src="js/renderitzadorCurs.js?v=10.0"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const themeBtn = document.getElementById('theme-toggle'); const icon = themeBtn.querySelector('i');

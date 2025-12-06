@@ -1,5 +1,6 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS - Lógica del LMS (v8.0 - FULL & OPTIMIZED)
+   RENDERITZADORCURS.JS (v10.0 - FINAL COMPLETO)
+   Lógica: LMS, Gamificación, Exámenes, Cronómetro, Diplomas y Modal Profesional.
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -178,7 +179,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
 
-        // Limpieza de caché local si cambia la matrícula
         const cacheKey = `sicap_last_matricula_${SLUG}`;
         const lastMatricula = localStorage.getItem(cacheKey);
         
@@ -189,7 +189,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             if (mat.progres === 0 && state.progreso.modulos) {
-                // Reset progreso
                 state.progreso.modulos.forEach(m => {
                     m.flashcards_done = false; m.aprobado = false; m.nota = 0; m.intentos = 0;
                 });
@@ -215,16 +214,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         modulos.forEach((mod, idx) => {
             const modProg = (progresoObj.modulos && progresoObj.modulos[idx]) ? progresoObj.modulos[idx] : {};
-            totalActividades++; // Test
+            totalActividades++;
             if (modProg.aprobado) actividadesCompletadas++;
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
-                totalActividades++; // Flashcards
+                totalActividades++;
                 if (modProg.flashcards_done) actividadesCompletadas++;
             }
         });
 
         if (state.curso.examen_final && state.curso.examen_final.length > 0) {
-            totalActividades++; // Examen
+            totalActividades++;
             if (progresoObj.examen_final && progresoObj.examen_final.aprobado) actividadesCompletadas++;
         }
 
@@ -257,9 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 3. NOTIFICACIONES
+    // 3. SISTEMA DE NOTIFICACIONES Y VERIFICACIÓN
     // ------------------------------------------------------------------------
-    
     async function crearNotificacion(titulo, mensaje) {
         try {
             await fetch(API_ROUTES.notifications, {
@@ -267,7 +265,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
                 body: JSON.stringify({
                     data: {
-                        titol: titulo, missatge: mensaje, llegida: false,
+                        titol: titulo,
+                        missatge: mensaje,
+                        llegida: false,
                         users_permissions_user: USER.id
                     }
                 })
@@ -285,33 +285,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const flashOk = (mod.targetes_memoria && mod.targetes_memoria.length > 0) ? modProg.flashcards_done : true;
 
         if (testOk && flashOk) {
-            crearNotificacion(`Mòdul ${modIdx + 1} Completat`, `Enhorabona! Has completat totes les activitats del mòdul: "${mod.titol}".`);
+            crearNotificacion(
+                `Mòdul ${modIdx + 1} Completat`, 
+                `Enhorabona! Has completat totes les activitats del mòdul: "${mod.titol}".`
+            );
         }
     }
 
     async function notificarAprobado(cursoTitulo) {
-        crearNotificacion("Curs Completat! 🎓", `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`);
+        crearNotificacion(
+            "Curs Completat! 🎓",
+            `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`
+        );
     }
 
     // ------------------------------------------------------------------------
-    // 4. UTILS LOCAL STORAGE
+    // 4. FUNCIONES LOCAL STORAGE
     // ------------------------------------------------------------------------
     function getStorageKey(tipo) { return `sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`; }
-    
     function guardarRespuestaLocal(tipo, preguntaId, opcionIdx) {
         const key = getStorageKey(tipo);
         let data = JSON.parse(localStorage.getItem(key)) || {};
         data[preguntaId] = opcionIdx; data.timestamp = Date.now();
         localStorage.setItem(key, JSON.stringify(data));
     }
-    
     function cargarRespuestasLocales(tipo) {
         const key = getStorageKey(tipo);
         const data = JSON.parse(localStorage.getItem(key));
         if (data) { delete data.timestamp; return data; }
         return {};
     }
-    
     function limpiarRespuestasLocales(tipo) {
         localStorage.removeItem(getStorageKey(tipo));
         if(tipo === 'examen_final') {
@@ -319,11 +322,9 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.removeItem(`sicap_exam_order_${USER.id}_${SLUG}`); 
         }
     }
-    
     function getFlippedCards(modIdx) {
         return JSON.parse(localStorage.getItem(`sicap_flipped_${USER.id}_${state.curso.slug}_mod_${modIdx}`)) || [];
     }
-    
     function addFlippedCard(modIdx, cardIdx) {
         const key = `sicap_flipped_${USER.id}_${state.curso.slug}_mod_${modIdx}`;
         let current = getFlippedCards(modIdx);
@@ -335,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // 5. LÓGICA DE BLOQUEO Y RENDER
+    // 5. LÓGICA DE BLOQUEO Y RENDERIZADO PRINCIPAL
     // ------------------------------------------------------------------------
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
@@ -384,7 +385,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMainContent();
         window.scrollTo(0,0);
         
-        // Auto-close sidebar on mobile after selection
         if(window.innerWidth <= 1000) {
             document.querySelector('.sidebar-left').classList.remove('sidebar-mobile-open');
         }
@@ -397,22 +397,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 100);
     }
-
-    window.downloadNotes = function() {
-        const noteKey = `sicap_notes_${USER.id}_${state.curso.slug}`;
-        const content = localStorage.getItem(noteKey) || '';
-        if(!content) return alert("No tens apunts guardats per descarregar.");
-        
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Notes_${state.curso.slug}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-    };
 
     // --- RENDERIZADORES ---
     function renderSidebar() {
@@ -500,7 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
         detenerCronometro(); 
         document.body.classList.remove('exam-active');
 
-        // ANIMACIÓN DE ENTRADA SUAVE
+        // Transición Suave
         container.classList.remove('fade-in-active');
         void container.offsetWidth; // Trigger reflow
         container.classList.add('fade-in-active');
@@ -605,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(noteArea) noteArea.addEventListener('input', (e) => localStorage.setItem(noteKey, e.target.value));
     }
 
-    // --- FLASHCARDS LOGIC ---
+    // --- FLASHCARDS LOGIC (RESTAURADA) ---
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
         
@@ -646,6 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let words = answerText.split(" ");
             let targetWord = "", hiddenIndex = -1;
             
+            // Lógica para encontrar la palabra a ocultar
             for (let i = 0; i < words.length; i++) {
                 let clean = words[i].replace(/[.,;:"'()]/g, '');
                 if (clean.length > 4) { targetWord = words[i]; hiddenIndex = i; break; }
@@ -766,7 +751,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- TEST LOGIC ---
+    window.downloadNotes = function() {
+        const noteKey = `sicap_notes_${USER.id}_${state.curso.slug}`;
+        const content = localStorage.getItem(noteKey) || '';
+        if(!content) return alert("No tens apunts guardats per descarregar.");
+        
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Notes_${state.curso.slug}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
+
+    // --- TEST LOGIC (RESTAURADO MODO REVISIÓN) ---
     function renderTestIntro(container, mod, modIdx) { 
         const progreso = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx] : { aprobado: false, intentos: 0, nota: 0 };
         if (progreso.aprobado) {

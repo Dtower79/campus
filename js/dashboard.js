@@ -1,8 +1,9 @@
 /* ==========================================================================
-   DASHBOARD.JS (v37.0 - FIX NOTIFICATIONS INTERACTION & ANIMATION)
+   DASHBOARD.JS (v38.0 - FINAL STABLE & NOTIFICATION FIX)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. CHEQUEO DE SESIÓN
     const token = localStorage.getItem('jwt');
     if (token) {
         document.getElementById('login-overlay').style.display = 'none';
@@ -10,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.appIniciada) window.iniciarApp();
     }
 
+    // 2. SCROLL BTN
     const scrollBtn = document.getElementById('scroll-top-btn');
     if(scrollBtn) {
         window.onscroll = () => { scrollBtn.style.display = (document.documentElement.scrollTop > 300) ? "flex" : "none"; };
@@ -24,19 +26,23 @@ window.iniciarApp = function() {
     checkRealNotifications();
     setupDirectClicks();
     
-    // Polling cada 60s
+    // Iniciar polling (comprobación cada minuto)
     setInterval(checkRealNotifications, 60000);
 
+    // Datos cabecera
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
         let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
         if(user.apellidos) initials += user.apellidos.charAt(0);
-        document.getElementById('user-initials').innerText = initials.toUpperCase();
+        const initialsStr = initials.toUpperCase();
+        
+        document.getElementById('user-initials').innerText = initialsStr;
         document.getElementById('dropdown-username').innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
         document.getElementById('dropdown-email').innerText = user.email;
         
+        // Datos Perfil
         const avatarBig = document.getElementById('profile-avatar-big');
-        if(avatarBig) avatarBig.innerText = initials.toUpperCase();
+        if(avatarBig) avatarBig.innerText = initialsStr;
         const nameDisplay = document.getElementById('profile-name-display');
         if(nameDisplay) nameDisplay.innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
         const dniDisplay = document.getElementById('profile-dni-display');
@@ -112,7 +118,7 @@ function setupDirectClicks() {
     if(btnMob) btnMob.onclick = (e) => { e.stopPropagation(); navMob.classList.toggle('show-mobile'); };
 }
 
-// --- NOTIFICACIONES (LÓGICA MEJORADA) ---
+// --- NOTIFICACIONES (FIX CACHÉ & ANIMACIÓN) ---
 async function checkRealNotifications() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
@@ -121,7 +127,7 @@ async function checkRealNotifications() {
 
     try {
         let total = 0;
-        const ts = new Date().getTime();
+        const ts = new Date().getTime(); // Anti-caché
         
         // 1. Notificaciones base
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&_t=${ts}`, {
@@ -173,14 +179,14 @@ window.abrirPanelNotificaciones = async function() {
     try {
         let html = '<div class="notif-list">';
         let hasContent = false;
+        const ts = new Date().getTime(); // Anti-caché CRÍTICO para el listado
 
-        // 1. AVISO PROFESOR (FIXED ONCLICK)
+        // 1. AVISO PROFESOR
         if(user.es_professor === true) {
-             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent`, { headers: { 'Authorization': `Bearer ${token}` } });
+             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
              const jsonMsg = await resMsg.json();
              if(jsonMsg.data && jsonMsg.data.length > 0) {
                  hasContent = true;
-                 // Usamos una función dedicada 'openTeacherInbox' para manejar la lógica limpia
                  html += `<div class="notif-item unread" onclick="openTeacherInbox(this)">
                             <strong style="color:var(--brand-red)">👨‍🏫 Safata Professor</strong>
                             <p>Tens ${jsonMsg.data.length} dubtes d'alumnes per respondre.</p>
@@ -189,13 +195,15 @@ window.abrirPanelNotificaciones = async function() {
         }
 
         // 2. NOTIFICACIONES NORMALES
-        const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
         
         if(json.data && json.data.length > 0) {
             hasContent = true;
             json.data.forEach(n => {
-                html += `<div class="notif-item unread" onclick="marcarLeida('${n.documentId||n.id}', this)">
+                // Usamos documentId preferentemente, fallback a id
+                const idReal = n.documentId || n.id;
+                html += `<div class="notif-item unread" onclick="marcarLeida('${idReal}', this)">
                             <strong style="color:var(--brand-blue)">${n.titol}</strong><p>${n.missatge}</p>
                          </div>`;
             });
@@ -209,12 +217,9 @@ window.abrirPanelNotificaciones = async function() {
     } catch(e) { msg.innerHTML = 'Error al carregar.'; }
 };
 
-// NUEVA FUNCIÓN: Maneja el clic en la notificación de profesor
+// Función para abrir la bandeja de profesor y limpiar campana
 window.openTeacherInbox = function(element) {
-    // 1. Ocultar visualmente la notificación clicada
     element.style.display = 'none';
-    
-    // 2. Restar 1 a la campana inmediatamente
     const bellDot = document.querySelector('.notification-dot');
     if(bellDot) {
         let count = parseInt(bellDot.innerText) || 0;
@@ -226,18 +231,16 @@ window.openTeacherInbox = function(element) {
             bellDot.innerText = count > 9 ? '+9' : count;
         }
     }
-
-    // 3. Cerrar modal notificaciones y abrir chat
     document.getElementById('custom-modal').style.display = 'none';
     abrirPanelMensajes('profesor');
 };
 
+// Función para marcar como leída (FIX VISUAL + BACKEND)
 window.marcarLeida = async function(id, el) {
+    // 1. Feedback visual inmediato
     el.style.opacity = '0.5';
-    el.style.pointerEvents = 'none'; // Evitar doble clic
-    const token = localStorage.getItem('jwt');
+    el.style.pointerEvents = 'none';
     
-    // Actualizar campana visualmente YA (sin esperar fetch)
     const bellDot = document.querySelector('.notification-dot');
     if(bellDot) {
         let count = parseInt(bellDot.innerText) || 0;
@@ -250,16 +253,28 @@ window.marcarLeida = async function(id, el) {
         }
     }
 
+    // 2. Petición al Backend
+    const token = localStorage.getItem('jwt');
     try {
         await fetch(`${API_ROUTES.notifications}/${id}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ data: { llegida: true } })
+            method: 'PUT', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
+            body: JSON.stringify({ data: { llegida: true } }) 
         });
+        
+        // 3. Ocultar elemento del todo tras éxito
         el.style.display = 'none';
-        // checkRealNotifications(); // Opcional: re-verificar en background
-    } catch(e) { console.error(e); }
+        
+        // 4. Re-check en segundo plano por si acaso
+        // checkRealNotifications(); 
+    } catch(e) { 
+        console.error("Error al marcar leída:", e); 
+        // Si falla, revertimos visualmente (opcional, pero buena UX)
+        el.style.opacity = '1';
+    }
 };
 
-// --- MENSAJERÍA (CHAT) ---
+// --- MENSAJERÍA (CHAT CON MODOS Y FECHAS) ---
 window.abrirPanelMensajes = async function(modoForzado) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -267,7 +282,6 @@ window.abrirPanelMensajes = async function(modoForzado) {
     const btnC = document.getElementById('modal-btn-confirm');
     document.getElementById('modal-btn-cancel').style.display = 'none';
 
-    // Determinar modo
     const user = JSON.parse(localStorage.getItem('user'));
     const esProfe = user.es_professor === true;
     let modoActual = modoForzado ? modoForzado : (esProfe ? 'profesor' : 'alumno');
@@ -609,6 +623,7 @@ async function loadGrades() {
                 ? `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>` 
                 : '<small>Pendent</small>';
 
+            // FIX: data-label para tabla móvil
             tbody.innerHTML += `
                 <tr style="border-bottom:1px solid #eee;">
                     <td data-label="Curs" style="padding:15px;"><strong>${curs.titol}</strong></td>
@@ -625,7 +640,6 @@ window.callPrintDiploma = function(idx) {
     if(data) window.imprimirDiplomaCompleto(data.matricula, data.curso);
 };
 
-// ... (Resto de funciones de Diploma y Modales helpers sin cambios, se incluyen implícitamente) ...
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
     const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
@@ -678,6 +692,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                 </div>
             </div>
         </div>
+        
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner" style="align-items:flex-start; text-align:left; padding:40px;">
@@ -706,11 +721,12 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
 window.mostrarModalError = function(msg) {
     const m = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = "Informació";
+    document.getElementById('modal-title').style.color = "var(--brand-blue)";
     document.getElementById('modal-msg').innerHTML = msg;
     document.getElementById('modal-btn-cancel').style.display = 'none';
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "D'acord";
-    btn.disabled = false; 
+    btn.disabled = false; // FIX BUTTON
     const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
     newBtn.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
@@ -726,6 +742,7 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
     const btnC = document.getElementById('modal-btn-cancel');
     const newBtnC = btnC.cloneNode(true); btnC.parentNode.replaceChild(newBtnC, btnC);
+    
     newBtn.onclick = () => { m.style.display = 'none'; callback(); };
     newBtnC.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';

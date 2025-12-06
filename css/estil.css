@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SICAP CAMPUS - ESTILOS MAESTROS (v28.0 - MOBILE ALIGNMENT FIXED)
+   SICAP CAMPUS - ESTILOS MAESTROS (v29.0 - FINAL POLISH MOBILE)
    ========================================================================== */
 
 /* 1. VARIABLES */
@@ -331,7 +331,7 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
 /* 14. DARK MODE FIXES */
 [data-theme="dark"] .alert-info { background-color: rgba(0, 75, 135, 0.2) !important; border-color: var(--brand-blue) !important; color: #90caf9 !important; }
 
-/* 15. RESPONSIVE (MOBILE FIRST REVISADO - FIX TABLAS Y FOOTER) */
+/* 15. RESPONSIVE FIX (MOBILE FIRST REVISADO - FIX ALINEACIÓN) */
 @media (max-width: 1000px) {
     /* RESET BASICO */
     body, html { overflow-x: hidden; width: 100%; }
@@ -343,7 +343,7 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
 
     /* HEADER MÓVIL REPARADO */
     .header-content { padding: 0 10px; justify-content: space-between; }
-    .header-logo { max-height: 30px; width: auto; margin: 0 5px; } /* Logo pequeño */
+    .header-logo { max-height: 30px; width: auto; margin: 0 5px; }
     .mobile-menu-btn { background: transparent; border: none; font-size: 1.2rem; color: var(--text-main); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
     .header-right { gap: 5px; flex-shrink: 0; }
     .btn-icon, .icon-wrapper { font-size: 1.1rem; padding: 5px; }
@@ -355,17 +355,9 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
 
     /* PERFIL MÓVIL (GRID FIX - UNA COLUMNA) */
     .profile-grid-layout { grid-template-columns: 1fr; gap: 20px; }
-    .form-grid-2 { grid-template-columns: 1fr; gap: 15px; } /* Inputs en 1 columna */
+    .form-grid-2 { grid-template-columns: 1fr; gap: 15px; }
     .span-2 { grid-column: span 1; }
     .profile-sidebar-card { width: 100%; }
-
-    /* FOOTER MÓVIL (MÁRGENES Y LIMPIEZA) */
-    .footer-content { flex-direction: column; text-align: center; gap: 20px; padding: 20px 0; }
-    .footer-logo { align-items: center; text-align: center; }
-    .footer-links { flex-direction: column; gap: 10px; }
-    .footer-links span { display: none; }
-    .footer-links a { display: block; padding: 5px; font-size: 1rem; }
-    .footer-social { justify-content: center; }
 
     /* ACORDEÓN SIDEBARS */
     .sidebar-left, .sidebar-right { max-height: 60px; overflow: hidden; transition: max-height 0.3s ease-out; cursor: pointer; position: relative; border-bottom: 3px solid var(--brand-blue); background-color: var(--bg-card); }
@@ -376,21 +368,46 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     .grid-container, #grid-inner-numbers { gap: 10px; }
     .grid-item { padding: 10px; font-size: 1rem; }
 
+    /* FIX 1: CURSO TORCIDO (Forzar 1 columna) */
+    .courses-grid { 
+        grid-template-columns: 1fr; /* Una sola columna para que ocupe todo el ancho */
+        gap: 20px;
+    }
+    .course-card-item {
+        width: 100%; /* Asegurar que no se corte */
+        margin: 0;
+    }
+
+    /* FIX 2: FOOTER PROFESIONAL (Centrado y limpio) */
+    .footer-content { 
+        flex-direction: column; 
+        text-align: center; 
+        gap: 15px; 
+        padding-top: 20px; 
+    }
+    .footer-logo { align-items: center; text-align: center; }
+    .footer-links { 
+        flex-direction: column; 
+        gap: 0; /* Sin gap, usamos padding en los enlaces */
+        width: 100%;
+    }
+    .footer-links span { display: none; } /* Ocultar barras | */
+    .footer-links a { 
+        display: block; 
+        padding: 12px; 
+        font-size: 0.95rem; 
+        border-bottom: 1px solid rgba(0,0,0,0.05); /* Separador sutil */
+        width: 100%;
+    }
+    .footer-links a:last-child { border-bottom: none; }
+    .footer-social { justify-content: center; margin-top: 10px; }
+
     /* TABLA MÓVIL -> TARJETAS (NO SOLAPAMIENTO) */
     table, thead, tbody, th, td, tr { display: block; }
     thead tr { position: absolute; top: -9999px; left: -9999px; }
     tr { margin-bottom: 20px; border: 1px solid #e0e0e0; border-radius: 12px; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; }
-    
-    /* Cabecera Tarjeta */
-    td:first-child { 
-        background-color: #f8f9fa; color: var(--brand-blue); font-weight: bold; text-align: center; padding: 15px; border-bottom: 1px solid #eee; font-size: 1.1rem; 
-    }
-    /* Cuerpo Tarjeta */
-    td:not(:first-child) { 
-        border: none; border-bottom: 1px dashed #eee; position: relative; padding-left: 50%; padding-top: 12px; padding-bottom: 12px; text-align: right; font-size: 0.95rem; 
-    }
-    td:not(:first-child):before { 
-        position: absolute; top: 12px; left: 15px; width: 45%; padding-right: 10px; white-space: nowrap; font-weight: bold; text-align: left; content: attr(data-label); color: #666; 
-    }
+    td:first-child { background-color: #f8f9fa; color: var(--brand-blue); font-weight: bold; text-align: center; padding: 15px; border-bottom: 1px solid #eee; font-size: 1.1rem; }
+    td:not(:first-child) { border: none; border-bottom: 1px dashed #eee; position: relative; padding-left: 50%; padding-top: 12px; padding-bottom: 12px; text-align: right; font-size: 0.95rem; }
+    td:not(:first-child):before { position: absolute; top: 12px; left: 15px; width: 45%; padding-right: 10px; white-space: nowrap; font-weight: bold; text-align: left; content: attr(data-label); color: #666; }
     td:last-child { border-bottom: none; padding-bottom: 15px; }
 }

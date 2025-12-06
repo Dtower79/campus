@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SICAP CAMPUS - ESTILOS MAESTROS (v31.0 - FULL COMPLETE WITH PRINT)
+   SICAP CAMPUS - ESTILOS MAESTROS (v32.0 - HAMBURGER KILLER)
    ========================================================================== */
 
 /* 1. VARIABLES */
@@ -129,6 +129,18 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
 .icon-wrapper { position: relative; cursor: pointer; color: var(--text-secondary); font-size: 1.2rem; padding: 8px; }
 .notification-dot { display: none; position: absolute; top: 0px; right: 0px; min-width: 16px; height: 16px; background-color: var(--brand-red); color: white; border-radius: 50%; font-size: 10px; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #fff; }
 .header-divider { width: 1px; height: 30px; background-color: var(--border-color); margin: 0 5px; }
+
+/* --- FIX HAMBURGUESA (IMPORTANTE) --- */
+.mobile-menu-btn { 
+    display: none !important; /* Oculto en escritorio a la fuerza */
+    z-index: 1002; 
+    background: none; 
+    border: none; 
+    font-size: 1.4rem; 
+    color: var(--text-main); 
+    cursor: pointer; 
+    margin-right: 10px; 
+}
 
 /* USER DROPDOWN */
 .user-profile-container { display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative; z-index: 1002; }
@@ -331,23 +343,23 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
 /* 14. DARK MODE FIXES */
 [data-theme="dark"] .alert-info { background-color: rgba(0, 75, 135, 0.2) !important; border-color: var(--brand-blue) !important; color: #90caf9 !important; }
 
-/* 15. RESPONSIVE FIX (MOBILE FIRST REVISADO - FIX ALINEACIÓN Y SOLAPAMIENTOS) */
+/* 15. RESPONSIVE FIX (MOBILE FIRST REVISADO - FIX FINAL) */
 @media (max-width: 1000px) {
     /* RESET BASICO */
     body, html { overflow-x: hidden; width: 100%; }
     .app-container { flex-direction: column; display: flex; padding: 10px; width: 100%; box-sizing: border-box; }
     .main-content { order: 1; margin-bottom: 20px; }
     
-    /* ACORDEONES MÓVIL (Espaciado Crítico) */
+    /* ACORDEONES MÓVIL */
     .sidebar-left { order: 2; margin-bottom: 20px; }
-    .sidebar-right { order: 3; margin-bottom: 50px; /* MARGEN EXTRA PARA EMPUJAR FOOTER */ }
+    .sidebar-right { order: 3; margin-bottom: 50px; /* IMPORTANTE: Espacio para empujar el footer */ }
     
     .sidebar-left, .sidebar-right, .main-content, .dashboard-card, .exam-card { width: 100% !important; max-width: 100% !important; min-width: 0 !important; position: static; height: auto; max-height: none; overflow: visible; }
 
     /* HEADER MÓVIL REPARADO */
     .header-content { padding: 0 10px; justify-content: space-between; }
     .header-logo { max-height: 30px; width: auto; margin: 0 5px; } /* Logo pequeño */
-    .mobile-menu-btn { background: transparent; border: none; font-size: 1.2rem; color: var(--text-main); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
+    .mobile-menu-btn { display: flex !important; align-items: center; justify-content: center; width: 40px; height: 40px; font-size: 1.2rem; background:transparent; border:none; color:var(--text-main); }
     .header-right { gap: 5px; flex-shrink: 0; }
     .btn-icon, .icon-wrapper { font-size: 1.1rem; padding: 5px; }
     .user-avatar-circle { width: 32px; height: 32px; font-size: 0.8rem; }
@@ -420,29 +432,4 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     td:not(:first-child) { border: none; border-bottom: 1px dashed #eee; position: relative; padding-left: 50%; padding-top: 12px; padding-bottom: 12px; text-align: right; font-size: 0.95rem; }
     td:not(:first-child):before { position: absolute; top: 12px; left: 15px; width: 45%; padding-right: 10px; white-space: nowrap; font-weight: bold; text-align: left; content: attr(data-label); color: #666; }
     td:last-child { border-bottom: none; padding-bottom: 15px; }
-}
-
-@media print {
-    @page { size: A4 landscape; margin: 0; }
-    body { background: white; margin: 0; padding: 0; }
-    #login-overlay, #app-container, #app-footer, .modal-overlay, #scroll-top-btn { display: none !important; }
-    #diploma-print-container { display: block !important; width: 100vw; height: 100%; }
-    .diploma-page { width: 297mm; height: 210mm; page-break-after: always; position: relative; background-color: #fff; padding: 10mm; box-sizing: border-box; display: flex; justify-content: center; align-items: center; }
-    .diploma-border-outer { width: 100%; height: 100%; border: 3px solid var(--brand-blue); padding: 3px; box-sizing: border-box; display: flex; flex-direction: column; }
-    .diploma-border-inner { width: 100%; height: 100%; border: 1px solid var(--brand-blue); padding: 25px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; z-index: 1; }
-    .diploma-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; opacity: 0.08; z-index: -1; }
-    .diploma-logo-top { height: 60px; margin-bottom: 15px; }
-    .diploma-title { font-family: "Times New Roman", Times, serif; color: var(--brand-blue); font-size: 3rem; font-weight: normal; text-transform: uppercase; margin: 0 0 10px 0; letter-spacing: 1px; }
-    .diploma-text { font-family: Arial, sans-serif; font-size: 1rem; color: #333; margin: 5px 0; }
-    .diploma-student { font-family: "Times New Roman", Times, serif; font-size: 2.4rem; font-weight: bold; color: #000; margin: 15px 0; border-bottom: 1px solid #999; padding: 0 40px 5px 40px; display: inline-block; line-height: 1.1; }
-    .diploma-course { font-family: Arial, sans-serif; font-size: 1.8rem; font-weight: bold; color: var(--brand-red); margin: 15px 0; line-height: 1.2; max-width: 90%; }
-    .diploma-details { font-size: 1rem; margin-bottom: 10px; }
-    .diploma-footer { margin-top: auto; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 10px; }
-    .footer-qr-area { text-align: center; display: flex; flex-direction: column; align-items: center; }
-    .qr-image { width: 100px; height: 100px; margin-bottom: 2px; }
-    .qr-ref { font-size: 0.6rem; font-family: monospace; color: #666; }
-    .footer-signature-area { text-align: center; min-width: 220px; }
-    .signature-line { border-top: 1px solid #000; width: 100%; margin-bottom: 5px; }
-    .signature-name { font-weight: bold; font-size: 1rem; display: block; }
-    .signature-role { font-size: 0.8rem; color: #444; }
 }

@@ -1,16 +1,17 @@
 /* ==========================================================================
-   DASHBOARD.JS (v21.0 - FIX COURSE NAME & FOOTER LOGIC)
+   DASHBOARD.JS (v26.0 - FINAL MOBILE OPTIMIZED)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. CHEQUEO DE SESIÓN
     const token = localStorage.getItem('jwt');
     if (token) {
         document.getElementById('login-overlay').style.display = 'none';
         document.getElementById('app-container').style.display = 'block';
         if (!window.appIniciada) window.iniciarApp();
     }
-    
-    // Botón flotante scroll
+
+    // 2. SCROLL BTN
     const scrollBtn = document.getElementById('scroll-top-btn');
     if(scrollBtn) {
         window.onscroll = () => { scrollBtn.style.display = (document.documentElement.scrollTop > 300) ? "flex" : "none"; };
@@ -24,20 +25,21 @@ window.iniciarApp = function() {
     window.appIniciada = true;
     checkRealNotifications();
     setupDirectClicks();
+    
+    // Iniciar polling
     setInterval(checkRealNotifications, 60000);
 
+    // Datos cabecera
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
         let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
         if(user.apellidos) initials += user.apellidos.charAt(0);
-        const initialsStr = initials.toUpperCase();
-        
-        document.getElementById('user-initials').innerText = initialsStr;
+        document.getElementById('user-initials').innerText = initials.toUpperCase();
         document.getElementById('dropdown-username').innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
         document.getElementById('dropdown-email').innerText = user.email;
         
         const avatarBig = document.getElementById('profile-avatar-big');
-        if(avatarBig) avatarBig.innerText = initialsStr;
+        if(avatarBig) avatarBig.innerText = initials.toUpperCase();
         const nameDisplay = document.getElementById('profile-name-display');
         if(nameDisplay) nameDisplay.innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
         const dniDisplay = document.getElementById('profile-dni-display');
@@ -54,20 +56,24 @@ window.iniciarApp = function() {
 };
 
 window.showView = function(viewName) {
+    // Ocultar todo
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
+    // Mapeo
     const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';
 
+    // Actualizar menú activo
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     if(viewName === 'home') document.getElementById('nav-catalog')?.classList.add('active');
     if(viewName === 'dashboard') document.getElementById('nav-dashboard')?.classList.add('active');
     if(viewName === 'profile') document.getElementById('nav-profile')?.classList.add('active');
 
+    // Cargas de datos
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
@@ -75,9 +81,11 @@ window.showView = function(viewName) {
 };
 
 function setupDirectClicks() {
+    // Botones Header
     document.getElementById('btn-notifs').onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     document.getElementById('btn-messages').onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
 
+    // Navegación
     const navCatalog = document.getElementById('nav-catalog');
     if(navCatalog) navCatalog.onclick = (e) => { e.preventDefault(); window.showView('home'); };
     
@@ -87,6 +95,7 @@ function setupDirectClicks() {
     const navDashboard = document.getElementById('nav-dashboard');
     if(navDashboard) navDashboard.onclick = (e) => { e.preventDefault(); window.showView('dashboard'); };
 
+    // Dropdown User
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
     if (btnUser && userDropdown) {
@@ -101,6 +110,7 @@ function setupDirectClicks() {
         });
     }
 
+    // Links del Dropdown
     document.querySelectorAll('[data-action]').forEach(btn => {
         btn.onclick = (e) => { e.preventDefault(); window.showView(btn.getAttribute('data-action')); };
     });
@@ -108,11 +118,13 @@ function setupDirectClicks() {
     const btnLogout = document.getElementById('btn-logout-dropdown');
     if(btnLogout) btnLogout.onclick = (e) => { e.preventDefault(); localStorage.clear(); window.location.href = 'index.html'; };
     
+    // Menú móvil
     const btnMob = document.getElementById('mobile-menu-btn');
     const navMob = document.getElementById('main-nav');
     if(btnMob) btnMob.onclick = (e) => { e.stopPropagation(); navMob.classList.toggle('show-mobile'); };
 }
 
+// --- NOTIFICACIONES ---
 async function checkRealNotifications() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
@@ -195,7 +207,7 @@ window.marcarLeida = async function(id, el) {
     } catch(e) { console.error(e); }
 };
 
-// --- MENSAJERÍA (CHAT) ---
+// --- MENSAJERÍA ---
 window.abrirPanelMensajes = async function() {
     const modal = document.getElementById('custom-modal');
     const title = document.getElementById('modal-title');
@@ -236,8 +248,6 @@ window.abrirPanelMensajes = async function() {
             json.data.forEach(m => {
                 const dateUser = new Date(m.createdAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
                 const dateProfe = new Date(m.updatedAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
-                
-                // CORRECCIÓN: NOMBRE DEL CURSO + TEMA
                 const headerBadge = `<strong>${m.curs}</strong> | ${m.tema}`;
 
                 html += `
@@ -260,7 +270,6 @@ window.abrirPanelMensajes = async function() {
             });
             html += '</div>';
             msg.innerHTML = html;
-            
             requestAnimationFrame(() => {
                 const c = document.getElementById('chat-container');
                 if(c) { c.scrollTop = c.scrollHeight; setTimeout(() => c.scrollTop = c.scrollHeight, 150); }
@@ -462,12 +471,13 @@ async function loadGrades() {
                 ? `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>` 
                 : '<small>Pendent</small>';
 
+            // AQUI ESTÁ EL CAMBIO PARA MÓVIL: data-label
             tbody.innerHTML += `
                 <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:15px;"><strong>${curs.titol}</strong></td>
-                    <td style="padding:15px; color:${color}; font-weight:bold;">${isDone ? 'Completat' : mat.progres+'%'}</td>
-                    <td style="padding:15px;">${nota}</td>
-                    <td style="padding:15px;">${btnCert}</td>
+                    <td data-label="Curs" style="padding:15px;"><strong>${curs.titol}</strong></td>
+                    <td data-label="Estat" style="padding:15px; color:${color}; font-weight:bold;">${isDone ? 'Completat' : mat.progres+'%'}</td>
+                    <td data-label="Nota" style="padding:15px;">${nota}</td>
+                    <td data-label="Diploma" style="padding:15px;">${btnCert}</td>
                 </tr>`;
         });
     } catch(e) { tbody.innerHTML = '<tr><td colspan="4">Error.</td></tr>'; }
@@ -485,7 +495,9 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const horas = cursoData.hores || 'N/A';
     const matId = matriculaData.documentId || matriculaData.id;
     const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'APTE';
+    
     const fechaHoy = new Date().toLocaleDateString('ca-ES', { year:'numeric', month:'long', day:'numeric' });
+    
     const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentDomain + '/verify.html?ref=' + matId)}`;
 

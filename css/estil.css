@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SICAP CAMPUS - ESTILOS MAESTROS (v30.0 - FINAL LAYOUT FIXED)
+   SICAP CAMPUS - ESTILOS MAESTROS (v31.0 - FULL COMPLETE WITH PRINT)
    ========================================================================== */
 
 /* 1. VARIABLES */
@@ -346,7 +346,7 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
 
     /* HEADER MÓVIL REPARADO */
     .header-content { padding: 0 10px; justify-content: space-between; }
-    .header-logo { max-height: 30px; width: auto; margin: 0 5px; }
+    .header-logo { max-height: 30px; width: auto; margin: 0 5px; } /* Logo pequeño */
     .mobile-menu-btn { background: transparent; border: none; font-size: 1.2rem; color: var(--text-main); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
     .header-right { gap: 5px; flex-shrink: 0; }
     .btn-icon, .icon-wrapper { font-size: 1.1rem; padding: 5px; }
@@ -356,9 +356,9 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     .header-nav.show-mobile { display: flex; animation: slideDown 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
     .nav-link { padding: 15px 25px; border-radius: 0; border-bottom: 1px solid var(--border-color); font-size: 1rem; display: flex; align-items: center; }
 
-    /* PERFIL MÓVIL */
+    /* PERFIL MÓVIL (GRID FIX - UNA COLUMNA) */
     .profile-grid-layout { grid-template-columns: 1fr; gap: 20px; }
-    .form-grid-2 { grid-template-columns: 1fr; gap: 15px; }
+    .form-grid-2 { grid-template-columns: 1fr; gap: 15px; } /* Inputs en 1 columna */
     .span-2 { grid-column: span 1; }
     .profile-sidebar-card { width: 100%; }
 
@@ -382,7 +382,7 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
         gap: 0; 
         width: 100%;
     }
-    .footer-links span { display: none; }
+    .footer-links span { display: none; } /* Ocultar barras | */
     .footer-links a { 
         display: block; 
         padding: 12px; 
@@ -404,11 +404,11 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
 
     /* FIX 1: CURSO TORCIDO (Forzar 1 columna) */
     .courses-grid { 
-        grid-template-columns: 1fr; 
+        grid-template-columns: 1fr; /* Una sola columna para que ocupe todo el ancho */
         gap: 20px;
     }
     .course-card-item {
-        width: 100%; 
+        width: 100%; /* Asegurar que no se corte */
         margin: 0;
     }
 
@@ -420,4 +420,29 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     td:not(:first-child) { border: none; border-bottom: 1px dashed #eee; position: relative; padding-left: 50%; padding-top: 12px; padding-bottom: 12px; text-align: right; font-size: 0.95rem; }
     td:not(:first-child):before { position: absolute; top: 12px; left: 15px; width: 45%; padding-right: 10px; white-space: nowrap; font-weight: bold; text-align: left; content: attr(data-label); color: #666; }
     td:last-child { border-bottom: none; padding-bottom: 15px; }
+}
+
+@media print {
+    @page { size: A4 landscape; margin: 0; }
+    body { background: white; margin: 0; padding: 0; }
+    #login-overlay, #app-container, #app-footer, .modal-overlay, #scroll-top-btn { display: none !important; }
+    #diploma-print-container { display: block !important; width: 100vw; height: 100%; }
+    .diploma-page { width: 297mm; height: 210mm; page-break-after: always; position: relative; background-color: #fff; padding: 10mm; box-sizing: border-box; display: flex; justify-content: center; align-items: center; }
+    .diploma-border-outer { width: 100%; height: 100%; border: 3px solid var(--brand-blue); padding: 3px; box-sizing: border-box; display: flex; flex-direction: column; }
+    .diploma-border-inner { width: 100%; height: 100%; border: 1px solid var(--brand-blue); padding: 25px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; z-index: 1; }
+    .diploma-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; opacity: 0.08; z-index: -1; }
+    .diploma-logo-top { height: 60px; margin-bottom: 15px; }
+    .diploma-title { font-family: "Times New Roman", Times, serif; color: var(--brand-blue); font-size: 3rem; font-weight: normal; text-transform: uppercase; margin: 0 0 10px 0; letter-spacing: 1px; }
+    .diploma-text { font-family: Arial, sans-serif; font-size: 1rem; color: #333; margin: 5px 0; }
+    .diploma-student { font-family: "Times New Roman", Times, serif; font-size: 2.4rem; font-weight: bold; color: #000; margin: 15px 0; border-bottom: 1px solid #999; padding: 0 40px 5px 40px; display: inline-block; line-height: 1.1; }
+    .diploma-course { font-family: Arial, sans-serif; font-size: 1.8rem; font-weight: bold; color: var(--brand-red); margin: 15px 0; line-height: 1.2; max-width: 90%; }
+    .diploma-details { font-size: 1rem; margin-bottom: 10px; }
+    .diploma-footer { margin-top: auto; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 10px; }
+    .footer-qr-area { text-align: center; display: flex; flex-direction: column; align-items: center; }
+    .qr-image { width: 100px; height: 100px; margin-bottom: 2px; }
+    .qr-ref { font-size: 0.6rem; font-family: monospace; color: #666; }
+    .footer-signature-area { text-align: center; min-width: 220px; }
+    .signature-line { border-top: 1px solid #000; width: 100%; margin-bottom: 5px; }
+    .signature-name { font-weight: bold; font-size: 1rem; display: block; }
+    .signature-role { font-size: 0.8rem; color: #444; }
 }

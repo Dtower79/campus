@@ -311,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function notificarAprobado(cursoTitulo) {
         crearNotificacion(
             "Curs Completat! 🎓",
-            `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`
+            `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'apartat de Qualificacions o just a la pàgina del Test Final.`
         );
     }
 

@@ -636,6 +636,7 @@ window.callPrintDiploma = function(idx) {
     if(data) window.imprimirDiplomaCompleto(data.matricula, data.curso);
 };
 
+
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
     const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
@@ -648,9 +649,14 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentDomain + '/verify.html?ref=' + matId)}`;
 
+    // Generar lista de módulos (Temario) para la cara B
     let temarioHtml = '';
-    if(cursoData.moduls) {
-        temarioHtml = '<ul>' + cursoData.moduls.map((m,i) => `<li><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`).join('') + '</ul>';
+    if(cursoData.moduls && cursoData.moduls.length > 0) {
+        temarioHtml = '<ul style="margin:0; padding-left:20px;">' + 
+            cursoData.moduls.map((m,i) => `<li style="margin-bottom:5px;"><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`).join('') + 
+            '</ul>';
+    } else {
+        temarioHtml = '<p>Temari complet segons pla formatiu.</p>';
     }
 
     let printDiv = document.getElementById('diploma-print-container');
@@ -660,7 +666,9 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         document.body.appendChild(printDiv);
     }
 
+    // INYECTAMOS LAS DOS PÁGINAS
     printDiv.innerHTML = `
+        <!-- PÁGINA 1: DIPLOMA -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner">
@@ -686,7 +694,41 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                     </div>
                 </div>
             </div>
-        </div>`;
+        </div>
+
+        <!-- PÁGINA 2: EXPEDIENTE / TEMARIO -->
+        <div class="diploma-page">
+            <div class="diploma-border-outer">
+                <div class="diploma-border-inner" style="align-items:flex-start; text-align:left; padding:40px;">
+                    <div style="width:100%;">
+                        <div style="display:flex; justify-content:space-between; width:100%; border-bottom:2px solid var(--brand-blue); margin-bottom:20px; padding-bottom:10px;">
+                            <h3 style="margin:0; color:var(--brand-blue); text-transform:uppercase;">Expedient Formatiu</h3>
+                            <img src="img/logo-sicap.png" style="height:30px; opacity:0.6;">
+                        </div>
+                        
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:30px; background:#f9f9f9; padding:15px; border-radius:8px;">
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Alumne</span><strong style="font-size:1rem;">${nombreAlumno}</strong></div>
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Document Identitat</span><strong style="font-size:1rem;">${user.username}</strong></div>
+                            <div style="grid-column:span 2;"><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Activitat Formativa</span><strong style="font-size:1rem;">${nombreCurso}</strong></div>
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Durada</span><strong style="font-size:1rem;">${horas} Hores</strong></div>
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Data Expedició</span><strong style="font-size:1rem;">${fechaHoy}</strong></div>
+                        </div>
+
+                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:15px; text-transform:uppercase;">Continguts (Temari)</h4>
+                        <div style="font-size:0.9rem; line-height:1.6;">
+                            ${temarioHtml}
+                        </div>
+                    </div>
+                    
+                    <div style="position:absolute; bottom:20px; left:0; width:100%; text-align:center; font-size:0.8rem; color:#666; border-top:1px solid #eee; padding-top:10px;">
+                        SICAP - Sindicat Català de Presons - Unitat de Formació
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Retraso para asegurar que las imágenes (QR y Logo) carguen antes de imprimir
     setTimeout(() => window.print(), 500);
 };
 

@@ -1162,15 +1162,11 @@ window.obrirFormulariDubte = function(moduloTitulo) {
 
     newCancel.onclick = () => {
         modal.style.display = 'none';
-        window.isDoubtSubmitting = false; // Liberar por si acaso
+        window.isDoubtSubmitting = false;
     };
     
     newConfirm.onclick = async () => {
-        // 1. BLOQUEO FÍSICO DE EJECUCIÓN
-        if (window.isDoubtSubmitting) {
-            console.warn("Intento de envío duplicado bloqueado.");
-            return;
-        }
+        if (window.isDoubtSubmitting) return; // BLOQUEO
 
         const textEl = document.getElementById('modal-doubt-text');
         const text = textEl.value.trim();
@@ -1181,7 +1177,6 @@ window.obrirFormulariDubte = function(moduloTitulo) {
             return;
         }
 
-        // 2. ACTIVAR SEMÁFORO
         window.isDoubtSubmitting = true;
         newConfirm.innerText = "Enviant...";
         newConfirm.disabled = true;
@@ -1199,8 +1194,6 @@ window.obrirFormulariDubte = function(moduloTitulo) {
                 } 
             };
             
-            console.log("Enviando dubte (single execution)...");
-
             const res = await fetch(`${STRAPI_URL}/api/missatges`, { 
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, 
@@ -1220,7 +1213,6 @@ window.obrirFormulariDubte = function(moduloTitulo) {
             if(window.mostrarModalError) window.mostrarModalError("Error al connectar amb el servidor."); 
             else alert("Error al connectar.");
         } finally {
-            // 3. LIBERAR SEMÁFORO
             window.isDoubtSubmitting = false;
         }
     };

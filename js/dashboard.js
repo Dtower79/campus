@@ -1,17 +1,14 @@
 /* ==========================================================================
-   DASHBOARD.JS (v39.0 - FIX FINAL NOTIFICACIONES & CACHÉ)
+   DASHBOARD.JS (v40.0 - FIX PERSISTENCIA & DEBUG)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. CHEQUEO DE SESIÓN
     const token = localStorage.getItem('jwt');
     if (token) {
         document.getElementById('login-overlay').style.display = 'none';
         document.getElementById('app-container').style.display = 'block';
         if (!window.appIniciada) window.iniciarApp();
     }
-
-    // 2. SCROLL BTN
     const scrollBtn = document.getElementById('scroll-top-btn');
     if(scrollBtn) {
         window.onscroll = () => { scrollBtn.style.display = (document.documentElement.scrollTop > 300) ? "flex" : "none"; };
@@ -25,11 +22,8 @@ window.iniciarApp = function() {
     window.appIniciada = true;
     checkRealNotifications();
     setupDirectClicks();
-    
-    // Iniciar polling (comprobación cada minuto)
-    setInterval(checkRealNotifications, 60000);
+    setInterval(checkRealNotifications, 60000); // Polling cada 60s
 
-    // Datos cabecera
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
         let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
@@ -40,13 +34,10 @@ window.iniciarApp = function() {
         document.getElementById('dropdown-username').innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
         document.getElementById('dropdown-email').innerText = user.email;
         
-        // Datos Perfil
         const avatarBig = document.getElementById('profile-avatar-big');
         if(avatarBig) avatarBig.innerText = initialsStr;
-        const nameDisplay = document.getElementById('profile-name-display');
-        if(nameDisplay) nameDisplay.innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
-        const dniDisplay = document.getElementById('profile-dni-display');
-        if(dniDisplay) dniDisplay.innerText = user.username;
+        document.getElementById('profile-name-display').innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
+        document.getElementById('profile-dni-display').innerText = user.username;
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -63,7 +54,6 @@ window.showView = function(viewName) {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
-
     const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';
@@ -82,16 +72,15 @@ window.showView = function(viewName) {
 function setupDirectClicks() {
     document.getElementById('btn-notifs').onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     document.getElementById('btn-messages').onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
-
-    const navCatalog = document.getElementById('nav-catalog');
-    if(navCatalog) navCatalog.onclick = (e) => { e.preventDefault(); window.showView('home'); };
     
-    const navProfile = document.getElementById('nav-profile');
-    if(navProfile) navProfile.onclick = (e) => { e.preventDefault(); window.showView('profile'); };
-    
-    const navDashboard = document.getElementById('nav-dashboard');
-    if(navDashboard) navDashboard.onclick = (e) => { e.preventDefault(); window.showView('dashboard'); };
+    // Navegación
+    const navs = {'nav-catalog': 'home', 'nav-profile': 'profile', 'nav-dashboard': 'dashboard'};
+    for(const [id, view] of Object.entries(navs)) {
+        const el = document.getElementById(id);
+        if(el) el.onclick = (e) => { e.preventDefault(); window.showView(view); };
+    }
 
+    // User Dropdown
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
     if (btnUser && userDropdown) {
@@ -101,8 +90,8 @@ function setupDirectClicks() {
             userDropdown.classList.toggle('show');
         };
         document.body.addEventListener('click', () => { 
-            userDropdown.style.display = 'none';
-            userDropdown.classList.remove('show');
+            userDropdown.style.display = 'none'; 
+            userDropdown.classList.remove('show'); 
         });
     }
 
@@ -118,7 +107,7 @@ function setupDirectClicks() {
     if(btnMob) btnMob.onclick = (e) => { e.stopPropagation(); navMob.classList.toggle('show-mobile'); };
 }
 
-// --- NOTIFICACIONES (FIX CACHÉ & ID STRAPI v5) ---
+// --- NOTIFICACIONES ---
 async function checkRealNotifications() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
@@ -127,17 +116,14 @@ async function checkRealNotifications() {
 
     try {
         let total = 0;
-        // ANTI-CACHÉ: Timestamp obligatorio
-        const ts = new Date().getTime(); 
+        const ts = new Date().getTime(); // Anti-caché
         
-        // 1. Notificaciones base
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&_t=${ts}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
         total += json.data ? json.data.length : 0;
 
-        // 2. Mensajes Profesor pendientes
         if(user.es_professor === true) {
             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent&_t=${ts}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -147,14 +133,10 @@ async function checkRealNotifications() {
         }
 
         if(bellDot) {
-            if(total > 0) {
-                bellDot.style.display = 'flex';
-                bellDot.innerText = total > 9 ? '+9' : total;
-                bellDot.classList.add('animate-ping');
-            } else {
-                bellDot.style.display = 'none';
-                bellDot.classList.remove('animate-ping');
-            }
+            bellDot.style.display = total > 0 ? 'flex' : 'none';
+            bellDot.innerText = total > 9 ? '+9' : total;
+            if(total > 0) bellDot.classList.add('animate-ping');
+            else bellDot.classList.remove('animate-ping');
         }
     } catch(e) { console.warn(e); }
 }
@@ -180,9 +162,8 @@ window.abrirPanelNotificaciones = async function() {
     try {
         let html = '<div class="notif-list">';
         let hasContent = false;
-        const ts = new Date().getTime(); // ANTI-CACHÉ
+        const ts = new Date().getTime();
 
-        // 1. AVISO PROFESOR
         if(user.es_professor === true) {
              const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
              const jsonMsg = await resMsg.json();
@@ -195,14 +176,13 @@ window.abrirPanelNotificaciones = async function() {
              }
         }
 
-        // 2. NOTIFICACIONES NORMALES
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
         
         if(json.data && json.data.length > 0) {
             hasContent = true;
             json.data.forEach(n => {
-                // Strapi v5 usa 'documentId'. Usamos ese preferentemente.
+                // IMPORTANTE: Preferencia por documentId (Strapi v5)
                 const idReal = n.documentId || n.id;
                 html += `<div class="notif-item unread" onclick="marcarLeida('${idReal}', this)">
                             <strong style="color:var(--brand-blue)">${n.titol}</strong><p>${n.missatge}</p>
@@ -235,33 +215,25 @@ window.openTeacherInbox = function(element) {
     abrirPanelMensajes('profesor');
 };
 
-// FIX: Marcar leída persistente
+// FIX PERSISTENCIA: Usar documentId y verificar respuesta
 window.marcarLeida = async function(id, el) {
-    // 1. Feedback visual
     el.style.opacity = '0.5';
     el.style.pointerEvents = 'none';
     
     const token = localStorage.getItem('jwt');
     try {
-        // 2. PETICIÓN PUT (Usando el ID correcto)
         const res = await fetch(`${API_ROUTES.notifications}/${id}`, {
             method: 'PUT', 
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
             body: JSON.stringify({ data: { llegida: true } }) 
         });
         
-        if (!res.ok) {
-            console.error("Error Strapi:", res.status);
-            // Revertir si falla
-            el.style.opacity = '1';
-            el.style.pointerEvents = 'auto';
-            return;
+        if(!res.ok) {
+            throw new Error("Error servidor: " + res.status);
         }
 
-        // 3. Éxito confirmado: eliminar del DOM
         el.remove();
         
-        // 4. Actualizar campana
         const bellDot = document.querySelector('.notification-dot');
         if(bellDot) {
             let count = parseInt(bellDot.innerText) || 0;
@@ -274,9 +246,11 @@ window.marcarLeida = async function(id, el) {
             }
         }
     } catch(e) { 
-        console.error("Error red:", e);
+        console.error(e);
+        // Revertir si falla
         el.style.opacity = '1';
         el.style.pointerEvents = 'auto';
+        alert("Error al guardar l'estat. Revisa si tens 'Draft & Publish' desactivat a Strapi.");
     }
 };
 
@@ -316,7 +290,7 @@ window.abrirPanelMensajes = async function(modoForzado) {
 
     try {
         let endpoint = '';
-        const ts = new Date().getTime(); // ANTI-CACHÉ
+        const ts = new Date().getTime();
         
         if (modoActual === 'profesor') {
             endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user&_t=${ts}`;
@@ -386,10 +360,8 @@ window.abrirPanelMensajes = async function(modoForzado) {
                         </div>`;
                 }
             });
-            
             html += '</div>';
             msgEl.innerHTML = html;
-            
             requestAnimationFrame(() => {
                 const c = document.getElementById('chat-container');
                 if(c) { c.scrollTop = c.scrollHeight; setTimeout(() => c.scrollTop = c.scrollHeight, 150); }
@@ -430,7 +402,6 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
             });
         }
         abrirPanelMensajes('profesor');
-        
     } catch(e) {
         console.error(e);
         alert("Error al enviar la resposta.");
@@ -452,9 +423,7 @@ async function renderCoursesLogic(viewMode) {
 
     try {
         const ts = new Date().getTime();
-        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const jsonMat = await resMat.json();
         const userMatriculas = jsonMat.data || [];
         
@@ -463,9 +432,7 @@ async function renderCoursesLogic(viewMode) {
         if (viewMode === 'dashboard') {
             cursosAMostrar = userMatriculas.map(m => ({ ...m.curs, _matricula: m }));
         } else {
-            const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const jsonCat = await resCat.json();
             cursosAMostrar = jsonCat.data.map(c => {
                 const existingMat = userMatriculas.find(m => (m.curs.documentId || m.curs.id) === (c.documentId || c.id));
@@ -657,7 +624,6 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'APTE';
     
     const fechaHoy = new Date().toLocaleDateString('ca-ES', { year:'numeric', month:'long', day:'numeric' });
-    
     const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentDomain + '/verify.html?ref=' + matId)}`;
 

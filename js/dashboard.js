@@ -53,11 +53,30 @@ window.iniciarApp = function() {
     }
 };
 
+/* --- EN dashboard.js (Sustituir window.showView) --- */
+
 window.showView = function(viewName) {
+    // 1. PARAR VÍDEOS AL CAMBIAR DE PANTALLA
+    // Buscamos todos los iframes o videos y los pausamos/reseteamos
+    const iframes = document.querySelectorAll('iframe');
+    iframes.forEach(iframe => {
+        // Truco para YouTube/Vimeo: Resetear el src para el vídeo
+        const tempSrc = iframe.src;
+        iframe.src = '';
+        iframe.src = tempSrc;
+    });
+
+    const html5Videos = document.querySelectorAll('video');
+    html5Videos.forEach(video => {
+        video.pause();
+    });
+
+    // 2. LÓGICA ORIGINAL DE CAMBIO DE VISTA
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
+
     const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';

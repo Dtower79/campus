@@ -618,14 +618,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
         /* --- NUEVA FUNCIÓN HELPER --- */
+    /* --- EN renderitzadorCurs.js (Sustituir función) --- */
+
     function renderVideoPlayer(mod) {
         let html = '';
         
-        // 1. Prioridad: Archivo subido a Strapi
+        // 1. Archivo subido a Strapi
         if (mod.video_fitxer && mod.video_fitxer.url) {
             const videoUrl = mod.video_fitxer.url.startsWith('/') ? STRAPI_URL + mod.video_fitxer.url : mod.video_fitxer.url;
             html = `
-                <div class="video-badge"><i class="fa-solid fa-file-video"></i> Video del Curs</div>
+                <div class="video-badge"><i class="fa-solid fa-file-video"></i> Video Resum</div>
                 <div class="video-responsive-container">
                     <video controls controlsList="nodownload">
                         <source src="${videoUrl}" type="${mod.video_fitxer.mime}">
@@ -633,17 +635,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     </video>
                 </div>`;
         } 
-        // 2. Fallback: URL externa (YouTube/Vimeo)
+        // 2. URL externa (YouTube/Vimeo)
         else if (mod.video_url) {
             let embedUrl = '';
             
-            // Convertir link normal de YouTube a Embed
+            // YouTube (Añadimos parámetros para limpiar interfaz)
             if (mod.video_url.includes('youtube.com') || mod.video_url.includes('youtu.be')) {
                 const videoId = mod.video_url.split('v=')[1] || mod.video_url.split('/').pop();
-                const cleanId = videoId.split('&')[0]; // Limpiar parámetros extra
-                embedUrl = `https://www.youtube.com/embed/${cleanId}`;
+                const cleanId = videoId.split('&')[0];
+                // rel=0: No mostrar videos relacionados de otros canales
+                // modestbranding=1: Quitar logo grande de YT
+                embedUrl = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1`;
             } 
-            // Convertir link Vimeo
+            // Vimeo
             else if (mod.video_url.includes('vimeo.com')) {
                 const videoId = mod.video_url.split('/').pop();
                 embedUrl = `https://player.vimeo.com/video/${videoId}`;
@@ -651,7 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (embedUrl) {
                 html = `
-                    <div class="video-badge" style="background:#222;"><i class="fa-brands fa-youtube"></i> Clase Virtual</div>
+                    <div class="video-badge" style="background:#cc181e;"><i class="fa-brands fa-youtube"></i> Video Resum</div>
                     <div class="video-responsive-container">
                         <iframe src="${embedUrl}" title="Video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                     </div>`;

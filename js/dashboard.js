@@ -555,18 +555,59 @@ function generarHtmlDescripcion(text, id) {
     return `<div class="course-desc-container"><p class="course-desc short">${plain}</p></div>`;
 }
 
+/* --- EN dashboard.js (Sustituir window.solicitarMatricula) --- */
+
 window.solicitarMatricula = function(id, title) {
     window.mostrarModalConfirmacion("Matrícula", `Vols inscriure't a "${title}"?`, async () => {
         const user = JSON.parse(localStorage.getItem('user'));
         const token = localStorage.getItem('jwt');
+        
         try {
-            await fetch(`${STRAPI_URL}/api/matriculas`, {
+            // 1. PROCESO DE MATRÍCULA (CRÍTICO)
+            const res = await fetch(`${STRAPI_URL}/api/matriculas`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ data: { curs: id, users_permissions_user: user.id, progres: 0, estat: 'actiu', data_inici: new Date().toISOString(), progres_detallat: {} } })
+                body: JSON.stringify({ 
+                    data: { 
+                        curs: id, 
+                        users_permissions_user: user.id, 
+                        progres: 0, 
+                        estat: 'actiu', 
+                        data_inici: new Date().toISOString(), 
+                        progres_detallat: {} 
+                    } 
+                })
             });
+
+            if (!res.ok) throw new Error("Error al crear matrícula");
+
+            // 2. CREAR NOTIFICACIÓN (NUEVO)
+            // Lo hacemos en un bloque try/catch independiente para que, 
+            // si falla la notificación, la matrícula siga siendo válida.
+            try {
+                await fetch(API_ROUTES.notifications, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        data: {
+                            titol: "Matrícula Realitzada",
+                            missatge: `T'has inscrit correctament al curs: "${title}". Ja pots començar a estudiar! 📚`,
+                            llegida: false,
+                            users_permissions_user: user.id
+                        }
+                    })
+                });
+            } catch (errNotif) {
+                console.warn("No s'ha pogut enviar la notificació, pero la matrícula és vàlida.");
+            }
+
+            // 3. RECARGAR PARA VER EL CURSO
             window.location.reload();
-        } catch(e) { alert("Error al matricular."); }
+
+        } catch(e) { 
+            console.error(e);
+            alert("Error al processar la matrícula. Torna-ho a provar."); 
+        }
     });
 };
 

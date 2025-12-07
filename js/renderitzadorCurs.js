@@ -663,7 +663,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return html;
     }
-    
+
     function renderTeoria(container, mod) {
         // Generar HTML del vídeo
         const videoHtml = renderVideoPlayer(mod);
@@ -954,9 +954,19 @@ document.addEventListener('DOMContentLoaded', () => {
             p.modulos[modIdx].intentos += 1; p.modulos[modIdx].nota = Math.max(p.modulos[modIdx].nota, nota); if (aprobado) p.modulos[modIdx].aprobado = true;
             await guardarProgreso(p); limpiarRespuestasLocales(`test_mod_${modIdx}`); state.testEnCurso = false; document.body.classList.remove('exam-active');
             
-            if(aprobado) verificarFinModulo(modIdx);
-
-            mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, modIdx, false);
+            if (aprobado) {
+                p.modulos[modIdx].aprobado = true;
+                verificarFinModulo(modIdx); // Notificación de éxito ya existente
+            } else {
+                // --- NUEVO: NOTIFICACIÓN DE ÁNIMO AL SUSPENDER ---
+                // Solo si aún le quedan intentos, para no saturar
+                if (p.modulos[modIdx].intentos < 2) {
+                    crearNotificacion(
+                        "Has d'estudiar una mica més 📖",
+                        `Has obtingut un ${nota} al test del Mòdul ${modIdx + 1}. Repassa el temari i torna-ho a intentar. Et queda 1 intent.`
+                    );
+                }
+            }
         });
     }
 
@@ -1160,11 +1170,30 @@ document.addEventListener('DOMContentLoaded', () => {
             if (aprobado) porcentaje = 100;
 
             const payload = { data: { progres_detallat: state.progreso, progres: porcentaje } }; 
+            /* --- EN renderitzadorCurs.js -> función entregarExamenFinal -> doDelivery --- */
+
             if (aprobado) { 
                 payload.data.estat = 'completat'; 
                 payload.data.nota_final = nota; 
-                notificarAprobado(state.curso.titol);
+                notificarAprobado(state.curso.titol); // Éxito ya existente
+            } else {
+                // --- NUEVO: AVISO DE SUSPENSO EXAMEN FINAL ---
+                const intentosGastados = state.progreso.examen_final.intentos;
+                const intentosRestantes = 2 - intentosGastados;
+                
+                if (intentosRestantes > 0) {
+                    crearNotificacion(
+                        "Examen Final No Superat ⚠️",
+                        `Has tret un ${nota}. No et preocupis, et queda ${intentosRestantes} intent. Revisa bé els mòduls anteriors.`
+                    );
+                } else {
+                    crearNotificacion(
+                        "Intents Esgotats ⛔",
+                        `Has esgotat els 2 intents de l'Examen Final amb un ${nota}. Contacta amb el tutor si necessites ajuda.`
+                    );
+                }
             }
+
             
             await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) });
             limpiarRespuestasLocales('examen_final'); state.testEnCurso = false; document.body.classList.remove('exam-active');

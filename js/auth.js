@@ -77,48 +77,72 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    if (registerForm) {
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const dni = document.getElementById('reg-dni').value.trim().toUpperCase();
-            const pass = document.getElementById('reg-pass').value;
-            const passConf = document.getElementById('reg-pass-conf').value;
-            const btnSubmit = registerForm.querySelector('button[type="submit"]');
+    /* --- EN auth.js (Sustituir el listener del register-form) --- */
 
-            if(pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
+if (registerForm) {
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const dni = document.getElementById('reg-dni').value.trim().toUpperCase();
+        const pass = document.getElementById('reg-pass').value;
+        const passConf = document.getElementById('reg-pass-conf').value;
+        const btnSubmit = registerForm.querySelector('button[type="submit"]');
+
+        if(pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
+        
+        btnSubmit.innerText = "Verificant..."; btnSubmit.disabled = true;
+
+        try {
+            // 1. Verificar Afiliado
+            const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dni}`);
+            const jsonAfi = await resAfi.json();
             
-            btnSubmit.innerText = "Verificant..."; btnSubmit.disabled = true;
+            if(!jsonAfi.data || jsonAfi.data.length === 0) {
+                 lanzarModal("DNI no autoritzat", "No constes com a afiliat actiu.");
+                 btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
+                 return;
+            }
 
-            try {
-                // Verificar si es afiliado
-                const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dni}`);
-                const jsonAfi = await resAfi.json();
-                
-                if(!jsonAfi.data || jsonAfi.data.length === 0) {
-                     lanzarModal("DNI no autoritzat", "No constes com a afiliat actiu.");
-                     btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
-                     return;
-                }
+            // 2. Crear Usuario
+            const regRes = await fetch(API_ROUTES.register, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: dni, email: `${dni}@sicap.cat`, password: pass })
+            });
+            
+            const regData = await regRes.json();
 
-                // Crear usuario
-                const regRes = await fetch(API_ROUTES.register, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: dni, email: `${dni}@sicap.cat`, password: pass })
-                });
-                
-                if(regRes.ok) {
-                    alert("Compte creat! Ara inicia sessió.");
-                    window.location.reload();
-                } else {
-                    const errData = await regRes.json();
-                    lanzarModal("Error", errData.error?.message || "Error al crear compte.");
-                    btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
-                }
+            if(regRes.ok) {
+                // --- NUEVO: ENVIAR NOTIFICACIÓN DE BIENVENIDA ---
+                // Usamos el ID del usuario recién creado (regData.user.id)
+                // Necesitamos el token JWT que devuelve el registro para poder postear la notificación
+                try {
+                    if (regData.jwt) {
+                        await fetch(API_ROUTES.notifications, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${regData.jwt}` },
+                            body: JSON.stringify({
+                                data: {
+                                    titol: "Benvingut al Campus! 👋",
+                                    missatge: "El teu compte s'ha activat correctament. Explora el catàleg i comença a formar-te.",
+                                    llegida: false,
+                                    users_permissions_user: regData.user.id
+                                }
+                            })
+                        });
+                    }
+                } catch(errNotif) { console.warn("Error enviando bienvenida", errNotif); }
+                // ------------------------------------------------
 
-            } catch(e) { 
-                lanzarModal("Error", "Error de connexió."); 
+                alert("Compte creat correctament! Ara inicia la sessió.");
+                window.location.reload();
+            } else {
+                lanzarModal("Error", regData.error?.message || "Error al crear compte.");
                 btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
             }
-        });
-    }
+
+        } catch(e) { 
+            lanzarModal("Error", "Error de connexió."); 
+            btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
+        }
+    });
+}
 });

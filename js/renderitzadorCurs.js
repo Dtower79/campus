@@ -1129,7 +1129,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- MODAL DE DUDAS (ESTILIZADO) ---
     /* --- EN renderitzadorCurs.js (buscar window.obrirFormulariDubte) --- */
-
+    
+window.isDoubtSubmitting = false;
 window.obrirFormulariDubte = function(moduloTitulo) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -1153,21 +1154,24 @@ window.obrirFormulariDubte = function(moduloTitulo) {
     btnConfirm.disabled = false;
     btnConfirm.style.background = "var(--brand-blue)";
 
-    // CLONACIÓN PARA LIMPIAR EVENTOS ANTERIORES
+    // RESET DE EVENTOS
     const newConfirm = btnConfirm.cloneNode(true);
     const newCancel = btnCancel.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     btnCancel.parentNode.replaceChild(newCancel, btnCancel);
 
-    newCancel.onclick = () => modal.style.display = 'none';
+    newCancel.onclick = () => {
+        modal.style.display = 'none';
+        window.isDoubtSubmitting = false; // Liberar por si acaso
+    };
     
-    // SEMÁFORO ANTI-DUPLICADOS
-    let isSubmitting = false;
-
     newConfirm.onclick = async () => {
-        // 1. BLOQUEO INMEDIATO
-        if (isSubmitting) return; 
-        
+        // 1. BLOQUEO FÍSICO DE EJECUCIÓN
+        if (window.isDoubtSubmitting) {
+            console.warn("Intento de envío duplicado bloqueado.");
+            return;
+        }
+
         const textEl = document.getElementById('modal-doubt-text');
         const text = textEl.value.trim();
         
@@ -1177,8 +1181,8 @@ window.obrirFormulariDubte = function(moduloTitulo) {
             return;
         }
 
-        // 2. ACTIVAR SEMÁFORO Y UI
-        isSubmitting = true;
+        // 2. ACTIVAR SEMÁFORO
+        window.isDoubtSubmitting = true;
         newConfirm.innerText = "Enviant...";
         newConfirm.disabled = true;
 
@@ -1194,6 +1198,8 @@ window.obrirFormulariDubte = function(moduloTitulo) {
                     data_envio: new Date().toISOString() 
                 } 
             };
+            
+            console.log("Enviando dubte (single execution)...");
 
             const res = await fetch(`${STRAPI_URL}/api/missatges`, { 
                 method: 'POST', 
@@ -1206,16 +1212,16 @@ window.obrirFormulariDubte = function(moduloTitulo) {
                 if(window.mostrarModalError) window.mostrarModalError("✅ Dubte enviat correctament!");
                 else alert("Dubte enviat correctament!");
             } else { 
-                throw new Error("Error API: " + res.status); 
+                throw new Error("API Error: " + res.status); 
             }
         } catch(e) { 
             console.error(e); 
             modal.style.display = 'none'; 
-            if(window.mostrarModalError) window.mostrarModalError("Error al connectar amb el servidor.");
+            if(window.mostrarModalError) window.mostrarModalError("Error al connectar amb el servidor."); 
             else alert("Error al connectar.");
         } finally {
-            // LIBERAR SEMÁFORO (Solo si falla y reabre, o para limpieza)
-            isSubmitting = false;
+            // 3. LIBERAR SEMÁFORO
+            window.isDoubtSubmitting = false;
         }
     };
     modal.style.display = 'flex';

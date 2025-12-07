@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DASHBOARD.JS (v38.0 - FINAL STABLE & NOTIFICATION FIX)
+   DASHBOARD.JS (v39.0 - FIX FINAL NOTIFICACIONES & CACHÉ)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -118,7 +118,7 @@ function setupDirectClicks() {
     if(btnMob) btnMob.onclick = (e) => { e.stopPropagation(); navMob.classList.toggle('show-mobile'); };
 }
 
-// --- NOTIFICACIONES (FIX CACHÉ & ANIMACIÓN) ---
+// --- NOTIFICACIONES (FIX CACHÉ & ID STRAPI v5) ---
 async function checkRealNotifications() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
@@ -127,7 +127,8 @@ async function checkRealNotifications() {
 
     try {
         let total = 0;
-        const ts = new Date().getTime(); // Anti-caché
+        // ANTI-CACHÉ: Timestamp obligatorio
+        const ts = new Date().getTime(); 
         
         // 1. Notificaciones base
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&_t=${ts}`, {
@@ -149,7 +150,7 @@ async function checkRealNotifications() {
             if(total > 0) {
                 bellDot.style.display = 'flex';
                 bellDot.innerText = total > 9 ? '+9' : total;
-                bellDot.classList.add('animate-ping'); // Recuperar movimiento
+                bellDot.classList.add('animate-ping');
             } else {
                 bellDot.style.display = 'none';
                 bellDot.classList.remove('animate-ping');
@@ -179,7 +180,7 @@ window.abrirPanelNotificaciones = async function() {
     try {
         let html = '<div class="notif-list">';
         let hasContent = false;
-        const ts = new Date().getTime(); // Anti-caché CRÍTICO para el listado
+        const ts = new Date().getTime(); // ANTI-CACHÉ
 
         // 1. AVISO PROFESOR
         if(user.es_professor === true) {
@@ -201,7 +202,7 @@ window.abrirPanelNotificaciones = async function() {
         if(json.data && json.data.length > 0) {
             hasContent = true;
             json.data.forEach(n => {
-                // Usamos documentId preferentemente, fallback a id
+                // Strapi v5 usa 'documentId'. Usamos ese preferentemente.
                 const idReal = n.documentId || n.id;
                 html += `<div class="notif-item unread" onclick="marcarLeida('${idReal}', this)">
                             <strong style="color:var(--brand-blue)">${n.titol}</strong><p>${n.missatge}</p>
@@ -217,7 +218,6 @@ window.abrirPanelNotificaciones = async function() {
     } catch(e) { msg.innerHTML = 'Error al carregar.'; }
 };
 
-// Función para abrir la bandeja de profesor y limpiar campana
 window.openTeacherInbox = function(element) {
     element.style.display = 'none';
     const bellDot = document.querySelector('.notification-dot');
@@ -235,40 +235,33 @@ window.openTeacherInbox = function(element) {
     abrirPanelMensajes('profesor');
 };
 
-// Función para marcar como leída (FIX VISUAL + BACKEND)
-/* --- EN dashboard.js (buscar window.marcarLeida) --- */
-
+// FIX: Marcar leída persistente
 window.marcarLeida = async function(id, el) {
-    // 1. Feedback visual (Opacidad reducida para indicar "procesando")
+    // 1. Feedback visual
     el.style.opacity = '0.5';
     el.style.pointerEvents = 'none';
     
     const token = localStorage.getItem('jwt');
-
     try {
-        // 2. PETICIÓN AL SERVIDOR
+        // 2. PETICIÓN PUT (Usando el ID correcto)
         const res = await fetch(`${API_ROUTES.notifications}/${id}`, {
             method: 'PUT', 
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
             body: JSON.stringify({ data: { llegida: true } }) 
         });
-
-        // 3. VERIFICACIÓN ESTRICTA
+        
         if (!res.ok) {
-            // Si el servidor dice que NO (ej: 403 Forbidden o 404), revertimos visualmente
-            // y avisamos en consola.
-            console.error("Error al marcar leída. Status:", res.status);
+            console.error("Error Strapi:", res.status);
+            // Revertir si falla
             el.style.opacity = '1';
             el.style.pointerEvents = 'auto';
-            
-            // Opcional: Avisar al usuario si falla constantemente
-            // alert("No s'ha pogut desar l'estat. Revisa la teva connexió.");
             return;
         }
-        
-        // 4. ÉXITO CONFIRMADO: Eliminar del DOM y actualizar contador
-        el.remove(); // Usar remove() es más limpio que display:none
 
+        // 3. Éxito confirmado: eliminar del DOM
+        el.remove();
+        
+        // 4. Actualizar campana
         const bellDot = document.querySelector('.notification-dot');
         if(bellDot) {
             let count = parseInt(bellDot.innerText) || 0;
@@ -280,16 +273,14 @@ window.marcarLeida = async function(id, el) {
                 bellDot.innerText = count > 9 ? '+9' : count;
             }
         }
-
     } catch(e) { 
-        console.error("Excepción de red al marcar leída:", e); 
-        // Revertir estado visual si hay error de red
+        console.error("Error red:", e);
         el.style.opacity = '1';
         el.style.pointerEvents = 'auto';
     }
 };
 
-// --- MENSAJERÍA (CHAT CON MODOS Y FECHAS) ---
+// --- MENSAJERÍA ---
 window.abrirPanelMensajes = async function(modoForzado) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -325,10 +316,12 @@ window.abrirPanelMensajes = async function(modoForzado) {
 
     try {
         let endpoint = '';
+        const ts = new Date().getTime(); // ANTI-CACHÉ
+        
         if (modoActual === 'profesor') {
-            endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user`;
+            endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user&_t=${ts}`;
         } else {
-            endpoint = `${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:asc`;
+            endpoint = `${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:asc&_t=${ts}`;
         }
 
         const res = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -458,7 +451,8 @@ async function renderCoursesLogic(viewMode) {
     list.innerHTML = '<div class="loader"></div>';
 
     try {
-        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge`, {
+        const ts = new Date().getTime();
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const jsonMat = await resMat.json();
@@ -469,7 +463,7 @@ async function renderCoursesLogic(viewMode) {
         if (viewMode === 'dashboard') {
             cursosAMostrar = userMatriculas.map(m => ({ ...m.curs, _matricula: m }));
         } else {
-            const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge`, {
+            const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const jsonCat = await resCat.json();
@@ -638,7 +632,6 @@ async function loadGrades() {
                 ? `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>` 
                 : '<small>Pendent</small>';
 
-            // FIX: data-label para tabla móvil
             tbody.innerHTML += `
                 <tr style="border-bottom:1px solid #eee;">
                     <td data-label="Curs" style="padding:15px;"><strong>${curs.titol}</strong></td>
@@ -706,30 +699,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="diploma-page">
-            <div class="diploma-border-outer">
-                <div class="diploma-border-inner" style="align-items:flex-start; text-align:left; padding:40px;">
-                    <div class="page-back-content">
-                        <div class="expedient-header" style="display:flex; justify-content:space-between; width:100%; border-bottom:2px solid var(--brand-blue); margin-bottom:20px; padding-bottom:10px;">
-                            <h3 style="margin:0; color:var(--brand-blue);">Expedient Formatiu</h3>
-                            <img src="img/logo-sicap.png" style="height:30px; opacity:0.6;">
-                        </div>
-                        <div class="info-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:30px;">
-                            <div><span style="display:block; font-size:0.8rem; color:#666;">Alumne</span><strong>${nombreAlumno}</strong></div>
-                            <div><span style="display:block; font-size:0.8rem; color:#666;">DNI</span><strong>${user.username}</strong></div>
-                            <div><span style="display:block; font-size:0.8rem; color:#666;">Curs</span><strong>${nombreCurso}</strong></div>
-                            <div><span style="display:block; font-size:0.8rem; color:#666;">Hores</span><strong>${horas}h</strong></div>
-                        </div>
-                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:15px;">CONTINGUTS DEL CURS</h4>
-                        <div class="modules-list" style="font-size:0.9rem; line-height:1.6;">${temarioHtml}</div>
-                        <div class="back-footer" style="position:absolute; bottom:20px; width:100%; text-align:center; font-size:0.8rem; color:#666; border-top:1px solid #eee; padding-top:10px;">SICAP - Sindicat Català de Presons - Unitat de Formació</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+        </div>`;
     setTimeout(() => window.print(), 500);
 };
 
@@ -741,7 +711,7 @@ window.mostrarModalError = function(msg) {
     document.getElementById('modal-btn-cancel').style.display = 'none';
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "D'acord";
-    btn.disabled = false; // FIX BUTTON
+    btn.disabled = false; 
     const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
     newBtn.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';

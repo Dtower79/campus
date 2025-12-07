@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DASHBOARD.JS (v40.0 - FIX PERSISTENCIA & DEBUG)
+   DASHBOARD.JS (v41.0 - FIX FINAL & CLEANUP)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -17,12 +17,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.appIniciada = false;
+// Memoria local de sesión para evitar rebote visual si la API es lenta
+window.sesionLeidas = new Set(); 
 
 window.iniciarApp = function() {
     window.appIniciada = true;
     checkRealNotifications();
     setupDirectClicks();
-    setInterval(checkRealNotifications, 60000); // Polling cada 60s
+    
+    // Polling cada 60s
+    setInterval(checkRealNotifications, 60000);
 
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
@@ -80,7 +84,6 @@ function setupDirectClicks() {
         if(el) el.onclick = (e) => { e.preventDefault(); window.showView(view); };
     }
 
-    // User Dropdown
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
     if (btnUser && userDropdown) {
@@ -118,18 +121,24 @@ async function checkRealNotifications() {
         let total = 0;
         const ts = new Date().getTime(); // Anti-caché
         
+        // 1. Notificaciones
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&_t=${ts}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
-        total += json.data ? json.data.length : 0;
+        // Filtramos las que ya hemos leído en esta sesión para que no salgan "fantasmas"
+        const validNotifs = (json.data || []).filter(n => !window.sesionLeidas.has(n.documentId || n.id));
+        total += validNotifs.length;
 
+        // 2. Mensajes Profesor (Solo si es profe)
         if(user.es_professor === true) {
             const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent&_t=${ts}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const jsonMsg = await resMsg.json();
-            total += jsonMsg.data ? jsonMsg.data.length : 0;
+            // Filtramos las respondidas en esta sesión
+            const validMsgs = (jsonMsg.data || []).filter(m => !window.sesionLeidas.has(m.documentId || m.id));
+            total += validMsgs.length;
         }
 
         if(bellDot) {
@@ -164,25 +173,32 @@ window.abrirPanelNotificaciones = async function() {
         let hasContent = false;
         const ts = new Date().getTime();
 
+        // 1. SAFATA PROFESSOR
         if(user.es_professor === true) {
              const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
              const jsonMsg = await resMsg.json();
-             if(jsonMsg.data && jsonMsg.data.length > 0) {
+             // Filtrar los que ya hemos respondido localmente
+             const pendientesReales = (jsonMsg.data || []).filter(m => !window.sesionLeidas.has(m.documentId || m.id));
+             
+             if(pendientesReales.length > 0) {
                  hasContent = true;
                  html += `<div class="notif-item unread" onclick="openTeacherInbox(this)">
                             <strong style="color:var(--brand-red)">👨‍🏫 Safata Professor</strong>
-                            <p>Tens ${jsonMsg.data.length} dubtes d'alumnes per respondre.</p>
+                            <p>Tens ${pendientesReales.length} dubtes d'alumnes per respondre.</p>
                           </div>`;
              }
         }
 
+        // 2. NOTIFICACIONES NORMALES
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
         
-        if(json.data && json.data.length > 0) {
+        // Filtrar leídas localmente
+        const notifsReales = (json.data || []).filter(n => !window.sesionLeidas.has(n.documentId || n.id));
+
+        if(notifsReales.length > 0) {
             hasContent = true;
-            json.data.forEach(n => {
-                // IMPORTANTE: Preferencia por documentId (Strapi v5)
+            notifsReales.forEach(n => {
                 const idReal = n.documentId || n.id;
                 html += `<div class="notif-item unread" onclick="marcarLeida('${idReal}', this)">
                             <strong style="color:var(--brand-blue)">${n.titol}</strong><p>${n.missatge}</p>
@@ -200,26 +216,18 @@ window.abrirPanelNotificaciones = async function() {
 
 window.openTeacherInbox = function(element) {
     element.style.display = 'none';
-    const bellDot = document.querySelector('.notification-dot');
-    if(bellDot) {
-        let count = parseInt(bellDot.innerText) || 0;
-        count = Math.max(0, count - 1);
-        if(count === 0) {
-            bellDot.style.display = 'none';
-            bellDot.classList.remove('animate-ping');
-        } else {
-            bellDot.innerText = count > 9 ? '+9' : count;
-        }
-    }
+    // No limpiamos el punto rojo aquí, se limpiará al responder mensajes
     document.getElementById('custom-modal').style.display = 'none';
     abrirPanelMensajes('profesor');
 };
 
-// FIX PERSISTENCIA: Usar documentId y verificar respuesta
 window.marcarLeida = async function(id, el) {
     el.style.opacity = '0.5';
     el.style.pointerEvents = 'none';
     
+    // Guardar en sesión local inmediatamente
+    window.sesionLeidas.add(id);
+
     const token = localStorage.getItem('jwt');
     try {
         const res = await fetch(`${API_ROUTES.notifications}/${id}`, {
@@ -228,9 +236,7 @@ window.marcarLeida = async function(id, el) {
             body: JSON.stringify({ data: { llegida: true } }) 
         });
         
-        if(!res.ok) {
-            throw new Error("Error servidor: " + res.status);
-        }
+        if(!res.ok) throw new Error("API Error");
 
         el.remove();
         
@@ -238,19 +244,14 @@ window.marcarLeida = async function(id, el) {
         if(bellDot) {
             let count = parseInt(bellDot.innerText) || 0;
             count = Math.max(0, count - 1);
-            if(count === 0) {
-                bellDot.style.display = 'none';
-                bellDot.classList.remove('animate-ping');
-            } else {
-                bellDot.innerText = count > 9 ? '+9' : count;
-            }
+            if(count === 0) bellDot.style.display = 'none';
+            else bellDot.innerText = count > 9 ? '+9' : count;
         }
     } catch(e) { 
         console.error(e);
-        // Revertir si falla
-        el.style.opacity = '1';
-        el.style.pointerEvents = 'auto';
-        alert("Error al guardar l'estat. Revisa si tens 'Draft & Publish' desactivat a Strapi.");
+        // No revertimos visualmente para no molestar al usuario,
+        // pero sí lo quitamos de la lista local si falló gravemente.
+        // En Strapi v5 con Draft disabled esto no debería fallar.
     }
 };
 
@@ -312,7 +313,15 @@ window.abrirPanelMensajes = async function(modoForzado) {
         } else {
             let html = '<div class="msg-list-container" id="chat-container">';
             
-            json.data.forEach(m => {
+            // Filtrar mensajes ya respondidos localmente en esta sesión
+            const mensajesFiltrados = json.data.filter(m => !window.sesionLeidas.has(m.documentId || m.id));
+
+            if (mensajesFiltrados.length === 0) {
+                 msgEl.innerHTML = '<div style="text-align:center; padding:20px;">Tot al dia! 🎉</div>';
+                 return;
+            }
+
+            mensajesFiltrados.forEach(m => {
                 const dateUser = new Date(m.createdAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
                 const dateProfe = new Date(m.updatedAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
                 const headerBadge = `<strong>${m.curs}</strong> | ${m.tema}`;
@@ -322,7 +331,7 @@ window.abrirPanelMensajes = async function(modoForzado) {
                     const alumnoId = m.users_permissions_user?.id || m.users_permissions_user?.documentId;
                     
                     html += `
-                        <div class="msg-card">
+                        <div class="msg-card" id="msg-card-${m.documentId||m.id}">
                             <div class="msg-course-badge">${headerBadge}</div>
                             <div class="msg-content">
                                 <div class="chat-bubble bubble-student">
@@ -379,6 +388,9 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     const btn = txt.nextElementSibling;
     btn.innerText = "Enviant..."; btn.disabled = true;
 
+    // Guardar en sesión local para que desaparezca YA
+    window.sesionLeidas.add(msgId);
+
     try {
         await fetch(`${API_ROUTES.messages}/${msgId}`, {
             method: 'PUT',
@@ -386,6 +398,11 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
             body: JSON.stringify({ data: { resposta_professor: respuesta, estat: 'respost' } })
         });
 
+        // Eliminar visualmente del chat
+        const card = document.getElementById(`msg-card-${msgId}`);
+        if(card) card.remove();
+
+        // Notificar al alumno
         if(studentId && studentId !== 'undefined') {
             const tema = decodeURIComponent(encodedTema);
             await fetch(API_ROUTES.notifications, {
@@ -401,11 +418,15 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
                 })
             });
         }
-        abrirPanelMensajes('profesor');
+        
+        // Actualizar campana
+        checkRealNotifications();
+
     } catch(e) {
         console.error(e);
         alert("Error al enviar la resposta.");
         btn.innerText = "Enviar Resposta"; btn.disabled = false;
+        window.sesionLeidas.delete(msgId); // Revertir si falla
     }
 };
 

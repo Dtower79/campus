@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS - Lógica del LMS (v43.0 - SMART TESTS & VIDEO)
+   RENDERITZADORCURS.JS - Lógica del LMS (v44.0 - FIX MERGE & CLICK)
    --------------------------------------------------------------------------
    Gestiona: Carga de cursos, Navegación, Flashcards, Tests Inteligentes,
    Examen Final, Vídeo y Sincronización con Strapi.
@@ -103,13 +103,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function prepararExamen(mod) {
-        // 1. Decidir fuente: ¿Banco IA o preguntas fijas?
+        // 1. FUSIONAR FUENTES (FIX: Ahora suma las antiguas y las nuevas)
         let pool = [];
-        if (mod.banc_preguntes && mod.banc_preguntes.length > 0) {
-            pool = [...mod.banc_preguntes]; 
-        } else {
-            pool = [...(mod.preguntes || [])]; 
-        }
+        const antiguas = mod.preguntes || [];
+        const nuevas = mod.banc_preguntes || [];
+        
+        // Concatenamos ambas fuentes
+        pool = [...antiguas, ...nuevas];
 
         // 2. Seleccionar 10 aleatorias (o todas si hay menos)
         const limite = 10; 
@@ -573,6 +573,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderVideoPlayer(mod) {
         let html = '';
+        
+        // 1. Archivo subido a Strapi
         if (mod.video_fitxer && mod.video_fitxer.url) {
             const videoUrl = mod.video_fitxer.url.startsWith('/') ? STRAPI_URL + mod.video_fitxer.url : mod.video_fitxer.url;
             html = `
@@ -584,16 +586,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     </video>
                 </div>`;
         } 
+        // 2. URL externa (YouTube/Vimeo)
         else if (mod.video_url) {
             let embedUrl = '';
+            
+            // YouTube (Añadimos parámetros para limpiar interfaz)
             if (mod.video_url.includes('youtube.com') || mod.video_url.includes('youtu.be')) {
                 const videoId = mod.video_url.split('v=')[1] || mod.video_url.split('/').pop();
                 const cleanId = videoId.split('&')[0];
+                // rel=0: No mostrar videos relacionados de otros canales
+                // modestbranding=1: Quitar logo grande de YT
                 embedUrl = `https://www.youtube.com/embed/${cleanId}?rel=0&modestbranding=1`;
-            } else if (mod.video_url.includes('vimeo.com')) {
+            } 
+            // Vimeo
+            else if (mod.video_url.includes('vimeo.com')) {
                 const videoId = mod.video_url.split('/').pop();
                 embedUrl = `https://player.vimeo.com/video/${videoId}`;
             }
+
             if (embedUrl) {
                 html = `
                     <div class="video-badge" style="background:#cc181e;"><i class="fa-brands fa-youtube"></i> Video Resum</div>
@@ -606,9 +616,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderTeoria(container, mod) {
+        // Generar HTML del vídeo
         const videoHtml = renderVideoPlayer(mod);
+
         let html = `<h2>${mod.titol}</h2>`;
+        
+        // Inyectamos el vídeo primero
         html += videoHtml;
+
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
         
         if (mod.material_pdf) {
@@ -629,6 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
              html += `<div style="margin-top:30px;"><button class="btn-primary" onclick="window.cambiarVista(${state.currentModuleIndex}, 'test')">Anar al Test</button></div>`;
         }
+        
         container.innerHTML = html;
     }
 
@@ -657,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===============================================================
-    // 8. LOGICA DE FLASHCARDS
+    // 8. LOGICA DE FLASHCARDS (GAMIFICACIÓN COMPLETA)
     // ===============================================================
     function renderFlashcards(container, cards, modIdx) {
         if (!cards || cards.length === 0) { container.innerHTML = '<p>No hi ha targetes.</p>'; return; }
@@ -667,6 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isReallyCompleted = isCompletedDB || (flippedIndices.length >= cards.length);
 
         let headerHtml = `<div id="fc-header-container">`;
+        
         if(isReallyCompleted) {
             headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:green; background:#d4edda; border:1px solid #c3e6cb; padding:15px; border-radius:4px;">
                 <i class="fa-solid fa-check-circle"></i> <strong>Activitat Completada!</strong>
@@ -698,6 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let words = answerText.split(" ");
             let targetWord = "", hiddenIndex = -1;
             
+            // Buscar palabra de +4 letras para ocultar
             for (let i = 0; i < words.length; i++) {
                 let clean = words[i].replace(/[.,;:"'()]/g, '');
                 if (clean.length > 4) { targetWord = words[i]; hiddenIndex = i; break; }
@@ -706,6 +724,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let targetClean = targetWord.replace(/[.,;:"'()]/g, '');
             let options = [targetClean];
+            
+            // Generar distractores únicos
             while(options.length < 3) {
                 let rand = distractors[Math.floor(Math.random() * distractors.length)];
                 if(!options.includes(rand) && rand.toLowerCase() !== targetClean.toLowerCase()) options.push(rand);
@@ -734,7 +754,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).join('');
                 backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
             }
+
             const clickAttr = `onclick="handleFlip(this)"`; 
+
             html += `<div class="flashcard ${flipClass}" ${clickAttr}>
                     <div class="flashcard-inner">
                         <div class="flashcard-front">
@@ -746,10 +768,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div></div>`;
         });
         html += `</div>`;
+        
         container.innerHTML = html;
     }
 
-    window.handleFlip = function(cardElement) { cardElement.classList.toggle('flipped'); }
+    window.handleFlip = function(cardElement) {
+        cardElement.classList.toggle('flipped');
+    }
 
     window.checkFlashcardFromDOM = function(e, btn) {
         if (e) { e.stopPropagation(); e.preventDefault(); }
@@ -802,8 +827,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function actualizarProgresoFlashcards(modIdx) {
         if (!state.progreso.modulos) state.progreso.modulos = [];
         if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
+
         if (!state.progreso.modulos[modIdx].flashcards_done) {
             state.progreso.modulos[modIdx].flashcards_done = true;
+            
             guardarProgreso(state.progreso).then(() => {
                 verificarFinModulo(modIdx);
                 renderSidebar(); 
@@ -880,7 +907,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const selectedClass = isSelected ? 'selected' : '';
                 const multiClass = isMulti ? 'multi-select' : '';
 
-                html += `<div class="option-item ${selectedClass} ${multiClass}" onclick="selectTestOption('${qId}', '${valToStore}', ${isMulti}, 'test_mod_${modIdx}')">
+                // FIX: Quitar comillas simples a ${valToStore} para pasar números como números
+                html += `<div class="option-item ${selectedClass} ${multiClass}" onclick="selectTestOption('${qId}', ${valToStore}, ${isMulti}, 'test_mod_${modIdx}')">
                             <input type="${inputType}" name="${qId}" ${checked}>
                             <span>${opt.text}</span>
                          </div>`;
@@ -977,10 +1005,16 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('exam-active');
             
             if (aprobado) {
-                verificarFinModulo(modIdx);
+                p.modulos[modIdx].aprobado = true;
+                verificarFinModulo(modIdx); // Notificación de éxito ya existente
             } else {
+                // --- NUEVO: NOTIFICACIÓN DE ÁNIMO AL SUSPENDER ---
+                // Solo si aún le quedan intentos, para no saturar
                 if (p.modulos[modIdx].intentos < 2) {
-                    crearNotificacion("Has d'estudiar una mica més 📖", `Has tret un ${nota}. Et queda 1 intent.`);
+                    crearNotificacion(
+                        "Has d'estudiar una mica més 📖",
+                        `Has obtingut un ${nota} al test del Mòdul ${modIdx + 1}. Repassa el temari i torna-ho a intentar. Et queda 1 intent.`
+                    );
                 }
             }
             mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, modIdx, false);
@@ -1044,35 +1078,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===============================================================
-    // 10. EXAMEN FINAL
+    // 10. EXAMEN FINAL Y CRONÓMETRO
     // ===============================================================
     function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
+        
         if (finalData.aprobado) {
             let botonHtml = `<button class="btn-primary" onclick="window.imprimirDiploma('${finalData.nota}')"><i class="fa-solid fa-download"></i> Descarregar Diploma</button>`;
             let revisarHtml = `<button class="btn-secondary" style="margin-top:10px;" onclick="revisarExamenFinal()"><i class="fa-solid fa-eye"></i> Revisar Respostes</button>`;
-            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h1 style="color:green;">🎉 ENHORABONA!</h1><p>Has completat el curs satisfactoriament.</p><div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div><div class="btn-centered-container" style="flex-direction:column; gap:10px;">${botonHtml}${revisarHtml}</div></div>`;
+
+            container.innerHTML = `
+                <div class="dashboard-card" style="border-top:5px solid green; text-align:center;">
+                    <h1 style="color:green;">🎉 ENHORABONA!</h1>
+                    <p>Has completat el curs satisfactoriament.</p>
+                    <div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div>
+                    <div class="btn-centered-container" style="flex-direction:column; gap:10px;">
+                        ${botonHtml}
+                        ${revisarHtml}
+                    </div>
+                </div>`;
             return;
         }
+
         if (finalData.intentos >= 2 && !state.godMode) { 
             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Intents esgotats.</p></div>`; 
             return; 
         }
+
+        // FIX EXAMEN FINAL GOD MODE: Autocompletar respuestas
         if (state.godMode) {
             state.curso.examen_final.forEach((p, i) => {
                 const correctIdx = p.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
-                if (correctIdx !== -1) { state.respuestasTemp[`ef${i}`] = correctIdx; }
+                if (correctIdx !== -1) {
+                    state.respuestasTemp[`ef${i}`] = correctIdx;
+                }
             });
         }
+
         const savedData = cargarRespuestasLocales('examen_final');
         const isActive = (Object.keys(savedData).length > 0) || state.testEnCurso;
-        if (isActive) { state.testEnCurso = true; renderFinalQuestions(container, savedData); } 
-        else { 
-            container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2 style="color:var(--brand-blue);">🏆 Examen Final</h2><div class="exam-info-box"><p>⏱️ 30 minuts.</p><p>🎯 Nota tall: 7.5</p><p>🔄 Intents: ${finalData.intentos}/2</p></div><br><div class="btn-centered-container"><button class="btn-primary" onclick="iniciarExamenFinal()">COMENÇAR EXAMEN FINAL</button></div></div>`; 
+        
+        if (isActive) { 
+            state.testEnCurso = true; 
+            renderFinalQuestions(container, savedData); 
+        } else { 
+            container.innerHTML = `
+                <div class="dashboard-card" style="text-align:center; padding: 40px;">
+                    <h2 style="color:var(--brand-blue);">🏆 Examen Final</h2>
+                    <div class="exam-info-box">
+                        <p>⏱️ 30 minuts.</p>
+                        <p>🎯 Nota tall: 7.5</p>
+                        <p>🔄 Intents: ${finalData.intentos}/2</p>
+                    </div>
+                    <br>
+                    <div class="btn-centered-container">
+                        <button class="btn-primary" onclick="iniciarExamenFinal()">COMENÇAR EXAMEN FINAL</button>
+                    </div>
+                </div>`; 
         }
     }
-
     window.iniciarExamenFinal = function() {
         if (!state.curso.examen_final || state.curso.examen_final.length === 0) { alert("Error: No s'han carregat preguntes."); return; }
         state.preguntasExamenFinal = [...state.curso.examen_final].sort(() => 0.5 - Math.random());
@@ -1081,7 +1146,6 @@ document.addEventListener('DOMContentLoaded', () => {
         state.testEnCurso = true; state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime);
         state.respuestasTemp = {}; renderExamenFinal(document.getElementById('moduls-container'));
     }
-
     function renderFinalQuestions(container, savedData) {
         const storedOrder = JSON.parse(localStorage.getItem(`sicap_exam_order_${USER.id}_${SLUG}`));
         if (storedOrder && state.curso.examen_final) { state.preguntasExamenFinal = []; storedOrder.forEach(id => { const found = state.curso.examen_final.find(p => (p.id || p.documentId) === id); if(found) state.preguntasExamenFinal.push(found); }); if(state.preguntasExamenFinal.length === 0) state.preguntasExamenFinal = state.curso.examen_final; } else if (state.preguntasExamenFinal.length === 0) { state.preguntasExamenFinal = state.curso.examen_final; }
@@ -1106,7 +1170,6 @@ document.addEventListener('DOMContentLoaded', () => {
         html += `<div class="btn-centered-container"><button class="btn-primary" onclick="entregarExamenFinal()">${btnText}</button></div>`;
         container.innerHTML = html; window.currentQuestions = state.preguntasExamenFinal;
     }
-
     function iniciarCronometro() { const display = document.getElementById('exam-timer'); if(!display) return; const LIMIT_MS = 30 * 60 * 1000; clearInterval(state.timerInterval); state.timerInterval = setInterval(() => { const now = Date.now(); const elapsed = now - state.testStartTime; const remaining = LIMIT_MS - elapsed; if (remaining <= 0) { detenerCronometro(); display.innerText = "00:00"; alert("Temps esgotat!"); entregarExamenFinal(true); return; } const min = Math.floor(remaining / 60000); const sec = Math.floor((remaining % 60000) / 1000); display.innerText = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }, 1000); }
     function detenerCronometro() { clearInterval(state.timerInterval); }
     
@@ -1116,8 +1179,10 @@ document.addEventListener('DOMContentLoaded', () => {
             preguntas.forEach((preg, idx) => { const qId = `final-${idx}`; const userRes = state.respuestasTemp[qId]; const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true); if (userRes == correctaIdx) aciertos++; });
             const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); const aprobado = nota >= 7.5; 
             state.progreso.examen_final.intentos += 1; state.progreso.examen_final.nota = Math.max(state.progreso.examen_final.nota, nota); if (aprobado) state.progreso.examen_final.aprobado = true;
+            
             let porcentaje = state.progreso.progres || 0;
             if (aprobado) porcentaje = 100;
+
             const payload = { data: { progres_detallat: state.progreso, progres: porcentaje } }; 
             
             if (aprobado) { 
@@ -1139,42 +1204,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if(forzado) { doDelivery(); } else { window.mostrarModalConfirmacion("Entregar Examen", "Segur que vols entregar?", () => { document.getElementById('custom-modal').style.display = 'none'; doDelivery(); }); }
     }
 
-    // --- REVISIÓN EXAMEN FINAL (CLEAN) ---
-    window.revisarExamenFinal = function() {
-        const container = document.getElementById('moduls-container');
-        const gridRight = document.getElementById('quiz-grid'); 
-        const preguntas = state.curso.examen_final || [];
-        if (preguntas.length === 0) { alert("No s'han trobat preguntes."); return; }
-        if (gridRight) {
-            gridRight.className = 'grid-container'; gridRight.innerHTML = ''; 
-            const header = document.createElement('div'); header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary);">Navegació Revisió</h4>'; gridRight.appendChild(header);
-            preguntas.forEach((p, i) => { const div = document.createElement('div'); div.className = 'grid-item answered'; div.innerText = i + 1; div.onclick = () => { const card = document.getElementById(`review-card-${i}`); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; gridRight.appendChild(div); });
-        }
-        let html = `<h3>Revisió Examen Final</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px;"><i class="fa-solid fa-eye"></i> Mode lectura.</div>`;
-        preguntas.forEach((preg, idx) => {
-            html += `<div class="question-card review-mode" id="review-card-${idx}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
-            preg.opcions.forEach((opt) => {
-                let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
-                if (isCorrect) classes += 'correct-answer '; 
-                html += `<div class="${classes}"><input type="radio" disabled ${isCorrect ? 'checked' : ''}><span>${opt.text}</span></div>`;
-            });
-            if (preg.explicacio) html += `<div class="explanation-box"><strong>Explicació:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
-            html += `</div></div>`;
-        });
-        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(999, 'examen_final')">Tornar</button></div>`;
-        container.innerHTML = html; window.scrollTo(0,0);
-    }
-
-    // ===============================================================
-    // 11. MODAL DUBTES Y OTROS
-    // ===============================================================
+    // --- ENLACE A FUNCIÓN DE IMPRESIÓN (DASHBOARD) ---
     window.imprimirDiploma = function(nota) { 
         if (window.imprimirDiplomaCompleto) {
             const matData = { id: state.matriculaId, documentId: state.matriculaId, nota_final: nota, progres_detallat: state.progreso };
             window.imprimirDiplomaCompleto(matData, state.curso);
-        } else { alert("Error: Mòdul de certificació no carregat."); }
+        } else {
+            alert("Error: Mòdul de certificació no carregat.");
+        }
     };
 
+    // --- MODAL DE DUDAS (ESTILIZADO) ---
     window.isDoubtSubmitting = false;
     window.obrirFormulariDubte = function(moduloTitulo) {
         const modal = document.getElementById('custom-modal');
@@ -1185,7 +1225,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         titleEl.innerText = "Enviar Dubte";
         titleEl.style.color = "var(--brand-blue)";
-        msgEl.innerHTML = `<div style="padding: 5px 0;"><p style="margin-bottom:10px; color:var(--text-main);">Escriu la teva pregunta sobre: <strong>${moduloTitulo}</strong></p><textarea id="modal-doubt-text" class="modal-textarea" placeholder="Explica el teu dubte detalladament..."></textarea><small style="color:#666; display:flex; align-items:center; gap:5px;"><i class="fa-regular fa-bell"></i> El professor rebrà una notificació instantània.</small></div>`;
+        
+        msgEl.innerHTML = `
+            <div style="padding: 5px 0;">
+                <p style="margin-bottom:10px; color:var(--text-main);">Escriu la teva pregunta sobre: <strong>${moduloTitulo}</strong></p>
+                <textarea id="modal-doubt-text" class="modal-textarea" placeholder="Explica el teu dubte detalladament..."></textarea>
+                <small style="color:#666; display:flex; align-items:center; gap:5px;"><i class="fa-regular fa-bell"></i> El professor rebrà una notificació instantània.</small>
+            </div>
+        `;
 
         btnCancel.style.display = 'block';
         btnConfirm.innerText = "Enviar";
@@ -1197,30 +1244,61 @@ document.addEventListener('DOMContentLoaded', () => {
         btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
         btnCancel.parentNode.replaceChild(newCancel, btnCancel);
 
-        newCancel.onclick = () => { modal.style.display = 'none'; window.isDoubtSubmitting = false; };
+        newCancel.onclick = () => {
+            modal.style.display = 'none';
+            window.isDoubtSubmitting = false;
+        };
         
         newConfirm.onclick = async () => {
-            if (window.isDoubtSubmitting) return; 
+            if (window.isDoubtSubmitting) return; // BLOQUEO
+
             const textEl = document.getElementById('modal-doubt-text');
             const text = textEl.value.trim();
-            if(!text) { textEl.style.borderColor = "red"; textEl.focus(); return; }
+            
+            if(!text) {
+                textEl.style.borderColor = "red";
+                textEl.focus();
+                return;
+            }
 
             window.isDoubtSubmitting = true;
             newConfirm.innerText = "Enviant...";
             newConfirm.disabled = true;
 
             try {
-                const payload = { data: { missatge: text, tema: moduloTitulo, curs: state.curso.titol, alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`, users_permissions_user: USER.id, estat: 'pendent', data_envio: new Date().toISOString() } };
-                const res = await fetch(`${STRAPI_URL}/api/missatges`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) });
+                const payload = { 
+                    data: { 
+                        missatge: text, 
+                        tema: moduloTitulo, 
+                        curs: state.curso.titol, 
+                        alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`, 
+                        users_permissions_user: USER.id, 
+                        estat: 'pendent', 
+                        data_envio: new Date().toISOString() 
+                    } 
+                };
+                
+                const res = await fetch(`${STRAPI_URL}/api/missatges`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, 
+                    body: JSON.stringify(payload) 
+                });
                 
                 if(res.ok) {
                     modal.style.display = 'none';
-                    if(window.mostrarModalError) window.mostrarModalError("✅ Dubte enviat correctament!"); else alert("Dubte enviat correctament!");
-                } else { throw new Error("API Error: " + res.status); }
+                    if(window.mostrarModalError) window.mostrarModalError("✅ Dubte enviat correctament!");
+                    else alert("Dubte enviat correctament!");
+                } else { 
+                    throw new Error("API Error: " + res.status); 
+                }
             } catch(e) { 
-                console.error(e); modal.style.display = 'none'; 
-                if(window.mostrarModalError) window.mostrarModalError("Error al connectar amb el servidor."); else alert("Error al connectar.");
-            } finally { window.isDoubtSubmitting = false; }
+                console.error(e); 
+                modal.style.display = 'none'; 
+                if(window.mostrarModalError) window.mostrarModalError("Error al connectar amb el servidor."); 
+                else alert("Error al connectar.");
+            } finally {
+                window.isDoubtSubmitting = false;
+            }
         };
         modal.style.display = 'flex';
     };

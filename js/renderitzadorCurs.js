@@ -217,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `populate[curs][populate][moduls][populate][preguntes][populate][opcions]=true`, 
             `populate[curs][populate][moduls][populate][material_pdf]=true`,
             `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
+            `populate[curs][populate][moduls][populate][video_fitxer]=true`, // <--- NUEVO
             `populate[curs][populate][examen_final][populate][opcions]=true`, 
             `populate[curs][populate][imatge]=true`
         ].join('&');
@@ -616,9 +617,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+        /* --- NUEVA FUNCIÓN HELPER --- */
+    function renderVideoPlayer(mod) {
+        let html = '';
+        
+        // 1. Prioridad: Archivo subido a Strapi
+        if (mod.video_fitxer && mod.video_fitxer.url) {
+            const videoUrl = mod.video_fitxer.url.startsWith('/') ? STRAPI_URL + mod.video_fitxer.url : mod.video_fitxer.url;
+            html = `
+                <div class="video-badge"><i class="fa-solid fa-file-video"></i> Video del Curs</div>
+                <div class="video-responsive-container">
+                    <video controls controlsList="nodownload">
+                        <source src="${videoUrl}" type="${mod.video_fitxer.mime}">
+                        El teu navegador no suporta video HTML5.
+                    </video>
+                </div>`;
+        } 
+        // 2. Fallback: URL externa (YouTube/Vimeo)
+        else if (mod.video_url) {
+            let embedUrl = '';
+            
+            // Convertir link normal de YouTube a Embed
+            if (mod.video_url.includes('youtube.com') || mod.video_url.includes('youtu.be')) {
+                const videoId = mod.video_url.split('v=')[1] || mod.video_url.split('/').pop();
+                const cleanId = videoId.split('&')[0]; // Limpiar parámetros extra
+                embedUrl = `https://www.youtube.com/embed/${cleanId}`;
+            } 
+            // Convertir link Vimeo
+            else if (mod.video_url.includes('vimeo.com')) {
+                const videoId = mod.video_url.split('/').pop();
+                embedUrl = `https://player.vimeo.com/video/${videoId}`;
+            }
+
+            if (embedUrl) {
+                html = `
+                    <div class="video-badge" style="background:#222;"><i class="fa-brands fa-youtube"></i> Clase Virtual</div>
+                    <div class="video-responsive-container">
+                        <iframe src="${embedUrl}" title="Video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>`;
+            }
+        }
+        return html;
+    }
+    
     function renderTeoria(container, mod) {
+        // Generar HTML del vídeo
+        const videoHtml = renderVideoPlayer(mod);
+
         let html = `<h2>${mod.titol}</h2>`;
+        
+        // Inyectamos el vídeo primero
+        html += videoHtml;
+
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
+        
         if (mod.material_pdf) {
             const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
             if(archivos.length > 0) {
@@ -1129,7 +1181,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- MODAL DE DUDAS (ESTILIZADO) ---
     /* --- EN renderitzadorCurs.js (buscar window.obrirFormulariDubte) --- */
-    
+
 window.isDoubtSubmitting = false;
 window.obrirFormulariDubte = function(moduloTitulo) {
     const modal = document.getElementById('custom-modal');

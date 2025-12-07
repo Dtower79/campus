@@ -236,41 +236,56 @@ window.openTeacherInbox = function(element) {
 };
 
 // Función para marcar como leída (FIX VISUAL + BACKEND)
+/* --- EN dashboard.js (buscar window.marcarLeida) --- */
+
 window.marcarLeida = async function(id, el) {
-    // 1. Feedback visual inmediato
+    // 1. Feedback visual (Opacidad reducida para indicar "procesando")
     el.style.opacity = '0.5';
     el.style.pointerEvents = 'none';
     
-    const bellDot = document.querySelector('.notification-dot');
-    if(bellDot) {
-        let count = parseInt(bellDot.innerText) || 0;
-        count = Math.max(0, count - 1);
-        if(count === 0) {
-            bellDot.style.display = 'none';
-            bellDot.classList.remove('animate-ping');
-        } else {
-            bellDot.innerText = count > 9 ? '+9' : count;
-        }
-    }
-
-    // 2. Petición al Backend
     const token = localStorage.getItem('jwt');
+
     try {
-        await fetch(`${API_ROUTES.notifications}/${id}`, {
+        // 2. PETICIÓN AL SERVIDOR
+        const res = await fetch(`${API_ROUTES.notifications}/${id}`, {
             method: 'PUT', 
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
             body: JSON.stringify({ data: { llegida: true } }) 
         });
+
+        // 3. VERIFICACIÓN ESTRICTA
+        if (!res.ok) {
+            // Si el servidor dice que NO (ej: 403 Forbidden o 404), revertimos visualmente
+            // y avisamos en consola.
+            console.error("Error al marcar leída. Status:", res.status);
+            el.style.opacity = '1';
+            el.style.pointerEvents = 'auto';
+            
+            // Opcional: Avisar al usuario si falla constantemente
+            // alert("No s'ha pogut desar l'estat. Revisa la teva connexió.");
+            return;
+        }
         
-        // 3. Ocultar elemento del todo tras éxito
-        el.style.display = 'none';
-        
-        // 4. Re-check en segundo plano por si acaso
-        // checkRealNotifications(); 
+        // 4. ÉXITO CONFIRMADO: Eliminar del DOM y actualizar contador
+        el.remove(); // Usar remove() es más limpio que display:none
+
+        const bellDot = document.querySelector('.notification-dot');
+        if(bellDot) {
+            let count = parseInt(bellDot.innerText) || 0;
+            count = Math.max(0, count - 1);
+            if(count === 0) {
+                bellDot.style.display = 'none';
+                bellDot.classList.remove('animate-ping');
+            } else {
+                bellDot.innerText = count > 9 ? '+9' : count;
+            }
+        }
+
     } catch(e) { 
-        console.error("Error al marcar leída:", e); 
-        // Si falla, revertimos visualmente (opcional, pero buena UX)
+        console.error("Excepción de red al marcar leída:", e); 
+        // Revertir estado visual si hay error de red
         el.style.opacity = '1';
+        el.style.pointerEvents = 'auto';
     }
 };
 

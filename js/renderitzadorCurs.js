@@ -1128,73 +1128,98 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- MODAL DE DUDAS (ESTILIZADO) ---
-    window.obrirFormulariDubte = function(moduloTitulo) {
-        const modal = document.getElementById('custom-modal');
-        const titleEl = document.getElementById('modal-title');
-        const msgEl = document.getElementById('modal-msg');
-        const btnConfirm = document.getElementById('modal-btn-confirm');
-        const btnCancel = document.getElementById('modal-btn-cancel');
+    /* --- EN renderitzadorCurs.js (buscar window.obrirFormulariDubte) --- */
 
-        titleEl.innerText = "Enviar Dubte";
-        titleEl.style.color = "var(--brand-blue)";
+window.obrirFormulariDubte = function(moduloTitulo) {
+    const modal = document.getElementById('custom-modal');
+    const titleEl = document.getElementById('modal-title');
+    const msgEl = document.getElementById('modal-msg');
+    const btnConfirm = document.getElementById('modal-btn-confirm');
+    const btnCancel = document.getElementById('modal-btn-cancel');
+
+    titleEl.innerText = "Enviar Dubte";
+    titleEl.style.color = "var(--brand-blue)";
+    
+    msgEl.innerHTML = `
+        <div style="padding: 5px 0;">
+            <p style="margin-bottom:10px; color:var(--text-main);">Escriu la teva pregunta sobre: <strong>${moduloTitulo}</strong></p>
+            <textarea id="modal-doubt-text" class="modal-textarea" placeholder="Explica el teu dubte detalladament..."></textarea>
+            <small style="color:#666; display:flex; align-items:center; gap:5px;"><i class="fa-regular fa-bell"></i> El professor rebrà una notificació instantània.</small>
+        </div>
+    `;
+
+    btnCancel.style.display = 'block';
+    btnConfirm.innerText = "Enviar";
+    btnConfirm.disabled = false;
+    btnConfirm.style.background = "var(--brand-blue)";
+
+    // CLONACIÓN PARA LIMPIAR EVENTOS ANTERIORES
+    const newConfirm = btnConfirm.cloneNode(true);
+    const newCancel = btnCancel.cloneNode(true);
+    btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
+    btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
+    newCancel.onclick = () => modal.style.display = 'none';
+    
+    // SEMÁFORO ANTI-DUPLICADOS
+    let isSubmitting = false;
+
+    newConfirm.onclick = async () => {
+        // 1. BLOQUEO INMEDIATO
+        if (isSubmitting) return; 
         
-        msgEl.innerHTML = `
-            <div style="padding: 5px 0;">
-                <p style="margin-bottom:10px; color:var(--text-main);">Escriu la teva pregunta sobre: <strong>${moduloTitulo}</strong></p>
-                <textarea id="modal-doubt-text" class="modal-textarea" placeholder="Explica el teu dubte detalladament..."></textarea>
-                <small style="color:#666; display:flex; align-items:center; gap:5px;"><i class="fa-regular fa-bell"></i> El professor rebrà una notificació instantània.</small>
-            </div>
-        `;
-
-        btnCancel.style.display = 'block';
-        btnConfirm.innerText = "Enviar";
-        btnConfirm.disabled = false;
-        btnConfirm.style.background = "var(--brand-blue)";
-
-        const newConfirm = btnConfirm.cloneNode(true);
-        const newCancel = btnCancel.cloneNode(true);
-        btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
-        btnCancel.parentNode.replaceChild(newCancel, btnCancel);
-
-        newCancel.onclick = () => modal.style.display = 'none';
+        const textEl = document.getElementById('modal-doubt-text');
+        const text = textEl.value.trim();
         
-        newConfirm.onclick = async () => {
-            const text = document.getElementById('modal-doubt-text').value.trim();
-            if(!text) {
-                document.getElementById('modal-doubt-text').style.borderColor = "red";
-                return;
+        if(!text) {
+            textEl.style.borderColor = "red";
+            textEl.focus();
+            return;
+        }
+
+        // 2. ACTIVAR SEMÁFORO Y UI
+        isSubmitting = true;
+        newConfirm.innerText = "Enviant...";
+        newConfirm.disabled = true;
+
+        try {
+            const payload = { 
+                data: { 
+                    missatge: text, 
+                    tema: moduloTitulo, 
+                    curs: state.curso.titol, 
+                    alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`, 
+                    users_permissions_user: USER.id, 
+                    estat: 'pendent', 
+                    data_envio: new Date().toISOString() 
+                } 
+            };
+
+            const res = await fetch(`${STRAPI_URL}/api/missatges`, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, 
+                body: JSON.stringify(payload) 
+            });
+            
+            if(res.ok) {
+                modal.style.display = 'none';
+                if(window.mostrarModalError) window.mostrarModalError("✅ Dubte enviat correctament!");
+                else alert("Dubte enviat correctament!");
+            } else { 
+                throw new Error("Error API: " + res.status); 
             }
-            newConfirm.innerText = "Enviant...";
-            newConfirm.disabled = true;
-            try {
-                const payload = { 
-                    data: { 
-                        missatge: text, tema: moduloTitulo, curs: state.curso.titol, 
-                        alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`, 
-                        users_permissions_user: USER.id, estat: 'pendent', data_envio: new Date().toISOString() 
-                    } 
-                };
-                const res = await fetch(`${STRAPI_URL}/api/missatges`, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, 
-                    body: JSON.stringify(payload) 
-                });
-                
-                if(res.ok) {
-                    modal.style.display = 'none';
-                    // Llamar helper global para éxito
-                    if(window.mostrarModalError) window.mostrarModalError("✅ Dubte enviat correctament!");
-                    else alert("Dubte enviat correctament!");
-                } else { throw new Error("API Error"); }
-            } catch(e) { 
-                console.error(e); 
-                modal.style.display = 'none'; 
-                if(window.mostrarModalError) window.mostrarModalError("Error al connectar amb el servidor."); 
-                else alert("Error al connectar.");
-            }
-        };
-        modal.style.display = 'flex';
+        } catch(e) { 
+            console.error(e); 
+            modal.style.display = 'none'; 
+            if(window.mostrarModalError) window.mostrarModalError("Error al connectar amb el servidor.");
+            else alert("Error al connectar.");
+        } finally {
+            // LIBERAR SEMÁFORO (Solo si falla y reabre, o para limpieza)
+            isSubmitting = false;
+        }
     };
+    modal.style.display = 'flex';
+};
 
     window.tornarAlDashboard = function() { window.location.href = 'index.html'; };
 });

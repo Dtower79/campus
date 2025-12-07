@@ -515,3 +515,28 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     display: inline-block;
     margin-bottom: 10px;
 }
+
+/* --- ESTILOS MULTIRESPUESTA (v43.0) --- */
+.option-item.multi-select {
+    border-left: 4px solid var(--brand-blue);
+}
+
+.option-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    accent-color: var(--brand-blue);
+    cursor: pointer;
+}
+
+/* Indicador visual de tipo de pregunta */
+.q-type-badge {
+    background-color: #e3f2fd;
+    color: var(--brand-blue);
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 10px;
+    vertical-align: middle;
+    border: 1px solid #bbdefb;
+}

@@ -637,6 +637,8 @@ window.callPrintDiploma = function(idx) {
 };
 
 
+/* --- EN dashboard.js (Reemplazar función) --- */
+
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
     const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
@@ -666,12 +668,14 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         document.body.appendChild(printDiv);
     }
 
-    // INYECTAMOS LAS DOS PÁGINAS
     printDiv.innerHTML = `
         <!-- PÁGINA 1: DIPLOMA -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner">
+                    <!-- MARCA DE AGUA FONDO -->
+                    <img src="img/logo-sicap.png" class="diploma-watermark">
+                    
                     <img src="img/logo-sicap.png" class="diploma-logo-top">
                     <h1 class="diploma-title">CERTIFICAT D'APROFITAMENT</h1>
                     <p class="diploma-text">El Sindicat Català de Presons (SICAP) certifica que</p>
@@ -700,13 +704,16 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner" style="align-items:flex-start; text-align:left; padding:40px;">
+                    <!-- MARCA DE AGUA FONDO -->
+                    <img src="img/logo-sicap.png" class="diploma-watermark">
+
                     <div style="width:100%;">
                         <div style="display:flex; justify-content:space-between; width:100%; border-bottom:2px solid var(--brand-blue); margin-bottom:20px; padding-bottom:10px;">
                             <h3 style="margin:0; color:var(--brand-blue); text-transform:uppercase;">Expedient Formatiu</h3>
                             <img src="img/logo-sicap.png" style="height:30px; opacity:0.6;">
                         </div>
                         
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:30px; background:#f9f9f9; padding:15px; border-radius:8px;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:30px; background:rgba(249, 249, 249, 0.9); padding:15px; border-radius:8px; position:relative; z-index:2;">
                             <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Alumne</span><strong style="font-size:1rem;">${nombreAlumno}</strong></div>
                             <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Document Identitat</span><strong style="font-size:1rem;">${user.username}</strong></div>
                             <div style="grid-column:span 2;"><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Activitat Formativa</span><strong style="font-size:1rem;">${nombreCurso}</strong></div>
@@ -715,7 +722,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                         </div>
 
                         <h4 style="color:var(--brand-blue); border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:15px; text-transform:uppercase;">Continguts (Temari)</h4>
-                        <div style="font-size:0.9rem; line-height:1.6;">
+                        <div style="font-size:0.9rem; line-height:1.6; position:relative; z-index:2;">
                             ${temarioHtml}
                         </div>
                     </div>
@@ -728,7 +735,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         </div>
     `;
     
-    // Retraso para asegurar que las imágenes (QR y Logo) carguen antes de imprimir
+    // Retraso para asegurar carga de imágenes
     setTimeout(() => window.print(), 500);
 };
 

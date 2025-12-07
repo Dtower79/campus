@@ -428,55 +428,55 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
 @media print {
     @page { size: A4 landscape; margin: 0; }
     body { background: white; margin: 0; padding: 0; }
-    
-    /* Ocultar todo lo de la app */
     #login-overlay, #app-container, #app-footer, .modal-overlay, #scroll-top-btn { display: none !important; }
-    
-    /* Mostrar contenedor de impresión */
-    #diploma-print-container { 
-        display: block !important; 
-        position: absolute; 
-        top: 0; 
-        left: 0;
-        width: 100%; 
-        height: auto; /* IMPORTANTE: Auto para permitir 2 páginas */
-        overflow: visible;
-        z-index: 9999;
-    }
-
-    .diploma-page { 
-        width: 297mm; 
-        height: 210mm; 
-        page-break-after: always; /* Obliga a salto de página */
-        break-after: always;      /* Compatibilidad moderna */
-        position: relative; 
-        background-color: #fff; 
-        padding: 10mm; 
-        box-sizing: border-box; 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-    }
-
-    /* Bordes y estilos internos del diploma */
+    #diploma-print-container { display: block !important; width: 100vw; height: 100%; }
+    .diploma-page { width: 297mm; height: 210mm; page-break-after: always; position: relative; background-color: #fff; padding: 10mm; box-sizing: border-box; display: flex; justify-content: center; align-items: center; }
     .diploma-border-outer { width: 100%; height: 100%; border: 3px solid var(--brand-blue); padding: 3px; box-sizing: border-box; display: flex; flex-direction: column; }
     .diploma-border-inner { width: 100%; height: 100%; border: 1px solid var(--brand-blue); padding: 25px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; z-index: 1; }
-    
+    .diploma-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; opacity: 0.08; z-index: -1; }
     .diploma-logo-top { height: 60px; margin-bottom: 15px; }
     .diploma-title { font-family: "Times New Roman", Times, serif; color: var(--brand-blue); font-size: 3rem; font-weight: normal; text-transform: uppercase; margin: 0 0 10px 0; letter-spacing: 1px; }
     .diploma-text { font-family: Arial, sans-serif; font-size: 1rem; color: #333; margin: 5px 0; }
     .diploma-student { font-family: "Times New Roman", Times, serif; font-size: 2.4rem; font-weight: bold; color: #000; margin: 15px 0; border-bottom: 1px solid #999; padding: 0 40px 5px 40px; display: inline-block; line-height: 1.1; }
     .diploma-course { font-family: Arial, sans-serif; font-size: 1.8rem; font-weight: bold; color: var(--brand-red); margin: 15px 0; line-height: 1.2; max-width: 90%; }
     .diploma-details { font-size: 1rem; margin-bottom: 10px; }
-    
     .diploma-footer { margin-top: auto; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 10px; }
     .footer-qr-area { text-align: center; display: flex; flex-direction: column; align-items: center; }
     .qr-image { width: 100px; height: 100px; margin-bottom: 2px; }
     .qr-ref { font-size: 0.6rem; font-family: monospace; color: #666; }
-    
     .footer-signature-area { text-align: center; min-width: 220px; }
     .signature-line { border-top: 1px solid #000; width: 100%; margin-bottom: 5px; }
     .signature-name { font-weight: bold; font-size: 1rem; display: block; }
     .signature-role { font-size: 0.8rem; color: #444; }
+    /* --- DENTRO DE @media print en estil.css --- */
+
+    /* Aseguramos que el contenedor interior permita posicionamiento absoluto */
+    .diploma-border-inner { 
+        width: 100%; 
+        height: 100%; 
+        border: 1px solid var(--brand-blue); 
+        padding: 25px; 
+        box-sizing: border-box; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        text-align: center; 
+        position: relative; /* CRÍTICO */
+        z-index: 1; 
+        overflow: hidden; /* Para que no se salga */
+    }
+
+    /* ESTILO DE LA MARCA DE AGUA */
+    .diploma-watermark {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%); /* Centrado perfecto */
+        width: 600px; /* Tamaño grande */
+        opacity: 0.07; /* Muy clarito (7% opacidad) */
+        z-index: -1; /* Detrás del texto */
+        pointer-events: none;
+        filter: grayscale(100%); /* Opcional: para que sea gris */
+    }
 }
 #diploma-print-container { display: none; }

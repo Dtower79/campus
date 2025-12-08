@@ -896,6 +896,63 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html; window.scrollTo(0,0);
     }
 
+    
+    window.revisarTest = function(modIdx) {
+        const mod = state.curso.moduls[modIdx];
+        
+        // 1. FUSIONAR FUENTES (FIX: Ahora mira también el banco nuevo)
+        const antiguas = mod.preguntes || [];
+        const nuevas = mod.banc_preguntes || [];
+        const todasLasPreguntas = [...antiguas, ...nuevas];
+
+        if (todasLasPreguntas.length === 0) {
+            console.warn("No s'han trobat preguntes per revisar.");
+            return;
+        }
+
+        const container = document.getElementById('moduls-container');
+        
+        let html = `<h3>Revisió (Mode Estudi)</h3>
+                    <div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;">
+                        <i class="fa-solid fa-eye"></i> Aquí pots veure totes les preguntes del banc amb les respostes correctes per repassar.
+                    </div>`;
+        
+        todasLasPreguntas.forEach((preg, idx) => {
+            const isMulti = preg.es_multiresposta === true;
+            const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
+            const inputType = isMulti ? 'checkbox' : 'radio';
+
+            html += `<div class="question-card review-mode">
+                        <div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div>
+                        <div class="q-text">${preg.text}</div>
+                        <div class="options-list">`;
+            
+            preg.opcions.forEach((opt, oIdx) => {
+                let classes = 'option-item '; 
+                const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                
+                if (isCorrect) classes += 'correct-answer ';
+                
+                // En modo revisión general, no marcamos lo que hizo el usuario (ya que el pool cambia),
+                // solo mostramos la correcta.
+                html += `<div class="${classes}">
+                            <input type="${inputType}" disabled ${isCorrect ? 'checked' : ''}>
+                            <span>${opt.text}</span>
+                         </div>`;
+            });
+
+            if (preg.explicacio) {
+                html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
+            }
+            html += `</div></div>`;
+        });
+
+        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(${modIdx}, 'test')">Tornar</button></div>`;
+        
+        container.innerHTML = html; 
+        window.scrollTo(0,0);
+    }
+
     // ===============================================================
     // 10. EXAMEN FINAL
     // ===============================================================

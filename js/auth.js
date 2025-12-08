@@ -114,7 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSubmit.innerText = "Verificant..."; btnSubmit.disabled = true;
 
             try {
-                // A) Buscar Afiliado
                 const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dni}`);
                 const jsonAfi = await resAfi.json();
                 
@@ -133,7 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // B) Crear Usuario
                 const regRes = await fetch(API_ROUTES.register, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -164,8 +162,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     } catch(err) {}
 
-                    alert(`Compte creat! El teu email vinculat és: ${emailAfiliado}\nAra inicia sessió.`);
-                    window.location.reload();
+                    // ÉXITO REGISTRO -> Modal profesional
+                    lanzarModal(
+                        "Compte Creat!", 
+                        `Hem trobat el teu email d'afiliat: <strong>${emailAfiliado}</strong>.<br>Ja pots iniciar sessió.`, 
+                        false,
+                        () => window.location.reload()
+                    );
                 } else {
                     let errorMsg = regData.error?.message || "Error al crear compte.";
                     if(errorMsg.includes('username')) errorMsg = "Aquest DNI ja està registrat.";
@@ -235,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. RESET PASSWORD (AQUÍ ESTÁ LA MEJORA VISUAL)
+    // 4. RESET PASSWORD (AQUÍ ESTÁ LA MAGIA)
     const resetForm = document.getElementById('reset-form');
     if (resetForm) {
         resetForm.addEventListener('submit', async (e) => {
@@ -265,13 +268,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('jwt', data.jwt);
                     localStorage.setItem('user', JSON.stringify(data.user));
                     
-                    // --- MODAL PROFESIONAL DE ÉXITO ---
+                    // MODAL BONITO
                     lanzarModal(
                         "Contrasenya Canviada", 
                         "La teva contrasenya s'ha actualitzat correctament. Iniciant sessió...", 
-                        false, // false = Color azul (éxito)
+                        false, // Color azul
                         () => {
-                            // Acción al cerrar el modal (Redirigir a home)
+                            // Redirigir limpio al Dashboard
                             window.location.href = window.location.pathname.split('?')[0];
                         }
                     );

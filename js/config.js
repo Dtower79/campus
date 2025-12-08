@@ -6,7 +6,7 @@ const API_ROUTES = {
     register: `${STRAPI_URL}/api/auth/local/register`,
     checkAffiliate: `${STRAPI_URL}/api/afiliados`,
     notifications: `${STRAPI_URL}/api/notificaciones`,
-    messages: `${STRAPI_URL}/api/missatges`
+    messages: `${STRAPI_URL}/api/missatges`, // <--- ¡FALTABA ESTA COMA!
     forgotPassword: `${STRAPI_URL}/api/auth/forgot-password`,
     resetPassword: `${STRAPI_URL}/api/auth/reset-password`
 };

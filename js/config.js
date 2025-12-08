@@ -7,4 +7,6 @@ const API_ROUTES = {
     checkAffiliate: `${STRAPI_URL}/api/afiliados`,
     notifications: `${STRAPI_URL}/api/notificaciones`,
     messages: `${STRAPI_URL}/api/missatges`
+    forgotPassword: `${STRAPI_URL}/api/auth/forgot-password`,
+    resetPassword: `${STRAPI_URL}/api/auth/reset-password`
 };

@@ -35,35 +35,35 @@
                 <img src="img/logo-sicap.png" alt="SICAP Logo" class="login-logo">
             </div>
             
-            <div id="login-error-msg" class="login-error" style="display: none;">DNI no trobat o no actiu.</div>
+            <div id="login-error-msg" class="login-error" style="display: none;"></div>
 
-            <!-- VISTA LOGIN -->
+            <!-- 1. LOGIN -->
             <div id="login-view">
                 <form id="login-form">
                     <div class="input-group">
-                        <input type="text" id="login-dni" placeholder="Introdueix el teu DNI/NIF" required autocomplete="username" maxlength="9">
+                        <input type="text" id="login-dni" placeholder="DNI / NIF" required autocomplete="username" maxlength="9" style="text-transform:uppercase;">
                     </div>
                     <div class="input-group">
                         <input type="password" id="login-pass" placeholder="Contrasenya" required autocomplete="current-password">
                     </div>
                     <button type="submit" class="btn-login">Inicia la sessió</button>
                 </form>
-                <div class="login-footer"><a href="#" id="forgot-pass">Heu oblidat la contrasenya?</a></div>
+                <div class="login-footer"><a href="#" id="btn-forgot-pass">Heu oblidat la contrasenya?</a></div>
                 <div class="register-section">
                     <p>Ets afiliat i és la teva primera vegada?</p>
                     <button id="btn-show-register" class="btn-secondary">Registra't aquí</button>
                 </div>
             </div>
 
-            <!-- VISTA REGISTRO -->
+            <!-- 2. REGISTRO (Solo pide DNI y Password) -->
             <div id="register-view" style="display: none;">
                 <h3 style="color:var(--brand-blue); margin-bottom:15px;">Activació de Compte</h3>
                 <p style="font-size:0.9rem; color:#666; margin-bottom:20px;">
-                    Introdueix el teu DNI per verificar la teva afiliació i crea una contrasenya.
+                    Introdueix el teu DNI. El sistema et validarà i vincularà el teu correu d'afiliat automàticament.
                 </p>
                 <form id="register-form">
                     <div class="input-group">
-                        <input type="text" id="reg-dni" placeholder="El teu DNI/NIF" required autocomplete="username" maxlength="9">
+                        <input type="text" id="reg-dni" placeholder="El teu DNI" required autocomplete="username" maxlength="9" style="text-transform:uppercase;">
                     </div>
                     <div class="input-group">
                         <input type="password" id="reg-pass" placeholder="Crea una contrasenya" required autocomplete="new-password">
@@ -71,14 +71,37 @@
                     <div class="input-group">
                         <input type="password" id="reg-pass-conf" placeholder="Repeteix la contrasenya" required autocomplete="new-password">
                     </div>
-                    <button type="submit" class="btn-login" style="background-color: var(--brand-red) !important;">Validar i Entrar</button>
+                    <button type="submit" class="btn-login" style="background-color: var(--brand-red) !important;">Validar i Activar</button>
                 </form>
-                <div style="margin-top: 20px;">
-                    <button id="btn-show-login" class="btn-secondary" style="border:none !important; text-decoration:underline;">
-                        <i class="fa-solid fa-arrow-left"></i> Tornar al Login
-                    </button>
-                </div>
+                <div style="margin-top: 20px;"><button class="btn-back-login btn-secondary" style="border:none !important; text-decoration:underline;">Tornar al Login</button></div>
             </div>
+
+            <!-- 3. RECUPERACIÓN (Solo pide DNI) -->
+            <div id="forgot-view" style="display: none;">
+                <h3 style="color:var(--brand-blue); margin-bottom:15px;">Recuperar Contrasenya</h3>
+                <p style="font-size:0.9rem; color:#666; margin-bottom:20px;">
+                    Introdueix el teu DNI. Enviarem un enllaç de recuperació al correu electrònic que consta a la teva fitxa d'afiliat.
+                </p>
+                <form id="forgot-form">
+                    <div class="input-group">
+                        <input type="text" id="forgot-dni" placeholder="El teu DNI" required style="text-transform:uppercase;">
+                    </div>
+                    <button type="submit" class="btn-login">Enviar Enllaç</button>
+                </form>
+                <div style="margin-top: 20px;"><button class="btn-back-login btn-secondary" style="border:none !important; text-decoration:underline;">Tornar al Login</button></div>
+            </div>
+
+            <!-- 4. RESET (Se activa desde el correo) -->
+            <div id="reset-view" style="display: none;">
+                <h3 style="color:var(--brand-blue); margin-bottom:15px;">Nova Contrasenya</h3>
+                <form id="reset-form">
+                    <input type="hidden" id="reset-code">
+                    <div class="input-group"><input type="password" id="reset-pass" placeholder="Nova contrasenya" required></div>
+                    <div class="input-group"><input type="password" id="reset-pass-conf" placeholder="Repeteix la contrasenya" required></div>
+                    <button type="submit" class="btn-login" style="background-color: var(--brand-red) !important;">Guardar Canvis</button>
+                </form>
+            </div>
+
             <div class="cookie-notice"><small>Avís de galetes: Utilitzem galetes pròpies per gestionar la sessió.</small></div>
         </div>
     </div>
@@ -268,12 +291,12 @@
     </footer>
 
     <!-- =========================
-         MODALES LEGALES (STANDARDIZED v46.0)
+         MODALES LEGALES (TEXTOS COMPLETOS)
          ========================= -->
 
     <!-- 1. MODAL AVÍS LEGAL -->
     <div id="modal-avis" class="modal-overlay" style="display: none;">
-        <div class="modal-card" style="max-width: 900px; text-align: left;">
+        <div class="modal-card" style="max-width: 800px; text-align: left;">
             <h3 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:10px;">Avís Legal</h3>
             <div class="legal-text-content">
                 <h4>1. Titularitat</h4>
@@ -329,7 +352,7 @@
 
     <!-- 2. MODAL POLÍTICA DE PRIVACITAT -->
     <div id="modal-privacitat" class="modal-overlay" style="display: none;">
-        <div class="modal-card" style="max-width: 900px; text-align: left;">
+        <div class="modal-card">
             <h3 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:10px;">Política de Privacitat</h3>
             <div class="legal-text-content">
                 <p>D'acord amb l'establert en el Reglament General de Protecció de Dades, en endavant RGPD (Reglament UE 2016/679 del Parlament Europeu i del Consell, de 27 de abril, relatiu a la protecció de les persones físiques en el que respecta al tractament de dades personals i a la lliure circulació d’aquestes dades) i la llei Orgànica 3/2018, de 5 de desembre, de Protecció de Dades Personals i Garantia dels Drets Digitals, en endavant LOPDGDD, des de SINDICAT CATALÀ DE PRESONS (SICAP) li informem que les dades personals de totes les persones en general que pugui guardar alguna relació amb aquesta entitat, són tractades per les finalitats i base jurídica que legitima el seu tractament, amb estricte compliment amb les normes vigents en matèria de protecció de dades.</p>

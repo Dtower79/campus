@@ -196,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. RECUPERACIÓN (Con validación estricta de DNI)
     // 3. RECUPERACIÓN (DNI -> Busca Email -> Strapi envía)
     // 3. RECUPERACIÓN MEJORADA
+    // 3. RECUPERACIÓN (DNI -> Busca Email -> Strapi envía)
     const forgotForm = document.getElementById('forgot-form');
     if (forgotForm) {
         forgotForm.addEventListener('submit', async (e) => {
@@ -203,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const inputDni = document.getElementById('forgot-dni');
             const btnSubmit = forgotForm.querySelector('button');
             
-            // Limpieza estricta
+            // 1. Limpieza y formato
             let dniLimpio = inputDni.value.trim().toUpperCase().replace(/[- \/\.]/g, '');
             const dniRegex = /^\d{8}[A-Z]$/;
 
@@ -215,37 +216,46 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSubmit.innerText = "Cercant..."; btnSubmit.disabled = true;
 
             try {
-                // A) Buscar en Afiliados
+                // A) Buscar email del afiliado
                 const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dniLimpio}`);
                 const jsonAfi = await resAfi.json();
 
                 let emailDestino = "";
                 if(jsonAfi.data && jsonAfi.data.length > 0) {
                     const afi = jsonAfi.data[0];
-                    emailDestino = afi.email;
+                    emailDestino = afi.email || afi.Email; 
                 }
 
-                // --- CAMBIO CLAVE AQUÍ: AVISO EXPLÍCITO ---
                 if (!emailDestino) {
-                    lanzarModal("DNI No Trobat", "Aquest DNI no consta a la nostra base de dades d'afiliats. Si creus que és un error, contacta amb secretaria.", true); // true = Rojo (Error)
-                    btnSubmit.innerText = "Enviar Enllaç"; btnSubmit.disabled = false;
-                    return; 
+                    lanzarModal("Informació", "Si el DNI és correcte i té un email associat, rebràs un correu en breus moments.");
+                    switchView('login');
+                    return;
                 }
 
-                // B) Solicitar envío
-                await fetch(API_ROUTES.forgotPassword, {
+                console.log("Intentant enviar mail a:", emailDestino);
+
+                // B) Solicitar reset a Strapi
+                const resForgot = await fetch(API_ROUTES.forgotPassword, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: emailDestino })
                 });
+
+                // --- CORRECCIÓN: Verificar si Strapi aceptó la petición ---
+                if (!resForgot.ok) {
+                    const errorData = await resForgot.json();
+                    console.error("Error Strapi:", errorData);
+                    throw new Error("El servidor ha rebutjat l'enviament. (Error " + resForgot.status + ")");
+                }
                 
                 const maskedEmail = emailDestino.replace(/(.{2})(.*)(@.*)/, "$1***$3");
-                lanzarModal("Correu Enviat", `Hem trobat la teva fitxa. Hem enviat l'enllaç de recuperació a: <strong>${maskedEmail}</strong>. Revisa la carpeta Spam.`, false);
+                lanzarModal("Correu Enviat", `Hem enviat un enllaç de recuperació a: <strong>${maskedEmail}</strong>.<br>Revisa la carpeta Spam.`, false);
                 switchView('login');
 
             } catch (error) {
-                console.error(error);
-                lanzarModal("Error de Connexió", "No s'ha pogut connectar amb el servidor. Torna-ho a provar més tard.");
+                console.error("Error catch:", error);
+                // Ahora sí mostramos el error real
+                lanzarModal("Error d'Enviament", "No s'ha pogut enviar el correu. Revisa que el servidor de correu estigui ben configurat.");
             } finally {
                 btnSubmit.innerText = "Enviar Enllaç"; btnSubmit.disabled = false;
             }

@@ -195,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---------------------------------------------------------
     // 3. RECUPERACIÓN (Con validación estricta de DNI)
     // 3. RECUPERACIÓN (DNI -> Busca Email -> Strapi envía)
+    // 3. RECUPERACIÓN MEJORADA
     const forgotForm = document.getElementById('forgot-form');
     if (forgotForm) {
         forgotForm.addEventListener('submit', async (e) => {
@@ -202,41 +203,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const inputDni = document.getElementById('forgot-dni');
             const btnSubmit = forgotForm.querySelector('button');
             
-            // 1. LIMPIEZA Y FORMATO:
-            // Quitamos espacios, guiones, puntos y barras. Convertimos a Mayúsculas.
+            // Limpieza estricta
             let dniLimpio = inputDni.value.trim().toUpperCase().replace(/[- \/\.]/g, '');
-            
-            // 2. VALIDACIÓN ESTRICTA (8 Números + 1 Letra)
-            // Regex: Empieza, 8 dígitos (\d{8}), una letra de la A a la Z ([A-Z]), termina.
             const dniRegex = /^\d{8}[A-Z]$/;
 
             if (!dniRegex.test(dniLimpio)) {
-                lanzarModal("Format Incorrecte", "El DNI ha de tenir 8 números i una lletra, sense guions ni espais (Ex: 12345678Z).");
-                return; // Paramos aquí si está mal
+                lanzarModal("Format Incorrecte", "El DNI ha de tenir 8 números i una lletra (Ex: 12345678Z).");
+                return;
             }
 
             btnSubmit.innerText = "Cercant..."; btnSubmit.disabled = true;
 
             try {
-                // A) Buscar email del afiliado usando el DNI limpio
+                // A) Buscar en Afiliados
                 const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dniLimpio}`);
                 const jsonAfi = await resAfi.json();
 
                 let emailDestino = "";
                 if(jsonAfi.data && jsonAfi.data.length > 0) {
                     const afi = jsonAfi.data[0];
-                    // Asegúrate de que este campo coincida con Strapi (email o Email)
-                    emailDestino = afi.email || afi.Email; 
+                    emailDestino = afi.email;
                 }
 
+                // --- CAMBIO CLAVE AQUÍ: AVISO EXPLÍCITO ---
                 if (!emailDestino) {
-                    lanzarModal("Informació", "Si el DNI és correcte i té un email associat, rebràs un correu en breus moments.");
-                    // Volvemos al login aunque falle, por seguridad
-                    switchView('login');
-                    return;
+                    lanzarModal("DNI No Trobat", "Aquest DNI no consta a la nostra base de dades d'afiliats. Si creus que és un error, contacta amb secretaria.", true); // true = Rojo (Error)
+                    btnSubmit.innerText = "Enviar Enllaç"; btnSubmit.disabled = false;
+                    return; 
                 }
 
-                // B) Solicitar reset a Strapi
+                // B) Solicitar envío
                 await fetch(API_ROUTES.forgotPassword, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -244,12 +240,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 
                 const maskedEmail = emailDestino.replace(/(.{2})(.*)(@.*)/, "$1***$3");
-                lanzarModal("Correu Enviat", `Hem enviat un enllaç de recuperació a: ${maskedEmail}`, false);
+                lanzarModal("Correu Enviat", `Hem trobat la teva fitxa. Hem enviat l'enllaç de recuperació a: <strong>${maskedEmail}</strong>. Revisa la carpeta Spam.`, false);
                 switchView('login');
 
             } catch (error) {
                 console.error(error);
-                lanzarModal("Error", "No s'ha pogut processar la sol·licitud.");
+                lanzarModal("Error de Connexió", "No s'ha pogut connectar amb el servidor. Torna-ho a provar més tard.");
             } finally {
                 btnSubmit.innerText = "Enviar Enllaç"; btnSubmit.disabled = false;
             }

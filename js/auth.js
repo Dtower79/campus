@@ -193,46 +193,62 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---------------------------------------------------------
     // 3. RECUPERACIÓN (Pide DNI -> Busca Email -> Strapi envía)
     // ---------------------------------------------------------
+    // 3. RECUPERACIÓN (Con validación estricta de DNI)
+    // 3. RECUPERACIÓN (DNI -> Busca Email -> Strapi envía)
     const forgotForm = document.getElementById('forgot-form');
     if (forgotForm) {
         forgotForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const dni = document.getElementById('forgot-dni').value.trim().toUpperCase();
+            const inputDni = document.getElementById('forgot-dni');
             const btnSubmit = forgotForm.querySelector('button');
             
+            // 1. LIMPIEZA Y FORMATO:
+            // Quitamos espacios, guiones, puntos y barras. Convertimos a Mayúsculas.
+            let dniLimpio = inputDni.value.trim().toUpperCase().replace(/[- \/\.]/g, '');
+            
+            // 2. VALIDACIÓN ESTRICTA (8 Números + 1 Letra)
+            // Regex: Empieza, 8 dígitos (\d{8}), una letra de la A a la Z ([A-Z]), termina.
+            const dniRegex = /^\d{8}[A-Z]$/;
+
+            if (!dniRegex.test(dniLimpio)) {
+                lanzarModal("Format Incorrecte", "El DNI ha de tenir 8 números i una lletra, sense guions ni espais (Ex: 12345678Z).");
+                return; // Paramos aquí si está mal
+            }
+
             btnSubmit.innerText = "Cercant..."; btnSubmit.disabled = true;
 
             try {
-                // A) Buscar email del afiliado
-                const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dni}`);
+                // A) Buscar email del afiliado usando el DNI limpio
+                const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dniLimpio}`);
                 const jsonAfi = await resAfi.json();
 
                 let emailDestino = "";
                 if(jsonAfi.data && jsonAfi.data.length > 0) {
                     const afi = jsonAfi.data[0];
-                    emailDestino = afi.email;
+                    // Asegúrate de que este campo coincida con Strapi (email o Email)
+                    emailDestino = afi.email || afi.Email; 
                 }
 
                 if (!emailDestino) {
-                    // Mensaje seguro (no decimos si el DNI existe o no)
                     lanzarModal("Informació", "Si el DNI és correcte i té un email associat, rebràs un correu en breus moments.");
+                    // Volvemos al login aunque falle, por seguridad
                     switchView('login');
                     return;
                 }
 
-                // B) Solicitar reset a Strapi con el EMAIL encontrado
+                // B) Solicitar reset a Strapi
                 await fetch(API_ROUTES.forgotPassword, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: emailDestino })
                 });
                 
-                // Ocultar parte del email por privacidad
                 const maskedEmail = emailDestino.replace(/(.{2})(.*)(@.*)/, "$1***$3");
                 lanzarModal("Correu Enviat", `Hem enviat un enllaç de recuperació a: ${maskedEmail}`, false);
                 switchView('login');
 
             } catch (error) {
+                console.error(error);
                 lanzarModal("Error", "No s'ha pogut processar la sol·licitud.");
             } finally {
                 btnSubmit.innerText = "Enviar Enllaç"; btnSubmit.disabled = false;

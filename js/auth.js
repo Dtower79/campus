@@ -2,12 +2,23 @@
    AUTH.JS (v48.0 - DNI LOGIC & STRAPI FIELDS MATCH)
    ========================================================================== */
 
+/* --- EN auth.js (Sustituir el principio) --- */
+
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Detección de Parámetros URL (Reset Password o Deep Linking)
+    // 1. Detección de Parámetros URL
     const urlParams = new URLSearchParams(window.location.search);
-    const resetCode = urlParams.get('code'); // Código que envía Strapi
+    
+    // LIMPIEZA DEL CÓDIGO (NUEVO): 
+    // A veces el correo añade caracteres al final o espacios. Lo limpiamos.
+    let resetCode = urlParams.get('code');
+    if (resetCode) {
+        resetCode = resetCode.trim(); // Quitar espacios
+        // Si Strapi añade algo raro al final, intentamos limpiarlo si es necesario
+    }
+
     const slugDestino = urlParams.get('slug');
 
+    
     // REFERENCIAS DOM
     const views = {
         login: document.getElementById('login-view'),

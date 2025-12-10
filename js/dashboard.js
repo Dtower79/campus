@@ -358,6 +358,8 @@ window.callPrintDiploma = function(idx) {
     if(data) window.imprimirDiplomaCompleto(data.matricula, data.curso);
 };
 
+/* --- EN dashboard.js (Sustituir window.imprimirDiplomaCompleto) --- */
+
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
     const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
@@ -366,7 +368,10 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const matId = matriculaData.documentId || matriculaData.id;
     const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'APTE';
     
-    const dataInici = cursoData.data_inici ? new Date(cursoData.data_inici).toLocaleDateString('ca-ES') : 'N/A';
+    // CORRECCIÓN FECHAS: Fallback a fecha de publicación si no hay data_inici
+    const rawInicio = cursoData.data_inici || cursoData.publishedAt;
+    const dataInici = rawInicio ? new Date(rawInicio).toLocaleDateString('ca-ES') : 'N/A';
+    
     const dataFi = cursoData.data_fi ? new Date(cursoData.data_fi).toLocaleDateString('ca-ES') : 'N/A';
     const fechaHoy = new Date().toLocaleDateString('ca-ES', { year:'numeric', month:'long', day:'numeric' });
     

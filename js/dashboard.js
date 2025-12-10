@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DASHBOARD.JS (v41.0 - FIX FINAL & CLEANUP)
+   DASHBOARD.JS (v52.0 - FULL VERSION + MENU FIX)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.appIniciada = false;
-// Memoria local de sesión para evitar rebote visual si la API es lenta
 window.sesionLeidas = new Set(); 
 
 window.iniciarApp = function() {
@@ -40,8 +39,13 @@ window.iniciarApp = function() {
         
         const avatarBig = document.getElementById('profile-avatar-big');
         if(avatarBig) avatarBig.innerText = initialsStr;
-        document.getElementById('profile-name-display').innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
-        document.getElementById('profile-dni-display').innerText = user.username;
+        
+        // Comprobaciones de seguridad por si faltan elementos en el HTML
+        const nameDisplay = document.getElementById('profile-name-display');
+        if(nameDisplay) nameDisplay.innerText = user.nombre ? `${user.nombre} ${user.apellidos}` : user.username;
+        
+        const dniDisplay = document.getElementById('profile-dni-display');
+        if(dniDisplay) dniDisplay.innerText = user.username;
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -53,30 +57,17 @@ window.iniciarApp = function() {
     }
 };
 
-/* --- EN dashboard.js (Sustituir window.showView) --- */
-
 window.showView = function(viewName) {
-    // 1. PARAR VÍDEOS AL CAMBIAR DE PANTALLA
-    // Buscamos todos los iframes o videos y los pausamos/reseteamos
+    // PARAR VÍDEOS AL CAMBIAR DE PESTAÑA
     const iframes = document.querySelectorAll('iframe');
-    iframes.forEach(iframe => {
-        // Truco para YouTube/Vimeo: Resetear el src para el vídeo
-        const tempSrc = iframe.src;
-        iframe.src = '';
-        iframe.src = tempSrc;
-    });
-
+    iframes.forEach(iframe => { const t = iframe.src; iframe.src = ''; iframe.src = t; });
     const html5Videos = document.querySelectorAll('video');
-    html5Videos.forEach(video => {
-        video.pause();
-    });
+    html5Videos.forEach(video => { video.pause(); });
 
-    // 2. LÓGICA ORIGINAL DE CAMBIO DE VISTA
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
-
     const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';
@@ -103,27 +94,53 @@ function setupDirectClicks() {
         if(el) el.onclick = (e) => { e.preventDefault(); window.showView(view); };
     }
 
+    // --- FIX MENÚ USUARIO (RN) ---
+    // Usamos cloneNode para limpiar eventos antiguos y asegurar que funciona limpio
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
+    
     if (btnUser && userDropdown) {
-        btnUser.onclick = (e) => {
-            e.stopPropagation();
-            userDropdown.style.display = (userDropdown.style.display === 'flex') ? 'none' : 'flex';
+        // Clonar para eliminar listeners basura anteriores
+        const newBtnUser = btnUser.cloneNode(true);
+        btnUser.parentNode.replaceChild(newBtnUser, btnUser);
+        
+        // Re-asignar evento click limpio
+        newBtnUser.onclick = (e) => {
+            e.stopPropagation(); // Evita que se cierre al instante
             userDropdown.classList.toggle('show');
+            // Forzar display flex/none si el CSS falla
+            userDropdown.style.display = userDropdown.classList.contains('show') ? 'flex' : 'none';
         };
-        document.body.addEventListener('click', () => { 
-            userDropdown.style.display = 'none'; 
-            userDropdown.classList.remove('show'); 
+
+        // Cerrar al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!newBtnUser.contains(e.target)) {
+                userDropdown.classList.remove('show');
+                userDropdown.style.display = 'none';
+            }
+        });
+        
+        // Logout
+        const btnLogout = document.getElementById('btn-logout-dropdown');
+        if(btnLogout) btnLogout.onclick = (e) => { 
+            e.preventDefault(); 
+            localStorage.clear(); 
+            window.location.href = 'index.html'; 
+        };
+        
+        // Enlaces del menú (Perfil / Notas)
+        // Necesitamos re-buscarlos porque si clonamos el padre, los hijos pierden eventos si no se delegan
+        // Pero el dropdown está fuera del trigger habitualmente en tu HTML, así que buscamos los botones data-action
+        document.querySelectorAll('[data-action]').forEach(btn => {
+            btn.onclick = (e) => { 
+                e.preventDefault(); 
+                userDropdown.classList.remove('show');
+                userDropdown.style.display = 'none';
+                window.showView(btn.getAttribute('data-action')); 
+            };
         });
     }
 
-    document.querySelectorAll('[data-action]').forEach(btn => {
-        btn.onclick = (e) => { e.preventDefault(); window.showView(btn.getAttribute('data-action')); };
-    });
-
-    const btnLogout = document.getElementById('btn-logout-dropdown');
-    if(btnLogout) btnLogout.onclick = (e) => { e.preventDefault(); localStorage.clear(); window.location.href = 'index.html'; };
-    
     const btnMob = document.getElementById('mobile-menu-btn');
     const navMob = document.getElementById('main-nav');
     if(btnMob) btnMob.onclick = (e) => { e.stopPropagation(); navMob.classList.toggle('show-mobile'); };
@@ -145,7 +162,6 @@ async function checkRealNotifications() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await res.json();
-        // Filtramos las que ya hemos leído en esta sesión para que no salgan "fantasmas"
         const validNotifs = (json.data || []).filter(n => !window.sesionLeidas.has(n.documentId || n.id));
         total += validNotifs.length;
 
@@ -155,16 +171,19 @@ async function checkRealNotifications() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const jsonMsg = await resMsg.json();
-            // Filtramos las respondidas en esta sesión
             const validMsgs = (jsonMsg.data || []).filter(m => !window.sesionLeidas.has(m.documentId || m.id));
             total += validMsgs.length;
         }
 
         if(bellDot) {
-            bellDot.style.display = total > 0 ? 'flex' : 'none';
-            bellDot.innerText = total > 9 ? '+9' : total;
-            if(total > 0) bellDot.classList.add('animate-ping');
-            else bellDot.classList.remove('animate-ping');
+            if(total > 0) {
+                bellDot.style.display = 'flex';
+                bellDot.innerText = total > 9 ? '+9' : total;
+                bellDot.classList.add('animate-ping');
+            } else {
+                bellDot.style.display = 'none';
+                bellDot.classList.remove('animate-ping');
+            }
         }
     } catch(e) { console.warn(e); }
 }
@@ -192,11 +211,9 @@ window.abrirPanelNotificaciones = async function() {
         let hasContent = false;
         const ts = new Date().getTime();
 
-        // 1. SAFATA PROFESSOR
         if(user.es_professor === true) {
              const resMsg = await fetch(`${API_ROUTES.messages}?filters[estat][$eq]=pendent&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
              const jsonMsg = await resMsg.json();
-             // Filtrar los que ya hemos respondido localmente
              const pendientesReales = (jsonMsg.data || []).filter(m => !window.sesionLeidas.has(m.documentId || m.id));
              
              if(pendientesReales.length > 0) {
@@ -208,11 +225,8 @@ window.abrirPanelNotificaciones = async function() {
              }
         }
 
-        // 2. NOTIFICACIONES NORMALES
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&sort=createdAt:desc&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
         const json = await res.json();
-        
-        // Filtrar leídas localmente
         const notifsReales = (json.data || []).filter(n => !window.sesionLeidas.has(n.documentId || n.id));
 
         if(notifsReales.length > 0) {
@@ -226,7 +240,6 @@ window.abrirPanelNotificaciones = async function() {
         }
 
         html += '</div>';
-        
         if(!hasContent) msg.innerHTML = '<div style="text-align:center; padding:30px; color:#999;"><p>No tens notificacions noves.</p></div>';
         else msg.innerHTML = html;
 
@@ -235,7 +248,6 @@ window.abrirPanelNotificaciones = async function() {
 
 window.openTeacherInbox = function(element) {
     element.style.display = 'none';
-    // No limpiamos el punto rojo aquí, se limpiará al responder mensajes
     document.getElementById('custom-modal').style.display = 'none';
     abrirPanelMensajes('profesor');
 };
@@ -243,8 +255,6 @@ window.openTeacherInbox = function(element) {
 window.marcarLeida = async function(id, el) {
     el.style.opacity = '0.5';
     el.style.pointerEvents = 'none';
-    
-    // Guardar en sesión local inmediatamente
     window.sesionLeidas.add(id);
 
     const token = localStorage.getItem('jwt');
@@ -254,9 +264,7 @@ window.marcarLeida = async function(id, el) {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
             body: JSON.stringify({ data: { llegida: true } }) 
         });
-        
         if(!res.ok) throw new Error("API Error");
-
         el.remove();
         
         const bellDot = document.querySelector('.notification-dot');
@@ -266,12 +274,7 @@ window.marcarLeida = async function(id, el) {
             if(count === 0) bellDot.style.display = 'none';
             else bellDot.innerText = count > 9 ? '+9' : count;
         }
-    } catch(e) { 
-        console.error(e);
-        // No revertimos visualmente para no molestar al usuario,
-        // pero sí lo quitamos de la lista local si falló gravemente.
-        // En Strapi v5 con Draft disabled esto no debería fallar.
-    }
+    } catch(e) { console.error(e); }
 };
 
 // --- MENSAJERÍA ---
@@ -332,7 +335,6 @@ window.abrirPanelMensajes = async function(modoForzado) {
         } else {
             let html = '<div class="msg-list-container" id="chat-container">';
             
-            // Filtrar mensajes ya respondidos localmente en esta sesión
             const mensajesFiltrados = json.data.filter(m => !window.sesionLeidas.has(m.documentId || m.id));
 
             if (mensajesFiltrados.length === 0) {
@@ -407,7 +409,6 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     const btn = txt.nextElementSibling;
     btn.innerText = "Enviant..."; btn.disabled = true;
 
-    // Guardar en sesión local para que desaparezca YA
     window.sesionLeidas.add(msgId);
 
     try {
@@ -417,11 +418,9 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
             body: JSON.stringify({ data: { resposta_professor: respuesta, estat: 'respost' } })
         });
 
-        // Eliminar visualmente del chat
         const card = document.getElementById(`msg-card-${msgId}`);
         if(card) card.remove();
 
-        // Notificar al alumno
         if(studentId && studentId !== 'undefined') {
             const tema = decodeURIComponent(encodedTema);
             await fetch(API_ROUTES.notifications, {
@@ -437,15 +436,11 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
                 })
             });
         }
-        
-        // Actualizar campana
         checkRealNotifications();
-
     } catch(e) {
-        console.error(e);
         alert("Error al enviar la resposta.");
         btn.innerText = "Enviar Resposta"; btn.disabled = false;
-        window.sesionLeidas.delete(msgId); // Revertir si falla
+        window.sesionLeidas.delete(msgId);
     }
 };
 
@@ -498,7 +493,7 @@ async function renderCoursesLogic(viewMode) {
             }
 
             const hoy = new Date();
-            const fechaInicio = curs.fecha_inicio ? new Date(curs.fecha_inicio) : new Date(curs.publishedAt);
+            const fechaInicio = curs.data_inici ? new Date(curs.data_inici) : new Date(curs.publishedAt);
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES');
 
@@ -506,7 +501,12 @@ async function renderCoursesLogic(viewMode) {
                 ? `<span class="course-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">Properament: ${dateStr}</span>` 
                 : (curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : '');
 
-            const descHtml = generarHtmlDescripcion(curs.descripcio || curs.resum, index);
+            // FIX DESC
+            let descHtml = '';
+            if (curs.descripcio) {
+                 descHtml = `<div class="course-desc-container"><p class="course-desc short">${curs.descripcio.substring(0, 100)}...</p></div>`;
+            }
+            
             const horasHtml = `<div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'N/A'}</div>`;
             
             let actionHtml = '', progressHtml = '';
@@ -514,14 +514,13 @@ async function renderCoursesLogic(viewMode) {
             if (curs._matricula) {
                 const mat = curs._matricula;
                 let pct = mat.progres || 0;
-                let isCompleted = mat.estat === 'completat' || pct >= 100;
-                if(mat.progres_detallat?.examen_final?.aprobado) { pct = 100; isCompleted = true; }
+                if(mat.progres_detallat?.examen_final?.aprobado) { pct = 100; }
                 
-                const color = isCompleted ? '#10b981' : 'var(--brand-blue)';
+                const color = pct >= 100 ? '#10b981' : 'var(--brand-blue)';
                 progressHtml = `<div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%; background:${color}"></div></div><span class="progress-text">${pct}% Completat</span></div>`;
                 
                 actionHtml = esFuturo 
-                    ? `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alert('Disponible el ${dateStr}')">Accedir</button>` 
+                    ? `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alert('Disponible el ${dateStr}')">Disponible el ${dateStr}</button>` 
                     : `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
             } else {
                 actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${safeTitle}')">Matricular-me</button>`;
@@ -540,74 +539,30 @@ async function renderCoursesLogic(viewMode) {
                 </div>`;
         });
 
-    } catch(e) { 
-        console.error(e); 
-        list.innerHTML = '<p style="color:red; text-align:center;">Error de connexió.</p>'; 
-    }
+    } catch(e) { console.error(e); }
 }
-
-function generarHtmlDescripcion(text, id) {
-    if(!text) return '';
-    if(typeof text !== 'string') text = "Descripció disponible al curs.";
-    if(text.includes('type')) try { return `<div class="course-desc-container"><p class="course-desc short">Veure detalls al curs.</p></div>`; } catch(e){}
-    
-    const plain = text.substring(0, 100) + '...';
-    return `<div class="course-desc-container"><p class="course-desc short">${plain}</p></div>`;
-}
-
-/* --- EN dashboard.js (Sustituir window.solicitarMatricula) --- */
 
 window.solicitarMatricula = function(id, title) {
     window.mostrarModalConfirmacion("Matrícula", `Vols inscriure't a "${title}"?`, async () => {
         const user = JSON.parse(localStorage.getItem('user'));
         const token = localStorage.getItem('jwt');
-        
         try {
-            // 1. PROCESO DE MATRÍCULA (CRÍTICO)
             const res = await fetch(`${STRAPI_URL}/api/matriculas`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ 
-                    data: { 
-                        curs: id, 
-                        users_permissions_user: user.id, 
-                        progres: 0, 
-                        estat: 'actiu', 
-                        data_inici: new Date().toISOString(), 
-                        progres_detallat: {} 
-                    } 
-                })
+                body: JSON.stringify({ data: { curs: id, users_permissions_user: user.id, progres: 0, estat: 'actiu', data_inici: new Date().toISOString(), progres_detallat: {} } })
             });
+            if (!res.ok) throw new Error("Error API");
 
-            if (!res.ok) throw new Error("Error al crear matrícula");
-
-            // 2. CREAR NOTIFICACIÓN (NUEVO)
-            // Lo hacemos en un bloque try/catch independiente para que, 
-            // si falla la notificación, la matrícula siga siendo válida.
             try {
                 await fetch(API_ROUTES.notifications, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({
-                        data: {
-                            titol: "Matrícula Realitzada",
-                            missatge: `T'has inscrit correctament al curs: "${title}". Ja pots començar a estudiar! 📚`,
-                            llegida: false,
-                            users_permissions_user: user.id
-                        }
-                    })
+                    body: JSON.stringify({ data: { titol: "Matrícula Realitzada", missatge: `T'has inscrit al curs: "${title}".`, llegida: false, users_permissions_user: user.id } })
                 });
-            } catch (errNotif) {
-                console.warn("No s'ha pogut enviar la notificació, pero la matrícula és vàlida.");
-            }
-
-            // 3. RECARGAR PARA VER EL CURSO
+            } catch(e) {}
             window.location.reload();
-
-        } catch(e) { 
-            console.error(e);
-            alert("Error al processar la matrícula. Torna-ho a provar."); 
-        }
+        } catch(e) { alert("Error al matricular."); }
     });
 };
 
@@ -625,11 +580,11 @@ async function loadFullProfile() {
             const map = { 'prof-movil': 'TelefonoMobil', 'prof-prov': 'Provincia', 'prof-pob': 'Poblacion', 'prof-centre': 'CentroTrabajo', 'prof-cat': 'CategoriaProfesional', 'prof-dir': 'Direccion', 'prof-iban': 'IBAN' };
             for(const [id, key] of Object.entries(map)) {
                 const el = document.getElementById(id);
-                if(el) {
-                    el.value = afi[key] || '-';
+                if(el && afi[key]) {
+                    el.value = afi[key];
                     el.style.cursor = "copy";
                     el.title = "Copiar";
-                    el.onclick = () => { if(el.value !== '-') navigator.clipboard.writeText(el.value); };
+                    el.onclick = () => navigator.clipboard.writeText(el.value);
                 }
             }
         }
@@ -652,7 +607,6 @@ async function loadFullProfile() {
     } catch(e) { console.error(e); }
 }
 
-window.gradesCache = [];
 async function loadGrades() {
     const tbody = document.getElementById('grades-table-body');
     const user = JSON.parse(localStorage.getItem('user'));
@@ -676,9 +630,19 @@ async function loadGrades() {
             const nota = mat.nota_final || mat.progres_detallat?.examen_final?.nota || '-';
             const color = isDone ? '#10b981' : 'var(--brand-blue)';
             
-            const btnCert = isDone 
-                ? `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>` 
-                : '<small>Pendent</small>';
+            let btnCert = '<small>Pendent</small>';
+            
+            if (isDone) {
+                const hoy = new Date();
+                const fechaFin = curs.data_fi ? new Date(curs.data_fi) : null;
+                
+                if (fechaFin && hoy <= fechaFin) {
+                    const fechaStr = fechaFin.toLocaleDateString('ca-ES');
+                    btnCert = `<small style="color:#d97706; font-weight:bold;">Disponible el ${fechaStr}</small>`;
+                } else {
+                    btnCert = `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>`;
+                }
+            }
 
             tbody.innerHTML += `
                 <tr style="border-bottom:1px solid #eee;">
@@ -696,7 +660,6 @@ window.callPrintDiploma = function(idx) {
     if(data) window.imprimirDiplomaCompleto(data.matricula, data.curso);
 };
 
-
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
     const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
@@ -705,16 +668,16 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const matId = matriculaData.documentId || matriculaData.id;
     const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'APTE';
     
+    const dataInici = cursoData.data_inici ? new Date(cursoData.data_inici).toLocaleDateString('ca-ES') : 'N/A';
+    const dataFi = cursoData.data_fi ? new Date(cursoData.data_fi).toLocaleDateString('ca-ES') : 'N/A';
     const fechaHoy = new Date().toLocaleDateString('ca-ES', { year:'numeric', month:'long', day:'numeric' });
+    
     const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentDomain + '/verify.html?ref=' + matId)}`;
 
-    // Temario
     let temarioHtml = '';
     if(cursoData.moduls && cursoData.moduls.length > 0) {
-        temarioHtml = '<ul style="margin:0; padding-left:20px;">' + 
-            cursoData.moduls.map((m,i) => `<li style="margin-bottom:5px;"><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`).join('') + 
-            '</ul>';
+        temarioHtml = '<ul style="margin:0; padding-left:20px;">' + cursoData.moduls.map((m,i) => `<li style="margin-bottom:5px;"><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`).join('') + '</ul>';
     } else {
         temarioHtml = '<p>Temari complet segons pla formatiu.</p>';
     }
@@ -727,13 +690,10 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     }
 
     printDiv.innerHTML = `
-        <!-- PÁGINA 1: DIPLOMA -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner">
-                    <!-- MARCA DE AGUA -->
                     <img src="img/logo-sicap.png" class="diploma-watermark">
-                    
                     <img src="img/logo-sicap.png" class="diploma-logo-top">
                     <h1 class="diploma-title">CERTIFICAT D'APROFITAMENT</h1>
                     <p class="diploma-text">El Sindicat Català de Presons (SICAP) certifica que</p>
@@ -757,43 +717,33 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                 </div>
             </div>
         </div>
-
-        <!-- PÁGINA 2: EXPEDIENTE -->
         <div class="diploma-page">
             <div class="diploma-border-outer">
                 <div class="diploma-border-inner" style="align-items:flex-start; text-align:left; padding:40px;">
-                    <!-- MARCA DE AGUA -->
                     <img src="img/logo-sicap.png" class="diploma-watermark">
-
                     <div style="width:100%; position:relative; z-index:2;">
                         <div style="display:flex; justify-content:space-between; width:100%; border-bottom:2px solid var(--brand-blue); margin-bottom:20px; padding-bottom:10px;">
                             <h3 style="margin:0; color:var(--brand-blue); text-transform:uppercase;">Expedient Formatiu</h3>
                             <img src="img/logo-sicap.png" style="height:30px; opacity:0.6;">
                         </div>
-                        
-                        <!-- SIN FONDO (background eliminado) para que se vea la marca de agua -->
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:30px; padding:15px; border:1px solid #eee; border-radius:8px;">
                             <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Alumne</span><strong style="font-size:1rem;">${nombreAlumno}</strong></div>
                             <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Document Identitat</span><strong style="font-size:1rem;">${user.username}</strong></div>
                             <div style="grid-column:span 2;"><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Activitat Formativa</span><strong style="font-size:1rem;">${nombreCurso}</strong></div>
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Data Inici</span><strong style="font-size:1rem;">${dataInici}</strong></div>
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Data Finalització</span><strong style="font-size:1rem;">${dataFi}</strong></div>
                             <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Durada</span><strong style="font-size:1rem;">${horas} Hores</strong></div>
                             <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Data Expedició</span><strong style="font-size:1rem;">${fechaHoy}</strong></div>
                         </div>
-
                         <h4 style="color:var(--brand-blue); border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:15px; text-transform:uppercase;">Continguts (Temari)</h4>
-                        <div style="font-size:0.9rem; line-height:1.6;">
-                            ${temarioHtml}
-                        </div>
+                        <div style="font-size:0.9rem; line-height:1.6;">${temarioHtml}</div>
                     </div>
-                    
                     <div style="position:absolute; bottom:20px; left:0; width:100%; text-align:center; font-size:0.8rem; color:#666; border-top:1px solid #eee; padding-top:10px;">
                         SICAP - Sindicat Català de Presons - Unitat de Formació
                     </div>
                 </div>
             </div>
-        </div>
-    `;
-    
+        </div>`;
     setTimeout(() => window.print(), 500);
 };
 
@@ -805,7 +755,6 @@ window.mostrarModalError = function(msg) {
     document.getElementById('modal-btn-cancel').style.display = 'none';
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "D'acord";
-    btn.disabled = false; 
     const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
     newBtn.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';

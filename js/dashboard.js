@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DASHBOARD.JS (v53.0 - FIX CRÍTICO UI & MENU)
+   DASHBOARD.JS (v54.0 - FULL VERSION: DATES, MENU, CHAT & CERTIFICATES)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -101,7 +101,6 @@ function setupDirectClicks() {
     const userDropdown = document.getElementById('user-dropdown-menu');
 
     if (btnUser && userDropdown) {
-        // Click en el botón: Alternar visibilidad
         btnUser.onclick = (e) => {
             e.stopPropagation();
             const isVisible = userDropdown.style.display === 'flex';
@@ -109,26 +108,20 @@ function setupDirectClicks() {
             if (isVisible) userDropdown.classList.remove('show');
             else userDropdown.classList.add('show');
         };
-
-        // Click fuera: Cerrar
         document.addEventListener('click', () => {
             userDropdown.style.display = 'none';
             userDropdown.classList.remove('show');
         });
-
-        // Click dentro del menú: No cerrar inmediatamente (salvo en links)
         userDropdown.onclick = (e) => e.stopPropagation();
 
-        // Links internos del menú
         document.querySelectorAll('[data-action]').forEach(btn => {
             btn.onclick = (e) => { 
                 e.preventDefault(); 
-                userDropdown.style.display = 'none'; // Cerrar menú
+                userDropdown.style.display = 'none';
                 window.showView(btn.getAttribute('data-action')); 
             };
         });
         
-        // Logout
         const btnLogout = document.getElementById('btn-logout-dropdown');
         if(btnLogout) btnLogout.onclick = (e) => { 
             e.preventDefault(); 
@@ -141,315 +134,6 @@ function setupDirectClicks() {
     const navMob = document.getElementById('main-nav');
     if(btnMob) btnMob.onclick = (e) => { e.stopPropagation(); navMob.classList.toggle('show-mobile'); };
 }
-
-// --- CARGA DE CURSOS ---
-async function renderCoursesLogic(viewMode) {
-    const listId = viewMode === 'dashboard' ? 'courses-list' : 'catalog-list';
-    const list = document.getElementById(listId);
-    if(!list) return;
-    
-    const token = localStorage.getItem('jwt');
-    const user = JSON.parse(localStorage.getItem('user'));
-    list.innerHTML = '<div class="loader"></div>';
-
-    try {
-        const ts = new Date().getTime();
-        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
-        const jsonMat = await resMat.json();
-        const userMatriculas = jsonMat.data || [];
-        
-        let cursosAMostrar = [];
-
-        if (viewMode === 'dashboard') {
-            cursosAMostrar = userMatriculas.map(m => ({ ...m.curs, _matricula: m }));
-        } else {
-            const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
-            const jsonCat = await resCat.json();
-            cursosAMostrar = jsonCat.data.map(c => {
-                const existingMat = userMatriculas.find(m => (m.curs.documentId || m.curs.id) === (c.documentId || c.id));
-                return { ...c, _matricula: existingMat };
-            });
-        }
-
-        cursosAMostrar.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-
-        list.innerHTML = '';
-        if(cursosAMostrar.length === 0) {
-            list.innerHTML = '<p style="text-align:center; padding:20px; width:100%;">No hi ha cursos disponibles.</p>';
-            return;
-        }
-
-        cursosAMostrar.forEach((curs) => {
-            const cursId = curs.documentId || curs.id;
-            const safeTitle = curs.titol.replace(/'/g, "\\'");
-            let imgUrl = 'img/logo-sicap.png';
-            if(curs.imatge) {
-                const img = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge;
-                if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url;
-            }
-
-            const hoy = new Date();
-            const fechaInicio = curs.data_inici ? new Date(curs.data_inici) : new Date(curs.publishedAt);
-            const esFuturo = fechaInicio > hoy;
-            const dateStr = fechaInicio.toLocaleDateString('ca-ES');
-
-            let badge = esFuturo 
-                ? `<span class="course-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">Properament: ${dateStr}</span>` 
-                : (curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : '');
-
-            let descHtml = '';
-            if (curs.descripcio && typeof curs.descripcio === 'string') {
-                 descHtml = `<div class="course-desc-container"><p class="course-desc short">${curs.descripcio.substring(0, 100)}...</p></div>`;
-            }
-
-            const horasHtml = `<div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'N/A'}</div>`;
-            
-            let actionHtml = '', progressHtml = '';
-
-            if (curs._matricula) {
-                const mat = curs._matricula;
-                let pct = mat.progres || 0;
-                if(mat.progres_detallat?.examen_final?.aprobado) { pct = 100; }
-                
-                const color = pct >= 100 ? '#10b981' : 'var(--brand-blue)';
-                progressHtml = `<div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%; background:${color}"></div></div><span class="progress-text">${pct}% Completat</span></div>`;
-                
-                actionHtml = esFuturo 
-                    ? `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alert('Disponible el ${dateStr}')">Inicia el ${dateStr}</button>` 
-                    : `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
-            } else {
-                actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${safeTitle}')">Matricular-me</button>`;
-            }
-
-            list.innerHTML += `
-                <div class="course-card-item">
-                    <div class="card-image-header" style="background-image: url('${imgUrl}');">${badge}</div>
-                    <div class="card-body">
-                        <h3 class="course-title">${curs.titol}</h3>
-                        ${horasHtml}
-                        ${descHtml}
-                        ${progressHtml}
-                        ${actionHtml}
-                    </div>
-                </div>`;
-        });
-    } catch(e) { console.error(e); }
-}
-
-window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
-window.loadCatalog = async function() { await renderCoursesLogic('home'); };
-
-window.solicitarMatricula = function(id, title) {
-    window.mostrarModalConfirmacion("Matrícula", `Vols inscriure't a "${title}"?`, async () => {
-        const user = JSON.parse(localStorage.getItem('user'));
-        const token = localStorage.getItem('jwt');
-        try {
-            const res = await fetch(`${STRAPI_URL}/api/matriculas`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ data: { curs: id, users_permissions_user: user.id, progres: 0, estat: 'actiu', data_inici: new Date().toISOString(), progres_detallat: {} } })
-            });
-            if (!res.ok) throw new Error("Error API");
-
-            try {
-                await fetch(API_ROUTES.notifications, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ data: { titol: "Matrícula Realitzada", missatge: `T'has inscrit al curs: "${title}".`, llegida: false, users_permissions_user: user.id } })
-                });
-            } catch(e) {}
-            window.location.reload();
-        } catch(e) { alert("Error al matricular."); }
-    });
-};
-
-// --- RESTO DE FUNCIONES (Perfil, Notas, Diploma, Notificaciones) ---
-// Se mantienen intactas pero simplificadas para asegurar que caben en el archivo sin errores de copia
-
-async function loadFullProfile() {
-    const user = JSON.parse(localStorage.getItem('user'));
-    const token = localStorage.getItem('jwt');
-    const emailInput = document.getElementById('prof-email');
-    if(emailInput) emailInput.value = user.email;
-
-    try {
-        const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': `Bearer ${token}` }});
-        const jsonAfi = await resAfi.json();
-        if(jsonAfi.data && jsonAfi.data.length > 0) {
-            const afi = jsonAfi.data[0];
-            const map = { 'prof-movil': 'TelefonoMobil', 'prof-prov': 'Provincia', 'prof-pob': 'Poblacion', 'prof-centre': 'CentroTrabajo', 'prof-cat': 'CategoriaProfesional', 'prof-dir': 'Direccion', 'prof-iban': 'IBAN' };
-            for(const [id, key] of Object.entries(map)) {
-                const el = document.getElementById(id);
-                if(el && afi[key]) {
-                    el.value = afi[key];
-                    el.style.cursor = "copy";
-                    el.title = "Copiar";
-                    el.onclick = () => navigator.clipboard.writeText(el.value);
-                }
-            }
-        }
-        // Stats
-        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`, { headers: { 'Authorization': `Bearer ${token}` }});
-        const jsonMat = await resMat.json();
-        let started = 0, finished = 0, hours = 0;
-        jsonMat.data.forEach(m => {
-            started++;
-            if(m.estat === 'completat' || m.progres >= 100 || m.progres_detallat?.examen_final?.aprobado) {
-                finished++;
-                if(m.curs && m.curs.hores) hours += parseInt(m.curs.hores);
-            }
-        });
-        const st = document.getElementById('profile-stats-container');
-        if(st) st.style.display = 'block';
-        const elStart = document.getElementById('stat-started'); if(elStart) elStart.innerText = started;
-        const elFin = document.getElementById('stat-finished'); if(elFin) elFin.innerText = finished;
-        const elHoras = document.getElementById('stat-hours'); if(elHoras) elHoras.innerText = hours + 'h';
-    } catch(e) { console.error(e); }
-}
-
-async function loadGrades() {
-    const tbody = document.getElementById('grades-table-body');
-    const user = JSON.parse(localStorage.getItem('user'));
-    const token = localStorage.getItem('jwt');
-    if(!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="4"><div class="loader"></div></td></tr>';
-
-    try {
-        const res = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs.moduls`, { headers: { 'Authorization': `Bearer ${token}` }});
-        const json = await res.json();
-        tbody.innerHTML = '';
-        window.gradesCache = [];
-
-        if(json.data.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Sense qualificacions.</td></tr>'; return; }
-
-        json.data.forEach((mat, idx) => {
-            const curs = mat.curs;
-            window.gradesCache[idx] = { matricula: mat, curso: curs };
-            
-            const isDone = mat.estat === 'completat' || mat.progres >= 100 || mat.progres_detallat?.examen_final?.aprobado;
-            const nota = mat.nota_final || mat.progres_detallat?.examen_final?.nota || '-';
-            const color = isDone ? '#10b981' : 'var(--brand-blue)';
-            
-            let btnCert = '<small>Pendent</small>';
-            if (isDone) {
-                const hoy = new Date();
-                const fechaFin = curs.data_fi ? new Date(curs.data_fi) : null;
-                if (fechaFin && hoy <= fechaFin) {
-                    const fechaStr = fechaFin.toLocaleDateString('ca-ES');
-                    btnCert = `<small style="color:#d97706; font-weight:bold;">Disponible el ${fechaStr}</small>`;
-                } else {
-                    btnCert = `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>`;
-                }
-            }
-
-            tbody.innerHTML += `
-                <tr style="border-bottom:1px solid #eee;">
-                    <td data-label="Curs" style="padding:15px;"><strong>${curs.titol}</strong></td>
-                    <td data-label="Estat" style="padding:15px; color:${color}; font-weight:bold;">${isDone ? 'Completat' : mat.progres+'%'}</td>
-                    <td data-label="Nota" style="padding:15px;">${nota}</td>
-                    <td data-label="Diploma" style="padding:15px;">${btnCert}</td>
-                </tr>`;
-        });
-    } catch(e) { tbody.innerHTML = '<tr><td colspan="4">Error.</td></tr>'; }
-}
-
-window.callPrintDiploma = function(idx) {
-    const data = window.gradesCache[idx];
-    if(data) window.imprimirDiplomaCompleto(data.matricula, data.curso);
-};
-
-/* --- EN dashboard.js (Sustituir window.imprimirDiplomaCompleto) --- */
-
-window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
-    const user = JSON.parse(localStorage.getItem('user'));
-    const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
-    const nombreCurso = cursoData.titol;
-    const horas = cursoData.hores || 'N/A';
-    const matId = matriculaData.documentId || matriculaData.id;
-    const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'APTE';
-    
-    // CORRECCIÓN FECHAS: Fallback a fecha de publicación si no hay data_inici
-    const rawInicio = cursoData.data_inici || cursoData.publishedAt;
-    const dataInici = rawInicio ? new Date(rawInicio).toLocaleDateString('ca-ES') : 'N/A';
-    
-    const dataFi = cursoData.data_fi ? new Date(cursoData.data_fi).toLocaleDateString('ca-ES') : 'N/A';
-    const fechaHoy = new Date().toLocaleDateString('ca-ES', { year:'numeric', month:'long', day:'numeric' });
-    
-    const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
-    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentDomain + '/verify.html?ref=' + matId)}`;
-
-    let temarioHtml = '';
-    if(cursoData.moduls && cursoData.moduls.length > 0) {
-        temarioHtml = '<ul style="margin:0; padding-left:20px;">' + cursoData.moduls.map((m,i) => `<li style="margin-bottom:5px;"><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`).join('') + '</ul>';
-    } else {
-        temarioHtml = '<p>Temari complet segons pla formatiu.</p>';
-    }
-
-    let printDiv = document.getElementById('diploma-print-container');
-    if(!printDiv) {
-        printDiv = document.createElement('div');
-        printDiv.id = 'diploma-print-container';
-        document.body.appendChild(printDiv);
-    }
-
-    printDiv.innerHTML = `
-        <div class="diploma-page">
-            <div class="diploma-border-outer">
-                <div class="diploma-border-inner">
-                    <img src="img/logo-sicap.png" class="diploma-watermark">
-                    <img src="img/logo-sicap.png" class="diploma-logo-top">
-                    <h1 class="diploma-title">CERTIFICAT D'APROFITAMENT</h1>
-                    <p class="diploma-text">El Sindicat Català de Presons (SICAP) certifica que</p>
-                    <div class="diploma-student">${nombreAlumno}</div>
-                    <p class="diploma-text">Amb DNI <strong>${user.username}</strong>, ha superat satisfactòriament el curs:</p>
-                    <h2 class="diploma-course">${nombreCurso}</h2>
-                    <div class="diploma-details">
-                        <p class="diploma-text">Amb una durada de <strong>${horas} hores</strong> lectives.</p>
-                        <p class="diploma-text">Qualificació: <strong>${nota}</strong></p>
-                        <p class="diploma-text" style="margin-top:20px; font-size:0.95rem;">Barcelona, ${fechaHoy}</p>
-                    </div>
-                    <div class="diploma-footer">
-                        <div class="footer-qr-area"><img src="${qrSrc}" class="qr-image"><div class="qr-ref">Ref: ${matId}</div></div>
-                        <div class="footer-signature-area">
-                            <img src="img/firma-miguel.png" style="height:50px; display:block; margin:0 auto;" onerror="this.style.display='none'">
-                            <div class="signature-line"></div>
-                            <span class="signature-name">Miguel Pueyo Pérez</span>
-                            <span class="signature-role">Secretari General</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="diploma-page">
-            <div class="diploma-border-outer">
-                <div class="diploma-border-inner" style="align-items:flex-start; text-align:left; padding:40px;">
-                    <img src="img/logo-sicap.png" class="diploma-watermark">
-                    <div style="width:100%; position:relative; z-index:2;">
-                        <div style="display:flex; justify-content:space-between; width:100%; border-bottom:2px solid var(--brand-blue); margin-bottom:20px; padding-bottom:10px;">
-                            <h3 style="margin:0; color:var(--brand-blue); text-transform:uppercase;">Expedient Formatiu</h3>
-                            <img src="img/logo-sicap.png" style="height:30px; opacity:0.6;">
-                        </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:30px; padding:15px; border:1px solid #eee; border-radius:8px;">
-                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Alumne</span><strong style="font-size:1rem;">${nombreAlumno}</strong></div>
-                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Document Identitat</span><strong style="font-size:1rem;">${user.username}</strong></div>
-                            <div style="grid-column:span 2;"><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Activitat Formativa</span><strong style="font-size:1rem;">${nombreCurso}</strong></div>
-                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Data Inici</span><strong style="font-size:1rem;">${dataInici}</strong></div>
-                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Data Finalització</span><strong style="font-size:1rem;">${dataFi}</strong></div>
-                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Durada</span><strong style="font-size:1rem;">${horas} Hores</strong></div>
-                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Data Expedició</span><strong style="font-size:1rem;">${fechaHoy}</strong></div>
-                        </div>
-                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:15px; text-transform:uppercase;">Continguts (Temari)</h4>
-                        <div style="font-size:0.9rem; line-height:1.6;">${temarioHtml}</div>
-                    </div>
-                    <div style="position:absolute; bottom:20px; left:0; width:100%; text-align:center; font-size:0.8rem; color:#666; border-top:1px solid #eee; padding-top:10px;">
-                        SICAP - Sindicat Català de Presons - Unitat de Formació
-                    </div>
-                </div>
-            </div>
-        </div>`;
-    
-    setTimeout(() => window.print(), 500);
-};
 
 // --- NOTIFICACIONES ---
 async function checkRealNotifications() {
@@ -580,6 +264,7 @@ window.openTeacherInbox = function(element) {
     abrirPanelMensajes('profesor');
 };
 
+// --- MENSAJERÍA / CHAT ---
 window.abrirPanelMensajes = async function(modoForzado) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -744,6 +429,315 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
     }
 };
 
+// --- CARGA DE DATOS Y CURSOS ---
+window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
+window.loadCatalog = async function() { await renderCoursesLogic('home'); };
+
+async function renderCoursesLogic(viewMode) {
+    const listId = viewMode === 'dashboard' ? 'courses-list' : 'catalog-list';
+    const list = document.getElementById(listId);
+    if(!list) return;
+    
+    const token = localStorage.getItem('jwt');
+    const user = JSON.parse(localStorage.getItem('user'));
+    list.innerHTML = '<div class="loader"></div>';
+
+    try {
+        const ts = new Date().getTime();
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const jsonMat = await resMat.json();
+        const userMatriculas = jsonMat.data || [];
+        
+        let cursosAMostrar = [];
+
+        if (viewMode === 'dashboard') {
+            cursosAMostrar = userMatriculas.map(m => ({ ...m.curs, _matricula: m }));
+        } else {
+            const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const jsonCat = await resCat.json();
+            cursosAMostrar = jsonCat.data.map(c => {
+                const existingMat = userMatriculas.find(m => (m.curs.documentId || m.curs.id) === (c.documentId || c.id));
+                return { ...c, _matricula: existingMat };
+            });
+        }
+
+        cursosAMostrar.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+
+        list.innerHTML = '';
+        if(cursosAMostrar.length === 0) {
+            list.innerHTML = '<p style="text-align:center; padding:20px; width:100%;">No hi ha cursos disponibles.</p>';
+            return;
+        }
+
+        cursosAMostrar.forEach((curs) => {
+            const cursId = curs.documentId || curs.id;
+            const safeTitle = curs.titol.replace(/'/g, "\\'");
+            let imgUrl = 'img/logo-sicap.png';
+            if(curs.imatge) {
+                const img = Array.isArray(curs.imatge) ? curs.imatge[0] : curs.imatge;
+                if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url;
+            }
+
+            // FIX FECHAS
+            const rawInicio = curs.fecha_inicio || curs.data_inici || curs.publishedAt;
+            const hoy = new Date();
+            const fechaInicio = new Date(rawInicio);
+            const esFuturo = fechaInicio > hoy;
+            const dateStr = fechaInicio.toLocaleDateString('ca-ES');
+
+            let badge = esFuturo 
+                ? `<span class="course-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">Properament: ${dateStr}</span>` 
+                : (curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : '');
+
+            let descHtml = '';
+            if (curs.descripcio && typeof curs.descripcio === 'string') {
+                 descHtml = `<div class="course-desc-container"><p class="course-desc short">${curs.descripcio.substring(0, 100)}...</p></div>`;
+            }
+
+            const horasHtml = `<div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'N/A'}</div>`;
+            
+            let actionHtml = '', progressHtml = '';
+
+            if (curs._matricula) {
+                const mat = curs._matricula;
+                let pct = mat.progres || 0;
+                if(mat.progres_detallat?.examen_final?.aprobado) { pct = 100; }
+                
+                const color = pct >= 100 ? '#10b981' : 'var(--brand-blue)';
+                progressHtml = `<div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%; background:${color}"></div></div><span class="progress-text">${pct}% Completat</span></div>`;
+                
+                actionHtml = esFuturo 
+                    ? `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alert('Disponible el ${dateStr}')">Inicia el ${dateStr}</button>` 
+                    : `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
+            } else {
+                actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${safeTitle}')">Matricular-me</button>`;
+            }
+
+            list.innerHTML += `
+                <div class="course-card-item">
+                    <div class="card-image-header" style="background-image: url('${imgUrl}');">${badge}</div>
+                    <div class="card-body">
+                        <h3 class="course-title">${curs.titol}</h3>
+                        ${horasHtml}
+                        ${descHtml}
+                        ${progressHtml}
+                        ${actionHtml}
+                    </div>
+                </div>`;
+        });
+    } catch(e) { console.error(e); }
+}
+
+window.solicitarMatricula = function(id, title) {
+    window.mostrarModalConfirmacion("Matrícula", `Vols inscriure't a "${title}"?`, async () => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const token = localStorage.getItem('jwt');
+        try {
+            const res = await fetch(`${STRAPI_URL}/api/matriculas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ data: { curs: id, users_permissions_user: user.id, progres: 0, estat: 'actiu', data_inici: new Date().toISOString(), progres_detallat: {} } })
+            });
+            if (!res.ok) throw new Error("Error API");
+
+            try {
+                await fetch(API_ROUTES.notifications, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ data: { titol: "Matrícula Realitzada", missatge: `T'has inscrit al curs: "${title}".`, llegida: false, users_permissions_user: user.id } })
+                });
+            } catch(e) {}
+            window.location.reload();
+        } catch(e) { alert("Error al matricular."); }
+    });
+};
+
+async function loadFullProfile() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('jwt');
+    const emailInput = document.getElementById('prof-email');
+    if(emailInput) emailInput.value = user.email;
+
+    try {
+        const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': `Bearer ${token}` }});
+        const jsonAfi = await resAfi.json();
+        if(jsonAfi.data && jsonAfi.data.length > 0) {
+            const afi = jsonAfi.data[0];
+            const map = { 'prof-movil': 'TelefonoMobil', 'prof-prov': 'Provincia', 'prof-pob': 'Poblacion', 'prof-centre': 'CentroTrabajo', 'prof-cat': 'CategoriaProfesional', 'prof-dir': 'Direccion', 'prof-iban': 'IBAN' };
+            for(const [id, key] of Object.entries(map)) {
+                const el = document.getElementById(id);
+                if(el && afi[key]) {
+                    el.value = afi[key];
+                    el.style.cursor = "copy";
+                    el.title = "Copiar";
+                    el.onclick = () => navigator.clipboard.writeText(el.value);
+                }
+            }
+        }
+        
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`, { headers: { 'Authorization': `Bearer ${token}` }});
+        const jsonMat = await resMat.json();
+        let started = 0, finished = 0, hours = 0;
+        jsonMat.data.forEach(m => {
+            started++;
+            if(m.estat === 'completat' || m.progres >= 100 || m.progres_detallat?.examen_final?.aprobado) {
+                finished++;
+                if(m.curs && m.curs.hores) hours += parseInt(m.curs.hores);
+            }
+        });
+        document.getElementById('profile-stats-container').style.display = 'block';
+        document.getElementById('stat-started').innerText = started;
+        document.getElementById('stat-finished').innerText = finished;
+        document.getElementById('stat-hours').innerText = hours + 'h';
+
+    } catch(e) { console.error(e); }
+}
+
+async function loadGrades() {
+    const tbody = document.getElementById('grades-table-body');
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('jwt');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="4"><div class="loader"></div></td></tr>';
+
+    try {
+        const res = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs.moduls`, { headers: { 'Authorization': `Bearer ${token}` }});
+        const json = await res.json();
+        tbody.innerHTML = '';
+        window.gradesCache = [];
+
+        if(json.data.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Sense qualificacions.</td></tr>'; return; }
+
+        json.data.forEach((mat, idx) => {
+            const curs = mat.curs;
+            window.gradesCache[idx] = { matricula: mat, curso: curs };
+            
+            const isDone = mat.estat === 'completat' || mat.progres >= 100 || mat.progres_detallat?.examen_final?.aprobado;
+            const nota = mat.nota_final || mat.progres_detallat?.examen_final?.nota || '-';
+            const color = isDone ? '#10b981' : 'var(--brand-blue)';
+            
+            let btnCert = '<small>Pendent</small>';
+            
+            if (isDone) {
+                const hoy = new Date();
+                const rawFin = curs.fecha_fin || curs.data_fi;
+                const fechaFin = rawFin ? new Date(rawFin) : null;
+                
+                if (fechaFin && hoy <= fechaFin) {
+                    const fechaStr = fechaFin.toLocaleDateString('ca-ES');
+                    btnCert = `<small style="color:#d97706; font-weight:bold;">Disponible el ${fechaStr}</small>`;
+                } else {
+                    btnCert = `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>`;
+                }
+            }
+
+            tbody.innerHTML += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td data-label="Curs" style="padding:15px;"><strong>${curs.titol}</strong></td>
+                    <td data-label="Estat" style="padding:15px; color:${color}; font-weight:bold;">${isDone ? 'Completat' : mat.progres+'%'}</td>
+                    <td data-label="Nota" style="padding:15px;">${nota}</td>
+                    <td data-label="Diploma" style="padding:15px;">${btnCert}</td>
+                </tr>`;
+        });
+    } catch(e) { tbody.innerHTML = '<tr><td colspan="4">Error.</td></tr>'; }
+}
+
+window.callPrintDiploma = function(idx) {
+    const data = window.gradesCache[idx];
+    if(data) window.imprimirDiplomaCompleto(data.matricula, data.curso);
+};
+
+window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
+    const nombreCurso = cursoData.titol;
+    const horas = cursoData.hores || 'N/A';
+    const matId = matriculaData.documentId || matriculaData.id;
+    const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'APTE';
+    
+    // FIX FECHAS DIPLOMA
+    const rawInicio = cursoData.fecha_inicio || cursoData.data_inici || cursoData.publishedAt;
+    const dataInici = rawInicio ? new Date(rawInicio).toLocaleDateString('ca-ES') : 'N/A';
+    const rawFin = cursoData.fecha_fin || cursoData.data_fi;
+    const dataFi = rawFin ? new Date(rawFin).toLocaleDateString('ca-ES') : 'N/A';
+    const fechaHoy = new Date().toLocaleDateString('ca-ES', { year:'numeric', month:'long', day:'numeric' });
+    
+    const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentDomain + '/verify.html?ref=' + matId)}`;
+
+    let temarioHtml = '';
+    if(cursoData.moduls && cursoData.moduls.length > 0) {
+        temarioHtml = '<ul style="margin:0; padding-left:20px;">' + cursoData.moduls.map((m,i) => `<li style="margin-bottom:5px;"><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`).join('') + '</ul>';
+    } else {
+        temarioHtml = '<p>Temari complet segons pla formatiu.</p>';
+    }
+
+    let printDiv = document.getElementById('diploma-print-container');
+    if(!printDiv) {
+        printDiv = document.createElement('div');
+        printDiv.id = 'diploma-print-container';
+        document.body.appendChild(printDiv);
+    }
+
+    printDiv.innerHTML = `
+        <div class="diploma-page">
+            <div class="diploma-border-outer">
+                <div class="diploma-border-inner">
+                    <img src="img/logo-sicap.png" class="diploma-watermark">
+                    <img src="img/logo-sicap.png" class="diploma-logo-top">
+                    <h1 class="diploma-title">CERTIFICAT D'APROFITAMENT</h1>
+                    <p class="diploma-text">El Sindicat Català de Presons (SICAP) certifica que</p>
+                    <div class="diploma-student">${nombreAlumno}</div>
+                    <p class="diploma-text">Amb DNI <strong>${user.username}</strong>, ha superat satisfactòriament el curs:</p>
+                    <h2 class="diploma-course">${nombreCurso}</h2>
+                    <div class="diploma-details">
+                        <p class="diploma-text">Amb una durada de <strong>${horas} hores</strong> lectives.</p>
+                        <p class="diploma-text">Qualificació: <strong>${nota}</strong></p>
+                        <p class="diploma-text" style="margin-top:20px; font-size:0.95rem;">Barcelona, ${fechaHoy}</p>
+                    </div>
+                    <div class="diploma-footer">
+                        <div class="footer-qr-area"><img src="${qrSrc}" class="qr-image"><div class="qr-ref">Ref: ${matId}</div></div>
+                        <div class="footer-signature-area">
+                            <img src="img/firma-miguel.png" style="height:50px; display:block; margin:0 auto;" onerror="this.style.display='none'">
+                            <div class="signature-line"></div>
+                            <span class="signature-name">Miguel Pueyo Pérez</span>
+                            <span class="signature-role">Secretari General</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="diploma-page">
+            <div class="diploma-border-outer">
+                <div class="diploma-border-inner" style="align-items:flex-start; text-align:left; padding:40px;">
+                    <img src="img/logo-sicap.png" class="diploma-watermark">
+                    <div style="width:100%; position:relative; z-index:2;">
+                        <div style="display:flex; justify-content:space-between; width:100%; border-bottom:2px solid var(--brand-blue); margin-bottom:20px; padding-bottom:10px;">
+                            <h3 style="margin:0; color:var(--brand-blue); text-transform:uppercase;">Expedient Formatiu</h3>
+                            <img src="img/logo-sicap.png" style="height:30px; opacity:0.6;">
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:30px; padding:15px; border:1px solid #eee; border-radius:8px;">
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Alumne</span><strong style="font-size:1rem;">${nombreAlumno}</strong></div>
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Document Identitat</span><strong style="font-size:1rem;">${user.username}</strong></div>
+                            <div style="grid-column:span 2;"><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Activitat Formativa</span><strong style="font-size:1rem;">${nombreCurso}</strong></div>
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Data Inici</span><strong style="font-size:1rem;">${dataInici}</strong></div>
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Data Finalització</span><strong style="font-size:1rem;">${dataFi}</strong></div>
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Durada</span><strong style="font-size:1rem;">${horas} Hores</strong></div>
+                            <div><span style="display:block; font-size:0.75rem; color:#666; text-transform:uppercase;">Data Expedició</span><strong style="font-size:1rem;">${fechaHoy}</strong></div>
+                        </div>
+                        <h4 style="color:var(--brand-blue); border-bottom:1px solid #ccc; padding-bottom:5px; margin-bottom:15px; text-transform:uppercase;">Continguts (Temari)</h4>
+                        <div style="font-size:0.9rem; line-height:1.6;">${temarioHtml}</div>
+                    </div>
+                    <div style="position:absolute; bottom:20px; left:0; width:100%; text-align:center; font-size:0.8rem; color:#666; border-top:1px solid #eee; padding-top:10px;">
+                        SICAP - Sindicat Català de Presons - Unitat de Formació
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    
+    setTimeout(() => window.print(), 500);
+};
+
 window.mostrarModalError = function(msg) {
     const m = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = "Informació";
@@ -767,6 +761,7 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
     const btnC = document.getElementById('modal-btn-cancel');
     const newBtnC = btnC.cloneNode(true); btnC.parentNode.replaceChild(newBtnC, btnC);
+    
     newBtn.onclick = () => { m.style.display = 'none'; callback(); };
     newBtnC.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';

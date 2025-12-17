@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v53.0 - FIX REFERENCE ERROR & STRAPI COMPONENT)
+   RENDERITZADORCURS.JS (v54.0 - FIX SPECIALCLASS & FINAL STABLE)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -128,7 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- FUNCIÓN RESTAURADA ---
     async function sincronizarAvanceLocal() {
         let huboCambios = false;
         const modulos = state.curso.moduls || [];
@@ -150,28 +149,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        // --- QUERY SEGURA (SIN LIMITES Y SIN CAMPO ANTIGUO) ---
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
-            // Banco de Preguntas (COMPONENTE - NO LIMIT)
+            // FIX: Removed 'preguntes'
             `populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true`,
-            // Materiales
             `populate[curs][populate][moduls][populate][material_pdf]=true`,
             `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
             `populate[curs][populate][moduls][populate][video_fitxer]=true`,
-            // Examen final (COMPONENTE - NO LIMIT)
             `populate[curs][populate][examen_final][populate][opcions]=true`, 
-            // Imagen
             `populate[curs][populate][imatge]=true`
         ].join('&');
 
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         
-        if (!res.ok) {
-            console.error("Strapi Error Details:", res.status);
-            throw new Error(`Error de connexió amb Strapi (${res.status})`);
-        }
+        if (!res.ok) throw new Error("Error de connexió amb Strapi");
 
         const json = await res.json();
         
@@ -403,13 +395,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const openFinalClass = isFinalActive ? 'open' : '';
 
         html += `<div class="sidebar-module-group ${lockedFinalClass} ${openFinalClass}" style="margin-top:20px; border-top:2px solid var(--brand-blue);"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span style="color:var(--brand-blue); font-weight:bold;">🎓 Avaluació Final</span></div><div class="sidebar-sub-menu">${renderSubLink(999, 'examen_final', '🏆 Examen Final', finalIsLocked)}</div></div>`;
-
         indexContainer.innerHTML = html;
     }
 
+    // --- FIX AQUI: Declarar variable specialClass ---
     function renderSubLink(modIdx, viewName, label, locked, isSpecial = false) {
         const reallyLocked = locked && !state.godMode;
         const active = (state.currentModuleIndex === modIdx && state.currentView === viewName) ? 'active' : '';
+        const specialClass = isSpecial ? 'special-item' : ''; // <--- LINEA RECUPERADA
         const click = reallyLocked ? '' : `window.cambiarVista(${modIdx}, '${viewName}')`;
         const lockIcon = reallyLocked ? '<i class="fa-solid fa-lock"></i> ' : '';
         return `<div class="sidebar-subitem ${active} ${specialClass} ${reallyLocked ? 'locked' : ''}" onclick="${click}">${lockIcon}${label}</div>`;
@@ -433,21 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (state.currentView === 'teoria') { renderTeoria(container, mod); renderSidebarTools(gridRight, mod); }
         else if (state.currentView === 'flashcards') { renderFlashcards(container, mod.targetes_memoria, state.currentModuleIndex); renderSidebarTools(gridRight, mod); }
-        else if (state.currentView === 'test') {
-            const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
-            const hayDatosGuardados = Object.keys(savedData).length > 0;
-            const moduloAprobado = (state.progreso.modulos && state.progreso.modulos[state.currentModuleIndex]) ? state.progreso.modulos[state.currentModuleIndex].aprobado : false;
-            
-            if ((state.testEnCurso || hayDatosGuardados) && !moduloAprobado) {
-                gridRight.className = 'grid-container';
-                state.respuestasTemp = savedData;
-                state.testEnCurso = true;
-                renderTestQuestions(container, mod, state.currentModuleIndex);
-            } else {
-                renderTestIntro(container, mod, state.currentModuleIndex);
-                renderSidebarTools(gridRight, mod);
-            }
-        }
+        else if (state.currentView === 'test') { renderTestQuestions(container, mod, state.currentModuleIndex); }
     }
 
     function renderVideoPlayer(mod) {

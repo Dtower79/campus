@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v52.0 - FIX 400: REMOVED LIMITS ON COMPONENTS)
+   RENDERITZADORCURS.JS (v53.0 - FIX REFERENCE ERROR & STRAPI COMPONENT)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -86,14 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function prepararExamen(mod) {
-        // Usamos 'banc_preguntes'
         const pool = mod.banc_preguntes || [];
-        
-        // Si hay menos de 10, las pilla todas. Si hay más, pilla 10 aleatorias.
-        // (Si quieres que salgan TODAS siempre, cambia '10' por 'pool.length')
         const limite = 10; 
         let seleccionadas = shuffleArray(pool).slice(0, limite);
-
         return seleccionadas.map(p => {
             const pClon = JSON.parse(JSON.stringify(p));
             if(pClon.opcions) pClon.opcions = shuffleArray(pClon.opcions);
@@ -133,24 +128,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- FUNCIÓN RESTAURADA ---
+    async function sincronizarAvanceLocal() {
+        let huboCambios = false;
+        const modulos = state.curso.moduls || [];
+        modulos.forEach((mod, idx) => {
+            if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
+                const flippedIndices = getFlippedCards(idx);
+                const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
+                const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx].flashcards_done : false;
+                if (localmenteCompletado && !estadoRemoto) {
+                    if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
+                    state.progreso.modulos[idx].flashcards_done = true;
+                    huboCambios = true;
+                }
+            }
+        });
+        if (huboCambios) {
+            try { await guardarProgreso(state.progreso); } catch(e) { console.error("Error guardando sync auto:", e); }
+        }
+    }
+
     async function cargarDatos() {
-        // --- QUERY SEGURA (SIN LIMITES QUE ROMPEN COMPONENTES) ---
-        // Si 'banc_preguntes' es un Componente, traerá TODO automáticamente.
+        // --- QUERY SEGURA (SIN LIMITES Y SIN CAMPO ANTIGUO) ---
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
-            
-            // Banco de Preguntas (Sin limit explícito para evitar error 400 en componentes)
+            // Banco de Preguntas (COMPONENTE - NO LIMIT)
             `populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true`,
-            
-            // Materiales y Media
+            // Materiales
             `populate[curs][populate][moduls][populate][material_pdf]=true`,
             `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
             `populate[curs][populate][moduls][populate][video_fitxer]=true`,
-            
-            // Examen final (Sin limit explícito)
+            // Examen final (COMPONENTE - NO LIMIT)
             `populate[curs][populate][examen_final][populate][opcions]=true`, 
-            
             // Imagen
             `populate[curs][populate][imatge]=true`
         ].join('&');
@@ -392,6 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const openFinalClass = isFinalActive ? 'open' : '';
 
         html += `<div class="sidebar-module-group ${lockedFinalClass} ${openFinalClass}" style="margin-top:20px; border-top:2px solid var(--brand-blue);"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span style="color:var(--brand-blue); font-weight:bold;">🎓 Avaluació Final</span></div><div class="sidebar-sub-menu">${renderSubLink(999, 'examen_final', '🏆 Examen Final', finalIsLocked)}</div></div>`;
+
         indexContainer.innerHTML = html;
     }
 
@@ -421,7 +433,21 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (state.currentView === 'teoria') { renderTeoria(container, mod); renderSidebarTools(gridRight, mod); }
         else if (state.currentView === 'flashcards') { renderFlashcards(container, mod.targetes_memoria, state.currentModuleIndex); renderSidebarTools(gridRight, mod); }
-        else if (state.currentView === 'test') { renderTestQuestions(container, mod, state.currentModuleIndex); }
+        else if (state.currentView === 'test') {
+            const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
+            const hayDatosGuardados = Object.keys(savedData).length > 0;
+            const moduloAprobado = (state.progreso.modulos && state.progreso.modulos[state.currentModuleIndex]) ? state.progreso.modulos[state.currentModuleIndex].aprobado : false;
+            
+            if ((state.testEnCurso || hayDatosGuardados) && !moduloAprobado) {
+                gridRight.className = 'grid-container';
+                state.respuestasTemp = savedData;
+                state.testEnCurso = true;
+                renderTestQuestions(container, mod, state.currentModuleIndex);
+            } else {
+                renderTestIntro(container, mod, state.currentModuleIndex);
+                renderSidebarTools(gridRight, mod);
+            }
+        }
     }
 
     function renderVideoPlayer(mod) {
@@ -524,7 +550,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     backContent = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;"><i class="fa-solid fa-check-circle" style="font-size:2.5rem; color:#fff; margin-bottom:10px;"></i><p style="font-size:1rem; color:white; font-weight:bold;">${answerText}</p></div>`;
                 } else {
                     let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
-                    let buttonsHtml = options.map(opt => `<button class="btn-flash-option" data-selected="${encodeURIComponent(opt)}" data-correct="${encodeURIComponent(targetClean)}" data-idx="${idx}" data-mod="${modIdx}" data-total="${cards.length}" onclick="checkFlashcardFromDOM(event, this)">${opt}</button>`).join('');
+                    let buttonsHtml = options.map(opt => `<button class="btn-flash-option" 
+                            data-selected="${encodeURIComponent(opt)}" 
+                            data-correct="${encodeURIComponent(targetClean)}" 
+                            data-idx="${idx}" data-mod="${modIdx}" data-total="${cards.length}" 
+                            onclick="checkFlashcardFromDOM(event, this)">${opt}</button>`).join('');
                     backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
                 }
                 const clickAttr = `onclick="handleFlip(this)"`; 

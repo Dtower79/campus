@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS - Lógica del LMS (v33.0 - FIX STRAPI SCHEMA)
+   RENDERITZADORCURS.JS (v50.0 - FIX 400 ERROR & LIMIT 100)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -33,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         const tag = block.format === 'ordered' ? 'ol' : 'ul';
                         const items = block.children.map(listItem => `<li>${extractText(listItem.children)}</li>`).join('');
                         return `<${tag}>${items}</${tag}>`;
-                    case 'image': return `<img src="${block.image.url}" alt="${block.image.alternativeText || ''}" style="max-width:100%;">`;
                     default: return extractText(block.children);
                 }
             }).join('');
@@ -44,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. CONFIGURACIÓN
     const PARAMS = new URLSearchParams(window.location.search);
     const SLUG = PARAMS.get('slug');
-    if (!SLUG) { console.warn("Falta slug"); return; }
+    if (!SLUG) return; 
 
     const USER = JSON.parse(localStorage.getItem('user'));
     const TOKEN = localStorage.getItem('jwt');
@@ -80,10 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function prepararExamen(mod) {
-        // CORRECCIÓN: 'preguntes' ya no existe en Strapi, ponemos array vacío por seguridad
-        const antiguas = mod.preguntes || []; 
-        const nuevas = mod.banc_preguntes || [];
-        const pool = [...antiguas, ...nuevas];
+        // Solo usamos banc_preguntes porque 'preguntes' fue borrado
+        const pool = mod.banc_preguntes || [];
         
         // Selecciona hasta 10 aleatorias (o las que haya)
         const limite = 10; 
@@ -123,12 +120,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        // QUERY CORREGIDA: Eliminada la referencia a 'preguntes' que causaba el error 400
+        // --- QUERY CORREGIDA: Sin 'preguntes', Con 'banc_preguntes' y Limit 100 ---
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
-            
-            // ELIMINADO: `populate[curs][populate][moduls][populate][preguntes]...` (Ya no existe)
             
             // Banco de Preguntas (Límite 100)
             `populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true`,
@@ -150,8 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         
         if (!res.ok) {
-            // Log para depuración si falla
-            console.error("Strapi Error:", res.status, res.statusText);
+            console.error("Strapi Error:", res.status);
             throw new Error("Error de connexió amb Strapi (Dades incorrectes)");
         }
 
@@ -393,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         container.classList.remove('fade-in-active'); void container.offsetWidth; container.classList.add('fade-in-active');
 
-        if (state.currentView === 'intro') { container.innerHTML = `<h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2><div class="module-content-text" style="margin-top:20px;">${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}</div>`; renderSidebarTools(gridRight, { titol: 'Programa' }); return; }
+        if (state.currentView === 'intro') { container.innerHTML = `<h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2><div class="module-content-text">${parseStrapiRichText(state.curso.descripcio || "")}</div>`; renderSidebarTools(gridRight, { titol: 'Programa' }); return; }
         if (state.currentView === 'glossary') { const contenidoGlossari = state.curso.glossari ? parseStrapiRichText(state.curso.glossari) : "<p>No hi ha entrades al glossari.</p>"; container.innerHTML = `<h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2><div class="dashboard-card" style="margin-top:20px;"><div class="module-content-text">${contenidoGlossari}</div></div>`; renderSidebarTools(gridRight, { titol: 'Glossari' }); return; }
         if (state.currentView === 'examen_final') { renderExamenFinal(container); return; }
 
@@ -502,10 +496,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 options.sort(() => Math.random() - 0.5);
                 let backContent = '';
                 if (isDone) {
-                    backContent = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;"><i class="fa-solid fa-check-circle" style="font-size:2.5rem; color:#fff; margin-bottom:10px;"></i><p style="font-size:1rem; color:white; font-weight:bold;">${answerText}</p></div>`;
+                    backContent = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
+                        <i class="fa-solid fa-check-circle" style="font-size:2.5rem; color:#fff; margin-bottom:10px;"></i>
+                        <p style="font-size:1rem; color:white; font-weight:bold;">${answerText}</p>
+                    </div>`;
                 } else {
                     let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
-                    let buttonsHtml = options.map(opt => `<button class="btn-flash-option" data-selected="${encodeURIComponent(opt)}" data-correct="${encodeURIComponent(targetClean)}" data-idx="${idx}" data-mod="${modIdx}" data-total="${cards.length}" onclick="checkFlashcardFromDOM(event, this)">${opt}</button>`).join('');
+                    let buttonsHtml = options.map(opt => `<button class="btn-flash-option" 
+                            data-selected="${encodeURIComponent(opt)}" 
+                            data-correct="${encodeURIComponent(targetClean)}" 
+                            data-idx="${idx}" data-mod="${modIdx}" data-total="${cards.length}" 
+                            onclick="checkFlashcardFromDOM(event, this)">${opt}</button>`).join('');
                     backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
                 }
                 const clickAttr = `onclick="handleFlip(this)"`; 
@@ -569,7 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const gridRight = document.getElementById('quiz-grid'); 
         gridRight.innerHTML = ''; gridRight.className = 'grid-container';
         preguntasActivas.forEach((p, i) => {
-            const div = document.createElement('div'); div.className = 'grid-item'; div.id = `grid-q-${i}`; div.innerText = i+1;
+            const div = document.createElement('div'); div.className = 'grid-item'; div.id = `grid-q-${i}`; div.innerText = i + 1;
             div.onclick = () => document.getElementById(`card-q-${i}`).scrollIntoView({behavior:'smooth', block:'center'});
             if (state.respuestasTemp[`q-${i}`] !== undefined) div.classList.add('answered');
             gridRight.appendChild(div);
@@ -590,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div class="question-card" id="card-${qId}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
             preg.opcions.forEach((opt, oIdx) => {
                 const checked = (val == oIdx) ? 'checked' : '';
-                html += `<div class="option-item ${checked ? 'selected' : ''}" onclick="selectTestOption('${qId}', ${oIdx}, 'test_mod_${modIdx}')"><input type="radio" name="${qId}" ${checked}> ${opt.text}</div>`;
+                html += `<div class="option-item ${checked ? 'selected' : ''}" onclick="selectTestOption('${qId}', ${oIdx}, 'test_mod_${modIdx}')"><input type="radio" name="${qId}" value="${oIdx}" ${checked}><span>${opt.text}</span></div>`;
             });
             html += `</div></div>`;
         });
@@ -598,74 +599,199 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
     }
 
-    window.selectTestOption = function(qId, val, isMulti, storageKey) {
-        state.respuestasTemp[qId] = val;
-        const gridIdx = qId.split('-')[1];
-        const gridItem = document.getElementById(`grid-${qId}`); 
+    window.selectTestOption = function(qId, valId, storageKeyType) {
+        state.respuestasTemp[qId] = valId;
+        const gridIdx = qId.split('-')[1]; 
+        const gridItemId = storageKeyType.includes('examen') ? `grid-final-q-${gridIdx}` : `grid-q-${gridIdx}`;
+        const gridItem = document.getElementById(gridItemId); 
         if(gridItem) gridItem.classList.add('answered');
+        
+        // Visual update inputs
         const inputs = document.getElementsByName(qId);
-        inputs.forEach(i => { i.checked = (i.value == val); i.parentElement.classList.toggle('selected', i.checked); });
-    }
+        inputs.forEach(i => {
+            if(i.value == valId) {
+                i.checked = true;
+                i.parentElement.classList.add('selected');
+            } else {
+                i.parentElement.classList.remove('selected');
+            }
+        });
+        guardarRespuestaLocal(storageKeyType, qId, valId);
+    };
 
     window.entregarTest = function(modIdx) {
-        if(!confirm("Segur?")) return;
-        let aciertos = 0;
-        window.currentQuestions.forEach((p, i) => {
-            const correctIdx = p.opcions.findIndex(o => o.esCorrecta || o.isCorrect);
-            if(state.respuestasTemp[`q-${i}`] == correctIdx) aciertos++;
+        window.mostrarModalConfirmacion("Entregar Test", "Estàs segur?", async () => {
+            document.getElementById('custom-modal').style.display = 'none';
+            const preguntas = window.currentQuestions; let aciertos = 0;
+            preguntas.forEach((preg, idx) => { 
+                const qId = `q-${idx}`;
+                const userRes = state.respuestasTemp[qId];
+                const selectedOpt = preg.opcions.find((o, i) => (o.id || i) == userRes);
+                if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) aciertos++;
+            });
+            const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); 
+            const aprobado = nota >= 7.0;
+            const p = state.progreso;
+            if (!p.modulos[modIdx]) p.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false, flashcards_done: false };
+            p.modulos[modIdx].intentos += 1; 
+            p.modulos[modIdx].nota = Math.max(p.modulos[modIdx].nota, nota); 
+            if (aprobado) p.modulos[modIdx].aprobado = true;
+            
+            await guardarProgreso(p); 
+            limpiarRespuestasLocales(`test_mod_${modIdx}`); 
+            state.testEnCurso = false; 
+            document.body.classList.remove('exam-active');
+            
+            if (aprobado) verificarFinModulo(modIdx);
+            
+            mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, modIdx, false);
         });
-        const nota = (aciertos / 10) * 10;
-        if(nota >= 7) {
-            state.progreso.modulos[modIdx].aprobado = true;
-            state.progreso.modulos[modIdx].nota = nota;
-            guardarProgreso(state.progreso).then(() => { alert("Aprovat!"); renderMainContent(); });
-        } else alert("Suspès.");
     }
 
-    // --- FINAL EXAM ---
+    function mostrarFeedback(preguntas, respuestasUsuario, nota, aprobado, modIdx, esFinal) {
+        const container = document.getElementById('moduls-container'); const color = aprobado ? 'green' : 'red';
+        let html = `<div class="dashboard-card" style="border-top:5px solid ${color}; text-align:center; margin-bottom:30px;"><h2 style="color:${color}">${aprobado ? 'Superat!' : 'No Superat'}</h2><div style="font-size:4rem; font-weight:bold; margin:10px 0;">${nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')">Continuar</button></div></div><h3>Revisió:</h3>`;
+        preguntas.forEach((preg, idx) => {
+            const qId = esFinal ? `final-${idx}` : `q-${idx}`; const userRes = respuestasUsuario[qId];
+            html += `<div class="question-card review-mode"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            preg.opcions.forEach((opt, oIdx) => {
+                let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                if (isCorrect) classes += 'correct-answer '; if (userRes == oIdx) { classes += 'selected '; if (!isCorrect) classes += 'user-wrong '; }
+                html += `<div class="${classes}"><input type="radio" ${userRes == oIdx ? 'checked' : ''} disabled><span>${opt.text}</span></div>`;
+            });
+            if (preg.explicacio) html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
+            html += `</div></div>`;
+        });
+        container.innerHTML = html; window.scrollTo(0,0);
+    }
+
+    window.revisarTest = function(modIdx) {
+        const mod = state.curso.moduls[modIdx];
+        if (!mod) return;
+        const container = document.getElementById('moduls-container');
+        
+        // Usar banco para mostrar todo
+        const pool = mod.banc_preguntes || [];
+        
+        let html = `<h3>Revisió (Mode Estudi)</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;">Aquí pots veure les respostes correctes per repassar.</div>`;
+        pool.forEach((preg, idx) => {
+            html += `<div class="question-card review-mode"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            preg.opcions.forEach((opt, oIdx) => {
+                let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                if (isCorrect) classes += 'correct-answer ';
+                html += `<div class="${classes}"><input type="radio" disabled><span>${opt.text}</span></div>`;
+            });
+            if (preg.explicacio) html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
+            html += `</div></div>`;
+        });
+        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(${modIdx}, 'test')">Tornar</button></div>`;
+        container.innerHTML = html; window.scrollTo(0,0);
+    }
+
+    // --- FINAL EXAM LOGIC ---
     function renderExamenFinal(container) {
         if(state.progreso.examen_final.aprobado) {
-            container.innerHTML = `<div class="dashboard-card" style="text-align:center;"><h1 style="color:green">ENHORABONA!</h1><button class="btn-primary" onclick="window.imprimirDiploma('${state.progreso.examen_final.nota}')">Diploma</button></div>`;
+            container.innerHTML = `<div class="dashboard-card" style="text-align:center;"><h1 style="color:green">ENHORABONA! 🎓</h1><p>Has completat el curs.</p><button class="btn-primary" onclick="window.imprimirDiploma('${state.progreso.examen_final.nota}')">Descarregar Diploma</button></div>`;
             return;
         }
-        
-        // GOD MODE AUTO FILL FINAL
+
+        // AUTO-FILL GOD MODE PARA EXAMEN FINAL
         if (state.godMode) {
-             state.curso.examen_final.forEach((p, i) => {
-                 const correctIdx = p.opcions.findIndex(o => o.esCorrecta || o.isCorrect);
-                 if (correctIdx !== -1) state.respuestasTemp[`ef${i}`] = correctIdx;
-             });
+            state.curso.examen_final.forEach((p, i) => {
+                const correctIdx = p.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true);
+                if (correctIdx !== -1) {
+                    state.respuestasTemp[`ef${i}`] = correctIdx;
+                }
+            });
         }
-        
+
         let html = '<div id="exam-timer-container"><div id="exam-timer" class="timer-box">30:00</div></div><h3>Examen Final</h3>';
         state.curso.examen_final.forEach((p, i) => {
             const val = state.respuestasTemp[`ef${i}`];
-            html += `<div class="question-card"><div class="q-header">Pregunta ${i+1}</div><p>${p.text}</p><div class="options-list">`;
-            p.opcions.forEach((o, oi) => {
-                 const checked = (val == oi) ? 'checked' : '';
-                 html += `<div class="option-item ${checked ? 'selected' : ''}" onclick="state.respuestasTemp['ef${i}']=${oi};"><input type="radio" ${checked}> ${o.text}</div>`;
-            });
-            html += `</div></div>`;
+            html += `<div class="question-card"><div class="q-header">Pregunta ${i+1}</div><p>${p.text}</p>
+            <div class="options-list">${p.opcions.map((o, oi) => {
+                const checked = (val == oi) ? 'checked' : '';
+                const selected = (val == oi) ? 'selected' : '';
+                return `<div class="option-item ${selected}" onclick="selectTestOption('ef${i}', ${oi}, 'examen_final')"><input type="radio" name="ef${i}" value="${oi}" ${checked}> ${o.text}</div>`;
+            }).join('')}</div></div>`;
         });
-        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="corregirExamenFinal()">Entregar</button></div>`;
+        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="corregirExamenFinal()">Entregar Examen</button></div>`;
         container.innerHTML = html;
-    }
-    
-    window.corregirExamenFinal = function() {
-        let aciertos = 0;
-        state.curso.examen_final.forEach((p, i) => {
-            const correctIdx = p.opcions.findIndex(o => o.esCorrecta || o.isCorrect);
-            if(state.respuestasTemp[`ef${i}`] == correctIdx) aciertos++;
-        });
-        const nota = (aciertos / state.curso.examen_final.length) * 10;
-        if(nota >= 7.5) {
-             state.progreso.examen_final.aprobado = true;
-             state.progreso.examen_final.nota = nota.toFixed(1);
-             guardarProgreso(state.progreso).then(()=>renderMainContent());
-        } else alert("Suspès.");
+        iniciarCronometro();
     }
 
-    // --- MODAL DUDAS ---
+    window.iniciarExamenFinal = function() {
+        if (!state.curso.examen_final || state.curso.examen_final.length === 0) { alert("Error: No s'han carregat preguntes."); return; }
+        state.preguntasExamenFinal = [...state.curso.examen_final].sort(() => 0.5 - Math.random());
+        const orderIds = state.preguntasExamenFinal.map(p => p.id || p.documentId); 
+        localStorage.setItem(`sicap_exam_order_${USER.id}_${SLUG}`, JSON.stringify(orderIds));
+        state.testEnCurso = true; state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime);
+        state.respuestasTemp = {}; renderExamenFinal(document.getElementById('moduls-container'));
+    }
+
+    function renderFinalQuestions(container, savedData) {
+        const storedOrder = JSON.parse(localStorage.getItem(`sicap_exam_order_${USER.id}_${SLUG}`));
+        if (storedOrder && state.curso.examen_final) { state.preguntasExamenFinal = []; storedOrder.forEach(id => { const found = state.curso.examen_final.find(p => (p.id || p.documentId) === id); if(found) state.preguntasExamenFinal.push(found); }); if(state.preguntasExamenFinal.length === 0) state.preguntasExamenFinal = state.curso.examen_final; } else if (state.preguntasExamenFinal.length === 0) { state.preguntasExamenFinal = state.curso.examen_final; }
+        const storedStartTime = localStorage.getItem(`sicap_timer_start_${USER.id}_${SLUG}`); if(storedStartTime) state.testStartTime = parseInt(storedStartTime); else { state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime); }
+        const gridRight = document.getElementById('quiz-grid'); gridRight.className = ''; gridRight.innerHTML = `<div id="exam-timer-container"><div id="exam-timer" class="timer-box">30:00</div></div><div id="grid-inner-numbers"></div>`; iniciarCronometro();
+        const gridInner = document.getElementById('grid-inner-numbers');
+        state.preguntasExamenFinal.forEach((p, i) => {
+            const div = document.createElement('div'); div.className = 'grid-item'; div.id = `grid-final-q-${i}`; div.innerText = i + 1;
+            div.onclick = () => document.getElementById(`card-final-${i}`).scrollIntoView({behavior:'smooth', block:'center'});
+            if (state.respuestasTemp[`final-${i}`] !== undefined || (savedData && savedData[`final-${i}`] !== undefined)) div.classList.add('answered');
+            gridInner.appendChild(div);
+        });
+        if(savedData) state.respuestasTemp = savedData;
+        let html = `<h3 style="color:var(--brand-red);">Examen Final en Curs...</h3>`;
+        state.preguntasExamenFinal.forEach((preg, idx) => {
+            const qId = `final-${idx}`; const userRes = state.respuestasTemp[qId];
+            html += `<div class="question-card" id="card-final-${idx}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text" style="margin-top:10px;">${preg.text}</div><div class="options-list">`;
+            preg.opcions.forEach((opt, oIdx) => { const checked = (userRes == oIdx) ? 'checked' : ''; const selected = (userRes == oIdx) ? 'selected' : ''; html += `<div class="option-item ${selected}" onclick="selectTestOption('${qId}', ${oIdx}, 'examen_final')"><input type="radio" name="${qId}" value="${oIdx}" ${checked}><span>${opt.text}</span></div>`; });
+            html += `</div></div>`;
+        });
+        const btnText = state.godMode ? "⚡ PROFESSOR: ENTREGAR ARA" : "ENTREGAR EXAMEN FINAL";
+        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="entregarExamenFinal()">${btnText}</button></div>`;
+        container.innerHTML = html; window.currentQuestions = state.preguntasExamenFinal;
+    }
+
+    function iniciarCronometro() { const display = document.getElementById('exam-timer'); if(!display) return; const LIMIT_MS = 30 * 60 * 1000; clearInterval(state.timerInterval); state.timerInterval = setInterval(() => { const now = Date.now(); const elapsed = now - state.testStartTime; const remaining = LIMIT_MS - elapsed; if (remaining <= 0) { detenerCronometro(); display.innerText = "00:00"; alert("Temps esgotat!"); entregarExamenFinal(true); return; } const min = Math.floor(remaining / 60000); const sec = Math.floor((remaining % 60000) / 1000); display.innerText = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }, 1000); }
+    function detenerCronometro() { clearInterval(state.timerInterval); }
+    
+    window.entregarExamenFinal = function(forzado = false) {
+        const doDelivery = async () => {
+            detenerCronometro(); const preguntas = window.currentQuestions; let aciertos = 0;
+            preguntas.forEach((preg, idx) => { const qId = `final-${idx}`; const userRes = state.respuestasTemp[qId]; const correctaIdx = preg.opcions.findIndex(o => o.esCorrecta === true || o.isCorrect === true || o.correct === true); if (userRes == correctaIdx) aciertos++; });
+            const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); const aprobado = nota >= 7.5; 
+            state.progreso.examen_final.intentos += 1; state.progreso.examen_final.nota = Math.max(state.progreso.examen_final.nota, nota); if (aprobado) state.progreso.examen_final.aprobado = true;
+            
+            let porcentaje = state.progreso.progres || 0;
+            if (aprobado) porcentaje = 100;
+
+            const payload = { data: { progres_detallat: state.progreso, progres: porcentaje } }; 
+            if (aprobado) { 
+                payload.data.estat = 'completat'; 
+                payload.data.nota_final = nota; 
+                notificarAprobado(state.curso.titol);
+            }
+            
+            await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) });
+            limpiarRespuestasLocales('examen_final'); state.testEnCurso = false; document.body.classList.remove('exam-active');
+            mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, 999, true);
+        };
+        if(forzado) { doDelivery(); } else { window.mostrarModalConfirmacion("Entregar Examen", "Segur que vols entregar?", () => { document.getElementById('custom-modal').style.display = 'none'; doDelivery(); }); }
+    }
+
+    // --- ENLACE A FUNCIÓN DE IMPRESIÓN (DASHBOARD) ---
+    window.imprimirDiploma = function(nota) { 
+        if (window.imprimirDiplomaCompleto) {
+            const matData = { id: state.matriculaId, documentId: state.matriculaId, nota_final: nota, progres_detallat: state.progreso };
+            window.imprimirDiplomaCompleto(matData, state.curso);
+        } else {
+            alert("Error: Mòdul de certificació no carregat.");
+        }
+    };
+
+    // --- MODAL DE DUDAS (FIX BUTTON) ---
     window.obrirFormulariDubte = function(moduloTitulo) {
         const modal = document.getElementById('custom-modal');
         const titleEl = document.getElementById('modal-title');

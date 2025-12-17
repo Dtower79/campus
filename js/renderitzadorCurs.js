@@ -1,12 +1,14 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v32.0 - FIX STRAPI LIMIT 10 ITEMS)
+   RENDERITZADORCURS.JS (v32.0 - STABLE LOADER & FULL FEATURES)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
 
+    // 1. HELPER: TRADUCTOR DE TEXTO (Rich Text Strapi)
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
+        
         const extractText = (children) => {
             if (!children) return "";
             return children.map(node => {
@@ -15,25 +17,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (node.bold) text = `<strong>${text}</strong>`;
                     if (node.italic) text = `<em>${text}</em>`;
                     if (node.underline) text = `<u>${text}</u>`;
-                    if (node.strikethrough) text = `<strike>${text}</strike>`;
-                    if (node.code) text = `<code>${text}</code>`;
                     return text;
                 }
-                if (node.type === "link") return `<a href="${node.url}" target="_blank" rel="noopener noreferrer">${extractText(node.children)}</a>`;
+                if (node.type === "link") return `<a href="${node.url}" target="_blank">${extractText(node.children)}</a>`;
                 return "";
             }).join("");
         };
+
         if (Array.isArray(content)) {
             return content.map(block => {
                 switch (block.type) {
                     case 'heading': return `<h${block.level || 3}>${extractText(block.children)}</h${block.level || 3}>`;
-                    case 'paragraph': const pText = extractText(block.children); return pText.trim() ? `<p>${pText}</p>` : '';
+                    case 'paragraph': return `<p>${extractText(block.children)}</p>`;
                     case 'list': 
                         const tag = block.format === 'ordered' ? 'ol' : 'ul';
                         const items = block.children.map(listItem => `<li>${extractText(listItem.children)}</li>`).join('');
                         return `<${tag}>${items}</${tag}>`;
-                    case 'quote': return `<blockquote style="border-left:4px solid #ccc; padding-left:10px; margin:10px 0; color:#555;">${extractText(block.children)}</blockquote>`;
-                    case 'image': return `<img src="${block.image.url}" alt="${block.image.alternativeText || ''}" style="max-width:100%; height:auto; margin:10px 0;">`;
+                    case 'image': return `<img src="${block.image.url}" alt="${block.image.alternativeText || ''}" style="max-width:100%;">`;
                     default: return extractText(block.children);
                 }
             }).join('');
@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return JSON.stringify(content);
     }
 
+    // 2. CONFIGURACIÓN
     const PARAMS = new URLSearchParams(window.location.search);
     const SLUG = PARAMS.get('slug');
     if (!SLUG) return; 
@@ -56,7 +57,15 @@ document.addEventListener('DOMContentLoaded', () => {
         preguntasExamenFinal: [], timerInterval: null
     };
 
-    const elems = { loginOverlay: document.getElementById('login-overlay'), appContainer: document.getElementById('app-container'), dashboardView: document.getElementById('dashboard-view'), examView: document.getElementById('exam-view'), appFooter: document.getElementById('app-footer') };
+    const elems = {
+        loginOverlay: document.getElementById('login-overlay'),
+        appContainer: document.getElementById('app-container'),
+        dashboardView: document.getElementById('dashboard-view'),
+        examView: document.getElementById('exam-view'),
+        appFooter: document.getElementById('app-footer')
+    };
+    
+    // Inicializar Vistas
     if(elems.loginOverlay) elems.loginOverlay.style.display = 'none';
     if(elems.appContainer) elems.appContainer.style.display = 'block';
     if(elems.dashboardView) elems.dashboardView.style.display = 'none';
@@ -65,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     init();
 
+    // Sidebar Móvil (Acordeón)
     setTimeout(() => {
         const left = document.querySelector('.sidebar-left');
         const right = document.querySelector('.sidebar-right');
@@ -78,45 +88,56 @@ document.addEventListener('DOMContentLoaded', () => {
         if(container) container.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
         try {
             await cargarDatos();
-            if (!state.progreso || Object.keys(state.progreso).length === 0) await inicializarProgresoEnStrapi();
-            if (state.progreso.examen_final && state.progreso.examen_final.aprobado && state.curso.progres < 100) await guardarProgreso(state.progreso);
+            
+            // Inicializar progreso si no existe o está vacío
+            if (!state.progreso || Object.keys(state.progreso).length === 0) {
+                await inicializarProgresoEnStrapi();
+            } else if (state.progreso.examen_final && state.progreso.examen_final.aprobado && state.curso.progres < 100) {
+                // Si aprobó pero el % está mal, corregir
+                await guardarProgreso(state.progreso);
+            }
+            
             renderSidebar();
             renderMainContent();
         } catch (e) {
-            if(container) container.innerHTML = `<div class="alert alert-danger" style="color:red; padding:20px;">Error: ${e.message}</div>`;
+            console.error(e);
+            if(container) container.innerHTML = `<div class="alert alert-danger" style="color:red; padding:20px;">Error al carregar el curs: ${e.message}</div>`;
         }
     }
 
     async function cargarDatos() {
-        // --- FIX: AÑADIDO [limit]=100 PARA PREGUNTAS Y EXAMEN FINAL ---
-        const query = [
-            `filters[users_permissions_user][id][$eq]=${USER.id}`,
-            `filters[curs][slug][$eq]=${SLUG}`,
-            // Modulos y sus preguntas (limite aumentado a 100)
-            `populate[curs][populate][moduls][populate][preguntes][populate][opcions]=true`,
-            `populate[curs][populate][moduls][populate][preguntes][limit]=100`, 
-            // Material y Flashcards
-            `populate[curs][populate][moduls][populate][material_pdf]=true`,
-            `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
-            // Examen Final (limite aumentado a 100)
-            `populate[curs][populate][examen_final][populate][opcions]=true`,
-            `populate[curs][populate][examen_final][limit]=100`,
-            // Imagen
-            `populate[curs][populate][imatge]=true`
-        ].join('&');
-
+        // QUERY RESTAURADA (FORMATO SEGURO)
+        // Usamos la estructura larga que sabemos que funciona en tu versión de Strapi
+        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true`;
+        
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
+        
+        if (!res.ok) throw new Error("Error de xarxa al carregar matricula");
+        
         const json = await res.json();
-        if (!json.data || json.data.length === 0) throw new Error("Curs no trobat.");
+        
+        if (!json.data || json.data.length === 0) throw new Error("No s'ha trobat la matrícula o el curs.");
+        
         const mat = json.data[0];
         state.matriculaId = mat.documentId || mat.id;
         state.curso = mat.curs;
+        
+        // Asegurar que progreso existe y no es null
         state.progreso = mat.progres_detallat || {};
-        if (mat.progres === 0 && state.progreso.modulos) { 
+        
+        // Reset local si se reinicia curso
+        const cacheKey = `sicap_last_matricula_${SLUG}`;
+        const lastMatricula = localStorage.getItem(cacheKey);
+        
+        if ((lastMatricula && lastMatricula !== String(state.matriculaId)) || mat.progres === 0) {
              Object.keys(localStorage).forEach(key => { if (key.includes(SLUG)) localStorage.removeItem(key); });
-             state.progreso.modulos.forEach(m => { m.flashcards_done = false; m.aprobado = false; m.nota = 0; m.intentos = 0; });
-             guardarProgreso(state.progreso);
+             // Si existe estructura, resetear valores
+             if(state.progreso.modulos) {
+                 state.progreso.modulos.forEach(m => { m.flashcards_done = false; m.aprobado = false; m.nota = 0; m.intentos = 0; });
+                 guardarProgreso(state.progreso);
+             }
         }
+        localStorage.setItem(cacheKey, String(state.matriculaId));
     }
 
     async function inicializarProgresoEnStrapi() {
@@ -125,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modulos: modulos.map(() => ({ aprobado: false, nota: 0, intentos: 0, flashcards_done: false })),
             examen_final: { aprobado: false, nota: 0, intentos: 0 }
         };
+        state.progreso = nuevoProgreso; // Actualizar estado local inmediatamente
         await guardarProgreso(nuevoProgreso);
     }
 
@@ -133,23 +155,32 @@ document.addEventListener('DOMContentLoaded', () => {
         let total = 0, done = 0;
         if(state.curso.moduls) {
             state.curso.moduls.forEach((mod, i) => {
-                total++; if(progresoObj.modulos[i].aprobado) done++;
-                if(mod.targetes_memoria?.length > 0) { total++; if(progresoObj.modulos[i].flashcards_done) done++; }
+                total++; 
+                if(progresoObj.modulos[i] && progresoObj.modulos[i].aprobado) done++;
+                if(mod.targetes_memoria && mod.targetes_memoria.length > 0) { 
+                    total++; 
+                    if(progresoObj.modulos[i] && progresoObj.modulos[i].flashcards_done) done++; 
+                }
             });
         }
-        if(state.curso.examen_final?.length > 0) { total++; if(progresoObj.examen_final?.aprobado) done++; }
+        if(state.curso.examen_final && state.curso.examen_final.length > 0) { 
+            total++; 
+            if(progresoObj.examen_final && progresoObj.examen_final.aprobado) done++; 
+        }
+        
         let porcentaje = total > 0 ? Math.round((done/total)*100) : 0;
-        if(progresoObj.examen_final?.aprobado) porcentaje = 100;
+        if(progresoObj.examen_final && progresoObj.examen_final.aprobado) porcentaje = 100;
 
         const payload = { data: { progres_detallat: progresoObj, progres: porcentaje, estat: porcentaje >= 100 ? 'completat' : 'actiu' } };
-        if(progresoObj.examen_final?.aprobado) payload.data.nota_final = progresoObj.examen_final.nota;
+        if(progresoObj.examen_final && progresoObj.examen_final.aprobado) payload.data.nota_final = progresoObj.examen_final.nota;
 
         try {
             await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload)
             });
+            // Refrescar sidebar si ya está renderizado
             if (document.getElementById('course-index').innerHTML !== '') renderSidebar();
-        } catch(e) {}
+        } catch(e) { console.error("Error guardando progreso:", e); }
     }
 
     // --- NOTIFICACIONES ---
@@ -160,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ data: { titol: titulo, missatge: mensaje, llegida: false, users_permissions_user: USER.id } })
             });
             if(window.checkRealNotifications) window.checkRealNotifications();
-        } catch(e) { console.error("Error creating notification:", e); }
+        } catch(e) {}
     }
 
     function verificarFinModulo(modIdx) {
@@ -172,60 +203,41 @@ document.addEventListener('DOMContentLoaded', () => {
         const flashOk = (mod.targetes_memoria && mod.targetes_memoria.length > 0) ? modProg.flashcards_done : true;
 
         if (testOk && flashOk) {
-            crearNotificacion(
-                `Mòdul ${modIdx + 1} Completat`, 
-                `Enhorabona! Has completat totes les activitats del mòdul: "${mod.titol}".`
-            );
+            crearNotificacion(`Mòdul ${modIdx + 1} Completat`, `Enhorabona! Has completat totes les activitats del mòdul: "${mod.titol}".`);
         }
     }
 
     async function notificarAprobado(cursoTitulo) {
-        crearNotificacion(
-            "Curs Completat! 🎓",
-            `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`
-        );
+        crearNotificacion("Curs Completat! 🎓", `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`);
     }
 
-    // --- HELPERS LOCAL STORAGE ---
-    function getStorageKey(tipo) { return `sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`; }
-    function guardarRespuestaLocal(tipo, preguntaId, opcionIdx) {
-        const key = getStorageKey(tipo);
-        let data = JSON.parse(localStorage.getItem(key)) || {};
-        data[preguntaId] = opcionIdx; data.timestamp = Date.now();
-        localStorage.setItem(key, JSON.stringify(data));
+    // --- LOCAL STORAGE HELPERS ---
+    function getFlippedCards(modIdx) { return JSON.parse(localStorage.getItem(`sicap_flipped_${USER.id}_${state.curso.slug}_mod_${modIdx}`)) || []; }
+    function addFlippedCard(modIdx, cardIdx) {
+        const key = `sicap_flipped_${USER.id}_${state.curso.slug}_mod_${modIdx}`;
+        let current = getFlippedCards(modIdx);
+        if (!current.includes(cardIdx)) { current.push(cardIdx); localStorage.setItem(key, JSON.stringify(current)); }
+        return current.length;
     }
-    function cargarRespuestasLocales(tipo) {
-        const key = getStorageKey(tipo);
-        const data = JSON.parse(localStorage.getItem(key));
-        if (data) { delete data.timestamp; return data; }
-        return {};
+    function cargarRespuestasLocales(tipo) { return JSON.parse(localStorage.getItem(`sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`)) || {}; }
+    function guardarRespuestaLocal(tipo, pid, val) { 
+        let data = cargarRespuestasLocales(tipo); data[pid] = val; 
+        localStorage.setItem(`sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`, JSON.stringify(data)); 
     }
     function limpiarRespuestasLocales(tipo) {
-        localStorage.removeItem(getStorageKey(tipo));
+        localStorage.removeItem(`sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`);
         if(tipo === 'examen_final') {
             localStorage.removeItem(`sicap_timer_start_${USER.id}_${SLUG}`);
             localStorage.removeItem(`sicap_exam_order_${USER.id}_${SLUG}`); 
         }
     }
-    function getFlippedCards(modIdx) {
-        return JSON.parse(localStorage.getItem(`sicap_flipped_${USER.id}_${state.curso.slug}_mod_${modIdx}`)) || [];
-    }
-    function addFlippedCard(modIdx, cardIdx) {
-        const key = `sicap_flipped_${USER.id}_${state.curso.slug}_mod_${modIdx}`;
-        let current = getFlippedCards(modIdx);
-        if (!current.includes(cardIdx)) {
-            current.push(cardIdx);
-            localStorage.setItem(key, JSON.stringify(current));
-        }
-        return current.length;
-    }
 
-    // --- LOGICA BLOQUEO ---
+    // --- BLOQUEO ---
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
         const prevIdx = indexModulo - 1;
-        const prevProgreso = (state.progreso.modulos && state.progreso.modulos[prevIdx]) ? state.progreso.modulos[prevIdx] : null;
+        const prevProgreso = state.progreso.modulos ? state.progreso.modulos[prevIdx] : null;
         if (!prevProgreso) return true; 
         const testOk = prevProgreso.aprobado === true;
         const modulos = state.curso.moduls || [];
@@ -238,9 +250,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function puedeHacerExamenFinal() {
         if (state.godMode) return true; 
         if (!state.progreso.modulos) return false;
-        const modulos = state.curso.moduls || [];
         return state.progreso.modulos.every((m, idx) => {
-            const modObj = modulos[idx];
+            const modObj = state.curso.moduls[idx];
             const tieneFlash = modObj && modObj.targetes_memoria && modObj.targetes_memoria.length > 0;
             const flashOk = tieneFlash ? m.flashcards_done : true;
             return m.aprobado && flashOk;
@@ -270,20 +281,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if(window.innerWidth <= 1000) document.querySelector('.sidebar-left').classList.remove('sidebar-mobile-open');
     }
 
-    window.downloadNotes = function() {
-        const noteKey = `sicap_notes_${USER.id}_${state.curso.slug}`;
-        const content = localStorage.getItem(noteKey) || '';
-        if(!content) return alert("No tens apunts guardats per descarregar.");
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = `Notes_${state.curso.slug}.txt`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
-    };
-
     // --- RENDERIZADORES ---
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
-        document.getElementById('curs-titol').innerText = state.curso.titol;
+        const tituloEl = document.getElementById('curs-titol');
+        if(tituloEl) tituloEl.innerText = state.curso.titol;
 
         let html = '';
         if (USER.es_professor === true) {
@@ -294,32 +296,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         const isIntroActive = state.currentModuleIndex === -1;
-        html += `<div class="sidebar-module-group ${isIntroActive ? 'open' : ''}"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span><i class="fa-solid fa-circle-info"></i> Informació General</span></div><div class="sidebar-sub-menu">${renderSubLink(-1, 'intro', '📄 Programa del curs', false, true)}</div></div>`;
+        html += `<div class="sidebar-module-group ${isIntroActive ? 'open' : ''}"><div class="sidebar-module-title" onclick="window.cambiarVista(-1, 'intro')"><span><i class="fa-solid fa-circle-info"></i> Informació General</span></div><div class="sidebar-sub-menu">${renderSubLink(-1, 'intro', '📄 Programa del curs', false, true)}</div></div>`;
 
-        (state.curso.moduls || []).forEach((mod, idx) => {
-            const isLocked = estaBloqueado(idx);
-            const modProg = state.progreso.modulos[idx];
-            const check = (modProg?.aprobado && (mod.targetes_memoria?.length === 0 || modProg?.flashcards_done)) ? '<i class="fa-solid fa-check" style="color:green"></i>' : '';
-            const lockedClass = (isLocked && !state.godMode) ? 'locked-module' : '';
-            const openClass = isOpen = (state.currentModuleIndex === idx) ? 'open' : '';
+        if(state.curso.moduls) {
+            state.curso.moduls.forEach((mod, idx) => {
+                const isLocked = estaBloqueado(idx);
+                const modProg = state.progreso.modulos ? state.progreso.modulos[idx] : null;
+                const check = (modProg?.aprobado && (mod.targetes_memoria?.length === 0 || modProg?.flashcards_done)) ? '<i class="fa-solid fa-check" style="color:green"></i>' : '';
+                const lockedClass = (isLocked && !state.godMode) ? 'locked-module' : '';
+                const openClass = (state.currentModuleIndex === idx) ? 'open' : '';
 
-            html += `<div class="sidebar-module-group ${lockedClass} ${openClass}"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span></div><div class="sidebar-sub-menu">`;
-            html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
-            if ((!isLocked || state.godMode) && mod.material_pdf) {
-                const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
-                archivos.forEach(pdf => {
-                    const url = pdf.url.startsWith('/') ? STRAPI_URL + pdf.url : pdf.url;
-                    html += `<a href="${url}" target="_blank" class="sidebar-file-item"><i class="fa-solid fa-file-pdf"></i> ${pdf.name}</a>`;
-                });
-            }
-            if (mod.targetes_memoria?.length > 0) {
-                const fCheck = modProg?.flashcards_done ? '✓' : '';
-                html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);
-            }
-            const tCheck = modProg?.aprobado ? '✓' : '';
-            html += renderSubLink(idx, 'test', `📝 Test Avaluació ${tCheck}`, isLocked);
-            html += `</div></div>`;
-        });
+                html += `<div class="sidebar-module-group ${lockedClass} ${openClass}"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span></div><div class="sidebar-sub-menu">`;
+                
+                html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
+                
+                if ((!isLocked || state.godMode) && mod.material_pdf) {
+                    const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
+                    archivos.forEach(pdf => {
+                        const url = pdf.url.startsWith('/') ? STRAPI_URL + pdf.url : pdf.url;
+                        html += `<a href="${url}" target="_blank" class="sidebar-file-item"><i class="fa-solid fa-file-pdf"></i> ${pdf.name}</a>`;
+                    });
+                }
+                
+                if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
+                    const fCheck = modProg?.flashcards_done ? '✓' : '';
+                    html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);
+                }
+                
+                const tCheck = modProg?.aprobado ? '✓' : '';
+                html += renderSubLink(idx, 'test', `📝 Test Avaluació ${tCheck}`, isLocked);
+                html += `</div></div>`;
+            });
+        }
 
         const isGlossaryActive = state.currentModuleIndex === 1000;
         html += `<div class="sidebar-module-group ${isGlossaryActive ? 'open' : ''}" style="border-top:1px solid #eee; margin-top:10px;"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span><i class="fa-solid fa-book-bookmark"></i> Recursos</span></div><div class="sidebar-sub-menu">${renderSubLink(1000, 'glossary', '📚 Glossari de Termes', false, true)}</div></div>`;
@@ -336,11 +344,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderSubLink(modIdx, viewName, label, locked, isSpecial = false) {
         const reallyLocked = locked && !state.godMode;
-        let isActive = (String(state.currentModuleIndex) === String(modIdx) && state.currentView === viewName);
+        const isActive = (String(state.currentModuleIndex) === String(modIdx) && state.currentView === viewName);
         const activeClass = isActive ? 'active' : '';
         const specialClass = isSpecial ? 'special-item' : '';
         const clickFn = reallyLocked ? '' : `window.cambiarVista(${modIdx}, '${viewName}')`;
-        return `<div class="sidebar-subitem ${activeClass} ${specialClass} ${reallyLocked ? 'locked' : ''}" onclick="${clickFn}">${label}</div>`;
+        const lockIcon = reallyLocked ? '<i class="fa-solid fa-lock"></i> ' : '';
+        return `<div class="sidebar-subitem ${activeClass} ${specialClass} ${reallyLocked ? 'locked' : ''}" onclick="${clickFn}">${lockIcon}${label}</div>`;
     }
 
     function renderMainContent() {
@@ -352,8 +361,17 @@ document.addEventListener('DOMContentLoaded', () => {
         
         container.classList.remove('fade-in-active'); void container.offsetWidth; container.classList.add('fade-in-active');
 
-        if (state.currentView === 'intro') { container.innerHTML = `<h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2><div class="module-content-text" style="margin-top:20px;">${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}</div>`; renderSidebarTools(gridRight, { titol: 'Programa' }); return; }
-        if (state.currentView === 'glossary') { const contenidoGlossari = state.curso.glossari ? parseStrapiRichText(state.curso.glossari) : "<p>No hi ha entrades al glossari.</p>"; container.innerHTML = `<h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2><div class="dashboard-card" style="margin-top:20px;"><div class="module-content-text">${contenidoGlossari}</div></div>`; renderSidebarTools(gridRight, { titol: 'Glossari' }); return; }
+        if (state.currentView === 'intro') { 
+            container.innerHTML = `<h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2><div class="module-content-text" style="margin-top:20px;">${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}</div>`; 
+            renderSidebarTools(gridRight, { titol: 'Programa' }); 
+            return; 
+        }
+        if (state.currentView === 'glossary') { 
+            const contenidoGlossari = state.curso.glossari ? parseStrapiRichText(state.curso.glossari) : "<p>No hi ha entrades al glossari.</p>"; 
+            container.innerHTML = `<h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2><div class="dashboard-card" style="margin-top:20px;"><div class="module-content-text">${contenidoGlossari}</div></div>`; 
+            renderSidebarTools(gridRight, { titol: 'Glossari' }); 
+            return; 
+        }
         if (state.currentView === 'examen_final') { renderExamenFinal(container); return; }
 
         const mod = state.curso.moduls[state.currentModuleIndex];
@@ -390,12 +408,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             html += `</div>`;
         }
+        
         const check = state.progreso.modulos[state.currentModuleIndex]?.flashcards_done ? '✓' : '';
         if(mod.targetes_memoria && mod.targetes_memoria.length > 0) {
              html += `<div style="margin-top:30px;"><button class="btn-primary" onclick="window.cambiarVista(${state.currentModuleIndex}, 'flashcards')">Anar a Targetes ${check}</button></div>`;
         } else {
              html += `<div style="margin-top:30px;"><button class="btn-primary" onclick="window.cambiarVista(${state.currentModuleIndex}, 'test')">Anar al Test</button></div>`;
         }
+        
         container.innerHTML = html;
     }
 
@@ -406,21 +426,14 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = `
             <div class="sidebar-header"><h3>Eines d'Estudi</h3></div>
             <div class="tools-box">
-                <div class="tools-title" style="display:flex; justify-content:space-between; align-items:center;">
-                    <span><i class="fa-regular fa-note-sticky"></i> Les meves notes</span>
-                    <button class="btn-small" onclick="window.downloadNotes()" title="Descarregar .txt" style="padding:2px 8px; font-size:0.7rem;"><i class="fa-solid fa-download"></i></button>
-                </div>
+                <div class="tools-title" style="display:flex; justify-content:space-between;"><span>Notes</span><button class="btn-small" onclick="window.downloadNotes()"><i class="fa-solid fa-download"></i></button></div>
                 <textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea>
-                <small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small>
             </div>
             <div class="tools-box" style="border-color: var(--brand-blue);">
-                <div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div>
-                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquí'}"</strong>?</p>
+                <div class="tools-title">Dubtes</div>
                 <button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')"><i class="fa-regular fa-paper-plane"></i> Enviar Dubte</button>
             </div>`;
-            
-        const noteArea = document.getElementById('quick-notes');
-        if(noteArea) noteArea.addEventListener('input', (e) => localStorage.setItem(`sicap_notes_${USER.id}_${state.curso.slug}`, e.target.value));
+        document.getElementById('quick-notes').addEventListener('input', (e) => localStorage.setItem(`sicap_notes_${USER.id}_${state.curso.slug}`, e.target.value));
     }
 
     // --- FLASHCARDS LOGIC ---
@@ -492,9 +505,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `<button class="btn-flash-option" 
                             data-selected="${safeOpt}" 
                             data-correct="${safeTarget}" 
-                            data-idx="${idx}"
-                            data-mod="${modIdx}"
-                            data-total="${cards.length}"
+                            data-idx="${idx}" 
+                            data-mod="${modIdx}" 
+                            data-total="${cards.length}" 
                             onclick="checkFlashcardFromDOM(event, this)">${opt}</button>`;
                 }).join('');
                 backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
@@ -575,6 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!state.progreso.modulos[modIdx].flashcards_done) {
             state.progreso.modulos[modIdx].flashcards_done = true;
+            
             guardarProgreso(state.progreso).then(() => {
                 verificarFinModulo(modIdx);
                 renderSidebar(); 
@@ -582,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- TEST LOGIC (RESTAURADO MODO REVISIÓN) ---
+    // --- TEST LOGIC ---
     function renderTestIntro(container, mod, modIdx) { 
         const progreso = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx] : { aprobado: false, intentos: 0, nota: 0 };
         if (progreso.aprobado) {
@@ -782,7 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(forzado) { doDelivery(); } else { window.mostrarModalConfirmacion("Entregar Examen", "Segur que vols entregar?", () => { document.getElementById('custom-modal').style.display = 'none'; doDelivery(); }); }
     }
 
-    // --- ENLACE AL DIPLOMA ---
+    // --- ENLACE A FUNCIÓN DE IMPRESIÓN (DASHBOARD) ---
     window.imprimirDiploma = function(nota) { 
         if (window.imprimirDiplomaCompleto) {
             const matData = { id: state.matriculaId, documentId: state.matriculaId, nota_final: nota, progres_detallat: state.progreso };
@@ -848,4 +862,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(res.ok) {
                     modal.style.display = 'none';
                     window.mostrarModalError("✅ Dubte enviat correctament!");
-                } else { throw new Error("
+                } else { throw new Error("API Error"); }
+            } catch(e) { 
+                console.error(e); 
+                modal.style.display = 'none'; 
+                window.mostrarModalError("Error al connectar amb el servidor."); 
+            }
+        };
+        modal.style.display = 'flex';
+    };
+
+    window.tornarAlDashboard = function() { window.location.href = 'index.html'; };
+});

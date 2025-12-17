@@ -507,7 +507,7 @@ async function renderCoursesLogic(viewMode) {
                 progressHtml = `<div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%; background:${color}"></div></div><span class="progress-text">${pct}% Completat</span></div>`;
                 
                 actionHtml = esFuturo 
-                    ? `<button class="btn-primary" style="background-color:#ccc; cursor:not-allowed;" onclick="alert('Disponible el ${dateStr}')">Inicia el ${dateStr}</button>` 
+                    ? `<button class="btn-primary" style="background-color:#ccc; cursor:pointer;" onclick="window.mostrarModalError('Aquest curs estarà disponible per accedir a partir del dia <strong>${dateStr}</strong>.')">Inicia el ${dateStr}</button>` 
                     : `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
             } else {
                 actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${safeTitle}')">Matricular-me</button>`;

@@ -313,10 +313,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function notificarAprobado(cursoTitulo) {
-        crearNotificacion(
-            "Curs Completat! 🎓",
-            `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'apartat de Qualificacions o just a la pàgina del Test Final.`
-        );
+        // --- LÓGICA DE FECHAS AÑADIDA ---
+        const hoy = new Date();
+        const rawFin = state.curso.fecha_fin || state.curso.data_fi;
+        const fechaFin = rawFin ? new Date(rawFin) : null;
+        const estaBloqueadoPorFecha = fechaFin && hoy <= fechaFin;
+
+        let mensaje = "";
+        
+        if (estaBloqueadoPorFecha) {
+            const fechaStr = fechaFin.toLocaleDateString('ca-ES');
+            mensaje = `Enhorabona! Has aprovat el curs "${cursoTitulo}". Recorda que el diploma es desbloquejarà automàticament el dia ${fechaStr}.`;
+        } else {
+            mensaje = `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'apartat de Qualificacions o a la pàgina final del curs.`;
+        }
+
+        crearNotificacion("Curs Completat! 🎓", mensaje);
     }
 
     // ===============================================================
@@ -961,12 +973,41 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
+        
         if (finalData.aprobado) {
-            let botonHtml = `<button class="btn-primary" onclick="window.imprimirDiploma('${finalData.nota}')"><i class="fa-solid fa-download"></i> Descarregar Diploma</button>`;
+            // --- LÓGICA DE FECHAS AÑADIDA ---
+            const hoy = new Date();
+            // Miramos ambas posibilidades por si acaso (data_fi o fecha_fin)
+            const rawFin = state.curso.fecha_fin || state.curso.data_fi;
+            const fechaFin = rawFin ? new Date(rawFin) : null;
+            
+            // Si hay fecha fin y hoy es anterior o igual, está bloqueado
+            const estaBloqueadoPorFecha = fechaFin && hoy <= fechaFin;
+            
+            let botonHtml = '';
+            
+            if (estaBloqueadoPorFecha) {
+                const fechaStr = fechaFin.toLocaleDateString('ca-ES');
+                botonHtml = `<div class="alert-info" style="margin-top:15px; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:15px; border-radius:6px; font-size:0.9rem;">
+                                <i class="fa-solid fa-clock"></i> El diploma estarà disponible per descarregar a partir del dia <strong>${fechaStr}</strong>.
+                             </div>`;
+            } else {
+                botonHtml = `<button class="btn-primary" onclick="window.imprimirDiploma('${finalData.nota}')"><i class="fa-solid fa-download"></i> Descarregar Diploma</button>`;
+            }
+            // --------------------------------
+
             let revisarHtml = `<button class="btn-secondary" style="margin-top:10px;" onclick="revisarExamenFinal()"><i class="fa-solid fa-eye"></i> Revisar Respostes</button>`;
-            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h1 style="color:green;">🎉 ENHORABONA!</h1><p>Has completat el curs satisfactoriament.</p><div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div><div class="btn-centered-container" style="flex-direction:column; gap:10px;">${botonHtml}${revisarHtml}</div></div>`;
+            
+            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;">
+                <h1 style="color:green;">🎉 ENHORABONA!</h1>
+                <p>Has completat el curs satisfactoriament.</p>
+                <div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div>
+                <div class="btn-centered-container" style="flex-direction:column; gap:10px;">${botonHtml}${revisarHtml}</div>
+            </div>`;
             return;
         }
+        
+        // ... (El resto de la función se queda igual para intentos agotados o inicio examen)
         if (finalData.intentos >= 2 && !state.godMode) { 
             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Intents esgotats.</p></div>`; 
             return; 

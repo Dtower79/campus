@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v51.0 - FIX ERROR 400: REMOVED OLD 'PREGUNTES')
+   RENDERITZADORCURS.JS (v52.0 - FIX 400: REMOVED LIMITS ON COMPONENTS)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(elems.examView) elems.examView.style.display = 'flex';
     if(elems.appFooter) elems.appFooter.style.display = 'block';
 
-    // HELPERS
+    // HELPERS IA
     function shuffleArray(array) {
         if (!array) return [];
         return array
@@ -86,10 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function prepararExamen(mod) {
-        // Solo usamos banc_preguntes (preguntes ya no existe)
+        // Usamos 'banc_preguntes'
         const pool = mod.banc_preguntes || [];
         
-        // Selecciona hasta 10 aleatorias (o las que haya)
+        // Si hay menos de 10, las pilla todas. Si hay más, pilla 10 aleatorias.
+        // (Si quieres que salgan TODAS siempre, cambia '10' por 'pool.length')
         const limite = 10; 
         let seleccionadas = shuffleArray(pool).slice(0, limite);
 
@@ -132,44 +133,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function sincronizarAvanceLocal() {
-        let huboCambios = false;
-        const modulos = state.curso.moduls || [];
-        modulos.forEach((mod, idx) => {
-            if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
-                const flippedIndices = getFlippedCards(idx);
-                const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
-                const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx].flashcards_done : false;
-                if (localmenteCompletado && !estadoRemoto) {
-                    if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
-                    state.progreso.modulos[idx].flashcards_done = true;
-                    huboCambios = true;
-                }
-            }
-        });
-        if (huboCambios) {
-            try { await guardarProgreso(state.progreso); } catch(e) { console.error("Error guardando sync auto:", e); }
-        }
-    }
-
     async function cargarDatos() {
-        // --- QUERY CORREGIDA: Eliminado 'preguntes' ---
+        // --- QUERY SEGURA (SIN LIMITES QUE ROMPEN COMPONENTES) ---
+        // Si 'banc_preguntes' es un Componente, traerá TODO automáticamente.
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
             
-            // Banco de Preguntas (Límite 100)
+            // Banco de Preguntas (Sin limit explícito para evitar error 400 en componentes)
             `populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true`,
-            `populate[curs][populate][moduls][populate][banc_preguntes][limit]=100`,
             
-            // Materiales
+            // Materiales y Media
             `populate[curs][populate][moduls][populate][material_pdf]=true`,
             `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
             `populate[curs][populate][moduls][populate][video_fitxer]=true`,
             
-            // Examen final (Límite 100)
+            // Examen final (Sin limit explícito)
             `populate[curs][populate][examen_final][populate][opcions]=true`, 
-            `populate[curs][populate][examen_final][limit]=100`,
             
             // Imagen
             `populate[curs][populate][imatge]=true`
@@ -178,8 +158,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         
         if (!res.ok) {
-            console.error("Strapi Error:", res.status);
-            throw new Error(`Error de connexió amb Strapi (${res.status} ${res.statusText})`);
+            console.error("Strapi Error Details:", res.status);
+            throw new Error(`Error de connexió amb Strapi (${res.status})`);
         }
 
         const json = await res.json();
@@ -267,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function notificarAprobado(cursoTitulo) {
-        crearNotificacion("Curs Completat! 🎓", `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`);
+        crearNotificacion("Curs Completat! 🎓", `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible.`);
     }
 
     // --- UTILS LOCAL STORAGE ---
@@ -432,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         container.classList.remove('fade-in-active'); void container.offsetWidth; container.classList.add('fade-in-active');
 
-        if (state.currentView === 'intro') { container.innerHTML = `<h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2><div class="module-content-text" style="margin-top:20px;">${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}</div>`; renderSidebarTools(gridRight, { titol: 'Programa' }); return; }
+        if (state.currentView === 'intro') { container.innerHTML = `<h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2><div class="module-content-text">${parseStrapiRichText(state.curso.descripcio || "")}</div>`; renderSidebarTools(gridRight, { titol: 'Programa' }); return; }
         if (state.currentView === 'glossary') { const contenidoGlossari = state.curso.glossari ? parseStrapiRichText(state.curso.glossari) : "<p>No hi ha entrades al glossari.</p>"; container.innerHTML = `<h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2><div class="dashboard-card" style="margin-top:20px;"><div class="module-content-text">${contenidoGlossari}</div></div>`; renderSidebarTools(gridRight, { titol: 'Glossari' }); return; }
         if (state.currentView === 'examen_final') { renderExamenFinal(container); return; }
 
@@ -441,21 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (state.currentView === 'teoria') { renderTeoria(container, mod); renderSidebarTools(gridRight, mod); }
         else if (state.currentView === 'flashcards') { renderFlashcards(container, mod.targetes_memoria, state.currentModuleIndex); renderSidebarTools(gridRight, mod); }
-        else if (state.currentView === 'test') {
-            const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
-            const hayDatosGuardados = Object.keys(savedData).length > 0;
-            const moduloAprobado = (state.progreso.modulos && state.progreso.modulos[state.currentModuleIndex]) ? state.progreso.modulos[state.currentModuleIndex].aprobado : false;
-            
-            if ((state.testEnCurso || hayDatosGuardados) && !moduloAprobado) {
-                gridRight.className = 'grid-container';
-                state.respuestasTemp = savedData;
-                state.testEnCurso = true;
-                renderTestQuestions(container, mod, state.currentModuleIndex);
-            } else {
-                renderTestIntro(container, mod, state.currentModuleIndex);
-                renderSidebarTools(gridRight, mod);
-            }
-        }
+        else if (state.currentView === 'test') { renderTestQuestions(container, mod, state.currentModuleIndex); }
     }
 
     function renderVideoPlayer(mod) {
@@ -555,17 +521,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 options.sort(() => Math.random() - 0.5);
                 let backContent = '';
                 if (isDone) {
-                    backContent = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
-                        <i class="fa-solid fa-check-circle" style="font-size:2.5rem; color:#fff; margin-bottom:10px;"></i>
-                        <p style="font-size:1rem; color:white; font-weight:bold;">${answerText}</p>
-                    </div>`;
+                    backContent = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;"><i class="fa-solid fa-check-circle" style="font-size:2.5rem; color:#fff; margin-bottom:10px;"></i><p style="font-size:1rem; color:white; font-weight:bold;">${answerText}</p></div>`;
                 } else {
                     let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
-                    let buttonsHtml = options.map(opt => `<button class="btn-flash-option" 
-                            data-selected="${encodeURIComponent(opt)}" 
-                            data-correct="${encodeURIComponent(targetClean)}" 
-                            data-idx="${idx}" data-mod="${modIdx}" data-total="${cards.length}" 
-                            onclick="checkFlashcardFromDOM(event, this)">${opt}</button>`).join('');
+                    let buttonsHtml = options.map(opt => `<button class="btn-flash-option" data-selected="${encodeURIComponent(opt)}" data-correct="${encodeURIComponent(targetClean)}" data-idx="${idx}" data-mod="${modIdx}" data-total="${cards.length}" onclick="checkFlashcardFromDOM(event, this)">${opt}</button>`).join('');
                     backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
                 }
                 const clickAttr = `onclick="handleFlip(this)"`; 

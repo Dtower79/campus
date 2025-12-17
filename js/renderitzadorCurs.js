@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v50.0 - FIX 400 ERROR & LIMIT 100)
+   RENDERITZADORCURS.JS (v51.0 - FIX ERROR 400: REMOVED OLD 'PREGUNTES')
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (node.bold) text = `<strong>${text}</strong>`;
                     if (node.italic) text = `<em>${text}</em>`;
                     if (node.underline) text = `<u>${text}</u>`;
+                    if (node.strikethrough) text = `<strike>${text}</strike>`;
+                    if (node.code) text = `<code>${text}</code>`;
                     return text;
                 }
                 if (node.type === "link") return `<a href="${node.url}" target="_blank">${extractText(node.children)}</a>`;
@@ -33,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         const tag = block.format === 'ordered' ? 'ol' : 'ul';
                         const items = block.children.map(listItem => `<li>${extractText(listItem.children)}</li>`).join('');
                         return `<${tag}>${items}</${tag}>`;
+                    case 'quote': return `<blockquote style="border-left:4px solid #ccc; padding-left:10px; margin:10px 0; color:#555;">${extractText(block.children)}</blockquote>`;
+                    case 'image': return `<img src="${block.image.url}" alt="${block.image.alternativeText || ''}" style="max-width:100%; height:auto; margin:10px 0;">`;
                     default: return extractText(block.children);
                 }
             }).join('');
@@ -43,10 +47,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. CONFIGURACIÓN
     const PARAMS = new URLSearchParams(window.location.search);
     const SLUG = PARAMS.get('slug');
-    if (!SLUG) return; 
+
+    if (!SLUG) { console.warn("No hay slug"); return; }
 
     const USER = JSON.parse(localStorage.getItem('user'));
     const TOKEN = localStorage.getItem('jwt');
+
     if (!USER || !TOKEN) { window.location.href = 'index.html'; return; }
 
     let state = {
@@ -63,13 +69,14 @@ document.addEventListener('DOMContentLoaded', () => {
         examView: document.getElementById('exam-view'),
         appFooter: document.getElementById('app-footer')
     };
+    
     if(elems.loginOverlay) elems.loginOverlay.style.display = 'none';
     if(elems.appContainer) elems.appContainer.style.display = 'block';
     if(elems.dashboardView) elems.dashboardView.style.display = 'none';
     if(elems.examView) elems.examView.style.display = 'flex';
     if(elems.appFooter) elems.appFooter.style.display = 'block';
 
-    // HELPERS IA & MIX
+    // HELPERS
     function shuffleArray(array) {
         if (!array) return [];
         return array
@@ -79,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function prepararExamen(mod) {
-        // Solo usamos banc_preguntes porque 'preguntes' fue borrado
+        // Solo usamos banc_preguntes (preguntes ya no existe)
         const pool = mod.banc_preguntes || [];
         
         // Selecciona hasta 10 aleatorias (o las que haya)
@@ -109,8 +116,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if(container) container.innerHTML = '<div class="loader"></div><p class="loading-text">Carregant curs...</p>';
         try {
             await cargarDatos();
-            if (!state.progreso || Object.keys(state.progreso).length === 0) await inicializarProgresoEnStrapi();
-            if (state.progreso.examen_final && state.progreso.examen_final.aprobado && state.curso.progres < 100) await guardarProgreso(state.progreso);
+            if (!state.progreso || Object.keys(state.progreso).length === 0) {
+                await inicializarProgresoEnStrapi();
+            }
+            if (state.progreso.examen_final && state.progreso.examen_final.aprobado && state.curso.progres < 100) {
+                await guardarProgreso(state.progreso);
+            } else {
+                await sincronizarAvanceLocal(); 
+            }
             renderSidebar();
             renderMainContent();
         } catch (e) {
@@ -119,8 +132,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function sincronizarAvanceLocal() {
+        let huboCambios = false;
+        const modulos = state.curso.moduls || [];
+        modulos.forEach((mod, idx) => {
+            if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
+                const flippedIndices = getFlippedCards(idx);
+                const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
+                const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx].flashcards_done : false;
+                if (localmenteCompletado && !estadoRemoto) {
+                    if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
+                    state.progreso.modulos[idx].flashcards_done = true;
+                    huboCambios = true;
+                }
+            }
+        });
+        if (huboCambios) {
+            try { await guardarProgreso(state.progreso); } catch(e) { console.error("Error guardando sync auto:", e); }
+        }
+    }
+
     async function cargarDatos() {
-        // --- QUERY CORREGIDA: Sin 'preguntes', Con 'banc_preguntes' y Limit 100 ---
+        // --- QUERY CORREGIDA: Eliminado 'preguntes' ---
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
@@ -146,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!res.ok) {
             console.error("Strapi Error:", res.status);
-            throw new Error("Error de connexió amb Strapi (Dades incorrectes)");
+            throw new Error(`Error de connexió amb Strapi (${res.status} ${res.statusText})`);
         }
 
         const json = await res.json();
@@ -159,11 +192,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
 
-        if (mat.progres === 0 && state.progreso.modulos) {
-             Object.keys(localStorage).forEach(key => { if (key.includes(SLUG)) localStorage.removeItem(key); });
-             state.progreso.modulos.forEach(m => { m.flashcards_done = false; m.aprobado = false; m.nota = 0; m.intentos = 0; });
-             guardarProgreso(state.progreso);
+        const cacheKey = `sicap_last_matricula_${SLUG}`;
+        const lastMatricula = localStorage.getItem(cacheKey);
+        
+        if ((lastMatricula && lastMatricula !== String(state.matriculaId)) || mat.progres === 0) {
+            Object.keys(localStorage).forEach(key => {
+                if (key.includes(SLUG) && (key.includes('flipped') || key.includes('progress'))) {
+                    localStorage.removeItem(key);
+                }
+            });
+            if (mat.progres === 0 && state.progreso.modulos) {
+                state.progreso.modulos.forEach(m => {
+                    m.flashcards_done = false; m.aprobado = false; m.nota = 0; m.intentos = 0;
+                });
+                guardarProgreso(state.progreso); 
+            }
         }
+        localStorage.setItem(cacheKey, String(state.matriculaId));
     }
 
     async function inicializarProgresoEnStrapi() {
@@ -207,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ data: { titol: titulo, missatge: mensaje, llegida: false, users_permissions_user: USER.id } })
             });
             if(window.checkRealNotifications) window.checkRealNotifications();
-        } catch(e) {}
+        } catch(e) { console.error("Error creating notification:", e); }
     }
 
     function verificarFinModulo(modIdx) {
@@ -222,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function notificarAprobado(cursoTitulo) {
-        crearNotificacion("Curs Completat! 🎓", `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible.`);
+        crearNotificacion("Curs Completat! 🎓", `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'àrea personal.`);
     }
 
     // --- UTILS LOCAL STORAGE ---
@@ -387,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         container.classList.remove('fade-in-active'); void container.offsetWidth; container.classList.add('fade-in-active');
 
-        if (state.currentView === 'intro') { container.innerHTML = `<h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2><div class="module-content-text">${parseStrapiRichText(state.curso.descripcio || "")}</div>`; renderSidebarTools(gridRight, { titol: 'Programa' }); return; }
+        if (state.currentView === 'intro') { container.innerHTML = `<h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2><div class="module-content-text" style="margin-top:20px;">${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}</div>`; renderSidebarTools(gridRight, { titol: 'Programa' }); return; }
         if (state.currentView === 'glossary') { const contenidoGlossari = state.curso.glossari ? parseStrapiRichText(state.curso.glossari) : "<p>No hi ha entrades al glossari.</p>"; container.innerHTML = `<h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2><div class="dashboard-card" style="margin-top:20px;"><div class="module-content-text">${contenidoGlossari}</div></div>`; renderSidebarTools(gridRight, { titol: 'Glossari' }); return; }
         if (state.currentView === 'examen_final') { renderExamenFinal(container); return; }
 
@@ -396,7 +441,21 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (state.currentView === 'teoria') { renderTeoria(container, mod); renderSidebarTools(gridRight, mod); }
         else if (state.currentView === 'flashcards') { renderFlashcards(container, mod.targetes_memoria, state.currentModuleIndex); renderSidebarTools(gridRight, mod); }
-        else if (state.currentView === 'test') { renderTestQuestions(container, mod, state.currentModuleIndex); }
+        else if (state.currentView === 'test') {
+            const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
+            const hayDatosGuardados = Object.keys(savedData).length > 0;
+            const moduloAprobado = (state.progreso.modulos && state.progreso.modulos[state.currentModuleIndex]) ? state.progreso.modulos[state.currentModuleIndex].aprobado : false;
+            
+            if ((state.testEnCurso || hayDatosGuardados) && !moduloAprobado) {
+                gridRight.className = 'grid-container';
+                state.respuestasTemp = savedData;
+                state.testEnCurso = true;
+                renderTestQuestions(container, mod, state.currentModuleIndex);
+            } else {
+                renderTestIntro(container, mod, state.currentModuleIndex);
+                renderSidebarTools(gridRight, mod);
+            }
+        }
     }
 
     function renderVideoPlayer(mod) {

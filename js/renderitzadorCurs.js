@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function prepararExamen(mod) {
         const pool = mod.banc_preguntes || [];
-        const limite = 10; 
+        const limite = pool.length; 
         let seleccionadas = shuffleArray(pool).slice(0, limite);
         return seleccionadas.map(p => {
             const pClon = JSON.parse(JSON.stringify(p));

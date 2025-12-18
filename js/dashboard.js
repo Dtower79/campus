@@ -698,7 +698,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                     <div class="diploma-footer">
                         <div class="footer-qr-area"><img src="${qrSrc}" class="qr-image"><div class="qr-ref">Ref: ${matId}</div></div>
                         <div class="footer-signature-area">
-                            <img src="img/firma-miguel.png" style="height:50px; display:block; margin:0 auto;" onerror="this.style.display='none'">
+                            <img src="img/firma-miguel.png" style="height: 70px; display: block; margin: 0 auto -20px auto; position: relative; z-index: 10;">
                             <div class="signature-line"></div>
                             <span class="signature-name">Miguel Pueyo Pérez</span>
                             <span class="signature-role">Secretari General</span>

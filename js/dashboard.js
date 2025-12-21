@@ -443,11 +443,20 @@ async function renderCoursesLogic(viewMode) {
     list.innerHTML = '<div class="loader"></div>';
 
     try {
-        const ts = new Date().getTime();
-        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
-        const jsonMat = await resMat.json();
-        const userMatriculas = jsonMat.data || [];
-        
+    const ts = new Date().getTime();
+    const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
+    
+    // --- BLOQUE DE SEGURIDAD AÑADIDO ---
+    if (resMat.status === 401 || resMat.status === 403) {
+        // Si Strapi dice "No autorizado", es que el token caducó.
+        localStorage.clear(); // Borramos la llave vieja
+        window.location.reload(); // Recargamos para que salga el Login
+        return;
+    }
+    // -----------------------------------
+
+    const jsonMat = await resMat.json();
+            
         let cursosAMostrar = [];
 
         if (viewMode === 'dashboard') {

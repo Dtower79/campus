@@ -1,14 +1,63 @@
 /* ==========================================================================
-   DASHBOARD.JS (v54.0 - FULL VERSION: DATES, MENU, CHAT & CERTIFICATES)
+   DASHBOARD.JS (v55.0 - PROFESSIONAL AUTH & STABLE FEATURES)
    ========================================================================== */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('jwt');
-    if (token) {
-        document.getElementById('login-overlay').style.display = 'none';
-        document.getElementById('app-container').style.display = 'block';
-        if (!window.appIniciada) window.iniciarApp();
+    const loginOverlay = document.getElementById('login-overlay');
+    const appContainer = document.getElementById('app-container');
+    const loginView = document.getElementById('login-view');
+
+    // 1. Si no hay token, no hacemos nada (el HTML ya muestra el login por defecto)
+    if (!token) {
+        return; 
     }
+
+    // 2. Si hay token, SIMULAMOS estar cargando dentro del login (UX Profesional)
+    // Ocultamos el formulario para que no puedan escribir mientras verificamos
+    if(loginView) loginView.style.display = 'none';
+    
+    // Añadimos un spinner temporal a la tarjeta de login
+    const loginCard = document.querySelector('.login-card');
+    let spinner = document.createElement('div');
+    spinner.id = 'auth-loader';
+    spinner.className = 'loader'; // Usamos tu clase CSS existente
+    spinner.style.margin = '20px auto';
+    if(loginCard) loginCard.appendChild(spinner);
+
+    try {
+        // 3. Preguntamos a Strapi: "¿Este token sigue siendo válido?"
+        // Usamos /api/users/me porque es el endpoint estándar para validar sesión
+        const res = await fetch(`${STRAPI_URL}/api/users/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+            // A) TOKEN VÁLIDO: Entramos al Dashboard
+            if(spinner) spinner.remove();
+            loginOverlay.style.display = 'none';
+            appContainer.style.display = 'block';
+            
+            // Iniciamos la lógica de la app
+            if (!window.appIniciada) window.iniciarApp();
+        } else {
+            // B) TOKEN CADUCADO (401/403): Lanzamos error para ir al catch
+            throw new Error('Token caducado');
+        }
+
+    } catch (error) {
+        // Limpieza silenciosa si el token no vale
+        console.warn("Sessió caducada o invàlida. Cal tornar a entrar.");
+        localStorage.clear(); // Borramos la llave vieja
+        
+        // Restauramos el formulario de login visualmente
+        if(spinner) spinner.remove();
+        if(loginView) loginView.style.display = 'block';
+        
+        // Nos quedamos en el login. El usuario percibirá que la web ha cargado y le pide contraseña.
+    }
+
+    // Lógica del botón Scroll Top (se mantiene igual)
     const scrollBtn = document.getElementById('scroll-top-btn');
     if(scrollBtn) {
         window.onscroll = () => { scrollBtn.style.display = (document.documentElement.scrollTop > 300) ? "flex" : "none"; };
@@ -55,7 +104,7 @@ window.iniciarApp = function() {
 };
 
 window.showView = function(viewName) {
-    // Parar vídeos
+    // Parar vídeos al cambiar de pestaña
     const iframes = document.querySelectorAll('iframe');
     iframes.forEach(iframe => { const t = iframe.src; iframe.src = ''; iframe.src = t; });
     const html5Videos = document.querySelectorAll('video');
@@ -96,7 +145,7 @@ function setupDirectClicks() {
         if(el) el.onclick = (e) => { e.preventDefault(); window.showView(view); };
     }
 
-    // --- FIX MENÚ USUARIO (SIMPLIFICADO) ---
+    // --- FIX MENÚ USUARIO ---
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
 
@@ -443,20 +492,19 @@ async function renderCoursesLogic(viewMode) {
     list.innerHTML = '<div class="loader"></div>';
 
     try {
-    const ts = new Date().getTime();
-    const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
-    
-    // --- BLOQUE DE SEGURIDAD AÑADIDO ---
-    if (resMat.status === 401 || resMat.status === 403) {
-        // Si Strapi dice "No autorizado", es que el token caducó.
-        localStorage.clear(); // Borramos la llave vieja
-        window.location.reload(); // Recargamos para que salga el Login
-        return;
-    }
-    // -----------------------------------
+        const ts = new Date().getTime();
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        
+        // Bloque de seguridad extra (aunque ya no debería saltar con la nueva validación al inicio)
+        if (resMat.status === 401 || resMat.status === 403) {
+            localStorage.clear();
+            window.location.reload();
+            return;
+        }
 
-    const jsonMat = await resMat.json();
-            
+        const jsonMat = await resMat.json();
+        const userMatriculas = jsonMat.data || [];
+        
         let cursosAMostrar = [];
 
         if (viewMode === 'dashboard') {
@@ -515,6 +563,7 @@ async function renderCoursesLogic(viewMode) {
                 const color = pct >= 100 ? '#10b981' : 'var(--brand-blue)';
                 progressHtml = `<div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%; background:${color}"></div></div><span class="progress-text">${pct}% Completat</span></div>`;
                 
+                // CAMBIO AQUI: Usamos window.mostrarModalError en lugar de alert()
                 actionHtml = esFuturo 
                     ? `<button class="btn-primary" style="background-color:#ccc; cursor:pointer;" onclick="window.mostrarModalError('Aquest curs estarà disponible per accedir a partir del dia <strong>${dateStr}</strong>.')">Inicia el ${dateStr}</button>` 
                     : `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
@@ -707,7 +756,10 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                     <div class="diploma-footer">
                         <div class="footer-qr-area"><img src="${qrSrc}" class="qr-image"><div class="qr-ref">Ref: ${matId}</div></div>
                         <div class="footer-signature-area">
-                            <img src="img/firma-miguel.png" style="height: 100px; display: block; margin: 0 auto 0px auto; position: relative; z-index: 10;">
+                            <!-- INICIO FIRMA -->
+                            <img src="img/firma-miguel.png" 
+                                 style="height: 70px; display: block; margin: 0 auto -20px auto; position: relative; z-index: 10;">
+                            <!-- FIN FIRMA -->
                             <div class="signature-line"></div>
                             <span class="signature-name">Miguel Pueyo Pérez</span>
                             <span class="signature-role">Secretari General</span>

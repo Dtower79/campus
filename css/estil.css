@@ -154,17 +154,11 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
 .course-card-item { background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color); transition: transform 0.2s, border-color 0.2s; overflow: hidden; display: flex; flex-direction: column; min-height: 480px; }
 .course-card-item:hover { transform: translateY(-3px); border-color: var(--brand-blue); }
 .card-image-header {
-    /* height: 180px;  <--- ELIMINA O COMENTA ESTA LÍNEA */
-    
     width: 100%; /* Aseguramos que ocupe todo el ancho */
+    height: auto; /* Dejamos que la altura se calcule sola */
     aspect-ratio: 16/9; /* SOLUCIÓN: Mantiene proporción panorámica siempre */
-    
     background-size: cover;
-    
-    /* CAMBIO CLAVE: Enfocamos arriba (top) en vez del centro. 
-       Así si recorta, recortará el pecho/suelo, no la cabeza/título */
-    background-position: top center; 
-    
+    background-position: center center; 
     background-color: var(--bg-image-container);
     position: relative;
     border-bottom: 1px solid var(--border-color);

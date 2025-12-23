@@ -628,9 +628,71 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSidebarTools(container, mod) {
         const savedNote = localStorage.getItem(`sicap_notes_${USER.id}_${state.curso.slug}`) || '';
         const modTitleSafe = mod && mod.titol ? mod.titol.replace(/'/g, "\\'") : 'General';
-        container.innerHTML = `<div class="sidebar-header"><h3>Eines d'Estudi</h3></div><div class="tools-box"><div class="tools-title" style="display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-regular fa-note-sticky"></i> Les meves notes</span><button class="btn-small" onclick="window.downloadNotes()" title="Descarregar .txt" style="padding:2px 8px; font-size:0.7rem;"><i class="fa-solid fa-download"></i></button></div><textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea><small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small></div><div class="tools-box" style="border-color: var(--brand-blue);"><div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div><p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquí'}"</strong>?</p><button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')"><i class="fa-regular fa-paper-plane"></i> Enviar Dubte</button></div>`;
+
+        // --- 1. GENERACIÓN DE LA RUTA (BREADCRUMBS) ---
+        let rutaHtml = `<div class="breadcrumbs" style="margin-bottom: 20px;">`;
+        
+        // Nivel 1: Título del Curso (recortado si es muy largo)
+        const cursoTituloCorto = state.curso.titol.length > 25 ? state.curso.titol.substring(0, 25) + '...' : state.curso.titol;
+        rutaHtml += `<span style="color:var(--brand-blue); font-weight:bold;">${cursoTituloCorto}</span>`;
+
+        // Nivel 2: Sección actual
+        if (state.currentView === 'intro') {
+            rutaHtml += `<span class="breadcrumb-separator">/</span> <span class="breadcrumb-current">Informació</span>`;
+        } else if (state.currentView === 'glossary') {
+            rutaHtml += `<span class="breadcrumb-separator">/</span> <span class="breadcrumb-current">Glossari</span>`;
+        } else if (mod) {
+            // Título del Módulo
+            const modName = mod.titol.length > 20 ? mod.titol.substring(0, 20) + '...' : mod.titol;
+            rutaHtml += `<span class="breadcrumb-separator">/</span> <span>${modName}</span>`;
+
+            // Tipo de vista (Teoría, Test, Flashcards)
+            let tipoVista = '';
+            if (state.currentView === 'teoria') tipoVista = 'Teoria';
+            else if (state.currentView === 'flashcards') tipoVista = 'Repàs';
+            else if (state.currentView === 'test') tipoVista = 'Test';
+
+            if (tipoVista) {
+                rutaHtml += `<span class="breadcrumb-separator">/</span> <span class="breadcrumb-current" style="color:var(--brand-red);">${tipoVista}</span>`;
+            }
+        }
+        rutaHtml += `</div>`;
+        // ------------------------------------------------
+
+        // --- 2. RENDERIZADO FINAL ---
+        container.innerHTML = `
+            ${rutaHtml}
+            
+            <div class="sidebar-header"><h3>Eines d'Estudi</h3></div>
+            
+            <div class="tools-box">
+                <div class="tools-title" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="fa-regular fa-note-sticky"></i> Les meves notes</span>
+                    <button class="btn-small" onclick="window.downloadNotes()" title="Descarregar .txt" style="padding:2px 8px; font-size:0.7rem;">
+                        <i class="fa-solid fa-download"></i>
+                    </button>
+                </div>
+                <textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea>
+                <small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small>
+            </div>
+
+            <div class="tools-box" style="border-color: var(--brand-blue);">
+                <div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div>
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">
+                    Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquest apartat'}"</strong>?
+                </p>
+                <button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')">
+                    <i class="fa-regular fa-paper-plane"></i> Enviar Dubte
+                </button>
+            </div>`;
+
+        // Event listener para guardar notas
         const noteArea = document.getElementById('quick-notes');
-        if(noteArea) noteArea.addEventListener('input', (e) => localStorage.setItem(`sicap_notes_${USER.id}_${state.curso.slug}`, e.target.value));
+        if(noteArea) {
+            noteArea.addEventListener('input', (e) => {
+                localStorage.setItem(`sicap_notes_${USER.id}_${state.curso.slug}`, e.target.value);
+            });
+        }
     }
 
     // ===============================================================

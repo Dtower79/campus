@@ -827,3 +827,4 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     newBtnC.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
 };
+

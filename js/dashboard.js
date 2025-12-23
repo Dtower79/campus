@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DASHBOARD.JS (v55.0 - PROFESSIONAL AUTH & STABLE FEATURES)
+   DASHBOARD.JS (v56.0 - PRODUCTION MASTER)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -14,25 +14,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 2. Si hay token, SIMULAMOS estar cargando dentro del login (UX Profesional)
-    // Ocultamos el formulario para que no puedan escribir mientras verificamos
     if(loginView) loginView.style.display = 'none';
     
     // Añadimos un spinner temporal a la tarjeta de login
     const loginCard = document.querySelector('.login-card');
     let spinner = document.createElement('div');
     spinner.id = 'auth-loader';
-    spinner.className = 'loader'; // Usamos tu clase CSS existente
+    spinner.className = 'loader'; 
     spinner.style.margin = '20px auto';
     if(loginCard) loginCard.appendChild(spinner);
 
     try {
-        // 3. Preguntamos a Strapi: "¿Este token sigue siendo válido?"
-        // Usamos /api/users/me porque es el endpoint estándar para validar sesión
-        const res = await fetch(`${STRAPI_URL}/api/users/me`, {
+        // 3. Validar Token y REFRESCAR DATOS DE USUARIO (Vital para el rol de profesor)
+        const res = await fetch(`${STRAPI_URL}/api/users/me?populate=*`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (res.ok) {
+            const freshUser = await res.json();
+            // Actualizamos el usuario en memoria con los datos frescos de la BD
+            localStorage.setItem('user', JSON.stringify(freshUser));
+
             // A) TOKEN VÁLIDO: Entramos al Dashboard
             if(spinner) spinner.remove();
             loginOverlay.style.display = 'none';
@@ -41,23 +43,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Iniciamos la lógica de la app
             if (!window.appIniciada) window.iniciarApp();
         } else {
-            // B) TOKEN CADUCADO (401/403): Lanzamos error para ir al catch
+            // B) TOKEN CADUCADO (401/403)
             throw new Error('Token caducado');
         }
 
     } catch (error) {
-        // Limpieza silenciosa si el token no vale
-        console.warn("Sessió caducada o invàlida. Cal tornar a entrar.");
-        localStorage.clear(); // Borramos la llave vieja
-        
-        // Restauramos el formulario de login visualmente
+        // Limpieza silenciosa
+        console.warn("Sessió caducada.");
+        localStorage.clear(); 
         if(spinner) spinner.remove();
         if(loginView) loginView.style.display = 'block';
-        
-        // Nos quedamos en el login. El usuario percibirá que la web ha cargado y le pide contraseña.
     }
 
-    // Lógica del botón Scroll Top (se mantiene igual)
+    // Lógica del botón Scroll Top
     const scrollBtn = document.getElementById('scroll-top-btn');
     if(scrollBtn) {
         window.onscroll = () => { scrollBtn.style.display = (document.documentElement.scrollTop > 300) ? "flex" : "none"; };
@@ -145,7 +143,7 @@ function setupDirectClicks() {
         if(el) el.onclick = (e) => { e.preventDefault(); window.showView(view); };
     }
 
-    // --- FIX MENÚ USUARIO ---
+    // Menú Usuario
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
 
@@ -493,9 +491,9 @@ async function renderCoursesLogic(viewMode) {
 
     try {
         const ts = new Date().getTime();
+        // 1. CARGAMOS TODO (Luego filtraremos en JS para asegurar que desaparece)
         const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
         
-        // Bloque de seguridad extra (aunque ya no debería saltar con la nueva validación al inicio)
         if (resMat.status === 401 || resMat.status === 403) {
             localStorage.clear();
             window.location.reload();
@@ -507,15 +505,35 @@ async function renderCoursesLogic(viewMode) {
         
         let cursosAMostrar = [];
 
+        // =========================================================================
+        // FILTRADO ROBUSTO: Javascript (Client-Side)
+        // =========================================================================
+        const debeMostrarse = (curs) => {
+            if (!curs) return false;
+            // Si es profesor, ve todo
+            if (user.es_professor === true) return true;
+            // Si es alumno, SOLO ve si mode_esborrany NO es true
+            return curs.mode_esborrany !== true;
+        };
+
         if (viewMode === 'dashboard') {
-            cursosAMostrar = userMatriculas.map(m => ({ ...m.curs, _matricula: m }));
+            // VISTA MIS CURSOS (Aquí estaba el fallo antes, ahora aplicamos el filtro)
+            cursosAMostrar = userMatriculas
+                .filter(m => m.curs && debeMostrarse(m.curs)) 
+                .map(m => ({ ...m.curs, _matricula: m }));
+
         } else {
+            // VISTA CATÁLOGO
+            // Traemos todo y filtramos
             const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const jsonCat = await resCat.json();
-            cursosAMostrar = jsonCat.data.map(c => {
-                const existingMat = userMatriculas.find(m => (m.curs.documentId || m.curs.id) === (c.documentId || c.id));
-                return { ...c, _matricula: existingMat };
-            });
+            
+            cursosAMostrar = jsonCat.data
+                .filter(c => debeMostrarse(c))
+                .map(c => {
+                    const existingMat = userMatriculas.find(m => (m.curs.documentId || m.curs.id) === (c.documentId || c.id));
+                    return { ...c, _matricula: existingMat };
+                });
         }
 
         cursosAMostrar.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
@@ -542,9 +560,15 @@ async function renderCoursesLogic(viewMode) {
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES');
 
-            let badge = esFuturo 
-                ? `<span class="course-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">Properament: ${dateStr}</span>` 
-                : (curs.etiqueta ? `<span class="course-badge">${curs.etiqueta}</span>` : '');
+            // BADGES
+            let badge = '';
+            if (curs.mode_esborrany) {
+                badge = `<span class="course-badge" style="background:#6f42c1; color:white; border:1px solid #59359a;">👁️ OCULT (MODE TEST)</span>`;
+            } else if (esFuturo) {
+                badge = `<span class="course-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">Properament: ${dateStr}</span>`;
+            } else if (curs.etiqueta) {
+                badge = `<span class="course-badge">${curs.etiqueta}</span>`;
+            }
 
             let descHtml = '';
             if (curs.descripcio && typeof curs.descripcio === 'string') {
@@ -563,7 +587,6 @@ async function renderCoursesLogic(viewMode) {
                 const color = pct >= 100 ? '#10b981' : 'var(--brand-blue)';
                 progressHtml = `<div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%; background:${color}"></div></div><span class="progress-text">${pct}% Completat</span></div>`;
                 
-                // CAMBIO AQUI: Usamos window.mostrarModalError en lugar de alert()
                 actionHtml = esFuturo 
                     ? `<button class="btn-primary" style="background-color:#ccc; cursor:pointer;" onclick="window.mostrarModalError('Aquest curs estarà disponible per accedir a partir del dia <strong>${dateStr}</strong>.')">Inicia el ${dateStr}</button>` 
                     : `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
@@ -827,4 +850,3 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     newBtnC.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
 };
-

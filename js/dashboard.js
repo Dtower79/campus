@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DASHBOARD.JS (v56.1 - PRODUCTION FIX: MODAL BUTTON & FULL FEATURES)
+   DASHBOARD.JS (v56.2 - FIX CHAT BUTTON & STABILITY)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -9,9 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const loginView = document.getElementById('login-view');
 
     // 1. Si no hay token, no hacemos nada
-    if (!token) {
-        return; 
-    }
+    if (!token) return; 
 
     // 2. Simulamos carga
     if(loginView) loginView.style.display = 'none';
@@ -176,6 +174,7 @@ async function checkRealNotifications() {
     try {
         let total = 0;
         const ts = new Date().getTime();
+        
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&_t=${ts}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -214,6 +213,8 @@ window.abrirPanelNotificaciones = async function() {
     document.getElementById('modal-btn-cancel').style.display = 'none';
     btnC.innerText = "Tancar";
     
+    // Fix modal button reuse
+    btnC.disabled = false;
     const newBtn = btnC.cloneNode(true); btnC.parentNode.replaceChild(newBtn, btnC);
     newBtn.onclick = () => modal.style.display = 'none';
     
@@ -294,7 +295,7 @@ window.openTeacherInbox = function(element) {
     abrirPanelMensajes('profesor');
 };
 
-// --- MENSAJERÍA / CHAT ---
+// --- MENSAJERÍA / CHAT (FIXED) ---
 window.abrirPanelMensajes = async function(modoForzado) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -319,6 +320,8 @@ window.abrirPanelMensajes = async function(modoForzado) {
     }
 
     btnC.innerText = "Tancar";
+    // Fix modal button reuse
+    btnC.disabled = false;
     const newBtn = btnC.cloneNode(true);
     btnC.parentNode.replaceChild(newBtn, btnC);
     newBtn.onclick = () => modal.style.display = 'none';
@@ -378,8 +381,9 @@ window.abrirPanelMensajes = async function(modoForzado) {
                                 </div>
                                 <div class="reply-area">
                                     <textarea id="reply-${m.documentId||m.id}" class="modal-textarea" placeholder="Escriu la resposta..." style="height:80px;"></textarea>
+                                    <!-- FIX: USAMOS 'this' PARA PASAR EL BOTON -->
                                     <button class="btn-primary" style="margin-top:5px; padding:5px 15px; font-size:0.85rem;" 
-                                        onclick="enviarRespostaProfessor('${m.documentId||m.id}', '${alumnoId}', '${encodeURIComponent(m.tema)}')">
+                                        onclick="enviarRespostaProfessor(this, '${m.documentId||m.id}', '${alumnoId}', '${encodeURIComponent(m.tema)}')">
                                         Enviar Resposta
                                     </button>
                                 </div>
@@ -416,14 +420,17 @@ window.abrirPanelMensajes = async function(modoForzado) {
     } catch(e) { msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>'; }
 };
 
-window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
+// FIX: AHORA RECIBE EL BOTON COMO PRIMER ARGUMENTO
+window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, encodedTema) {
     const txt = document.getElementById(`reply-${msgId}`);
     const respuesta = txt.value.trim();
     if(!respuesta) return alert("Escriu una resposta.");
     
     const token = localStorage.getItem('jwt');
-    const btn = txt.nextElementSibling;
-    btn.innerText = "Enviant..."; btn.disabled = true;
+    
+    // Control visual del botón
+    btnElement.innerText = "Enviant..."; 
+    btnElement.disabled = true;
 
     window.sesionLeidas.add(msgId);
 
@@ -436,7 +443,8 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
         const card = document.getElementById(`msg-card-${msgId}`);
         if(card) card.remove();
 
-        if(studentId && studentId !== 'undefined') {
+        // Control de seguridad por si el alumno se borró
+        if(studentId && studentId !== 'undefined' && studentId !== 'null') {
             const tema = decodeURIComponent(encodedTema);
             await fetch(API_ROUTES.notifications, {
                 method: 'POST',
@@ -453,13 +461,15 @@ window.enviarRespostaProfessor = async function(msgId, studentId, encodedTema) {
         }
         checkRealNotifications();
     } catch(e) {
+        console.error(e);
         alert("Error al enviar la resposta.");
-        btn.innerText = "Enviar Resposta"; btn.disabled = false;
+        btnElement.innerText = "Enviar Resposta"; 
+        btnElement.disabled = false;
         window.sesionLeidas.delete(msgId);
     }
 };
 
-// --- CARGA DE DATOS Y CURSOS ---
+// --- CARGA DE CURSOS ---
 window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
 window.loadCatalog = async function() { await renderCoursesLogic('home'); };
 
@@ -474,6 +484,7 @@ async function renderCoursesLogic(viewMode) {
 
     try {
         const ts = new Date().getTime();
+        // 1. CARGAMOS TODO (Luego filtraremos en JS para asegurar que desaparece)
         const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
         
         if (resMat.status === 401 || resMat.status === 403) {
@@ -539,6 +550,7 @@ async function renderCoursesLogic(viewMode) {
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES');
 
+            // BADGES
             let badge = '';
             if (curs.mode_esborrany) {
                 badge = `<span class="course-badge" style="background:#6f42c1; color:white; border:1px solid #59359a;">👁️ OCULT (MODE TEST)</span>`;
@@ -800,6 +812,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     setTimeout(() => window.print(), 500);
 };
 
+// --- HELPER MODALES ---
 window.mostrarModalError = function(msg) {
     const m = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = "Informació";

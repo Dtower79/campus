@@ -368,6 +368,7 @@ window.abrirPanelMensajes = async function(modoForzado) {
                 
                 if (modoActual === 'profesor') {
                     const alumnoNombre = m.alumne_nom || 'Alumne';
+                    // Seguridad: IDs pueden venir como null si el usuario fue borrado
                     const alumnoId = m.users_permissions_user?.id || m.users_permissions_user?.documentId;
                     
                     html += `

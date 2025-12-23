@@ -1,8 +1,8 @@
 /* ==========================================================================
-   DASHBOARD.JS (v56.4 - FIXED CHAT SELECTOR & ROBUSTNESS)
+   DASHBOARD.JS (v56.5 - FIX SYNTAX ERROR ON APOSTROPHES)
    ========================================================================== */
 
-console.log("🚀 Carregant Dashboard v56.4...");
+console.log("🚀 Carregant Dashboard v56.5...");
 
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('jwt');
@@ -368,8 +368,11 @@ window.abrirPanelMensajes = async function(modoForzado) {
                     const alumnoNombre = m.alumne_nom || 'Alumne';
                     const alumnoId = m.users_permissions_user?.id || m.users_permissions_user?.documentId;
                     const msgId = m.documentId || m.id;
-                    const temaEnc = encodeURIComponent(m.tema || 'Dubte');
                     
+                    // FIX V56.5: ESCAPAR COMILLAS SIMPLES EN EL TEMA
+                    const rawTema = m.tema || 'Dubte';
+                    const temaSafe = encodeURIComponent(rawTema).replace(/'/g, "%27");
+
                     html += `
                         <div class="msg-card" id="msg-card-${msgId}">
                             <div class="msg-course-badge">${headerBadge}</div>
@@ -382,9 +385,8 @@ window.abrirPanelMensajes = async function(modoForzado) {
                                 <div class="reply-area">
                                     <textarea id="reply-${msgId}" class="modal-textarea" placeholder="Escriu la resposta..." style="height:80px;"></textarea>
                                     
-                                    <!-- FIX V56.4: BOTÓN CON AUTO-REFERENCIA Y ARGUMENTOS SIMPLES -->
                                     <button class="btn-primary" style="margin-top:5px; padding:5px 15px; font-size:0.85rem;" 
-                                        onclick="window.enviarRespostaProfessor(this, '${msgId}', '${alumnoId}', '${temaEnc}')">
+                                        onclick="window.enviarRespostaProfessor(this, '${msgId}', '${alumnoId}', '${temaSafe}')">
                                         Enviar Resposta
                                     </button>
                                 </div>
@@ -421,7 +423,7 @@ window.abrirPanelMensajes = async function(modoForzado) {
     } catch(e) { msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>'; }
 };
 
-// FIX V56.4: FUNCION GLOBAL Y BÚSQUEDA POR PROXIMIDAD
+// FIX V56.5: FUNCION GLOBAL Y BÚSQUEDA POR PROXIMIDAD
 window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, encodedTema) {
     console.log("Intentant enviar resposta...", msgId);
     
@@ -515,11 +517,13 @@ async function renderCoursesLogic(viewMode) {
         };
 
         if (viewMode === 'dashboard') {
+            // VISTA 1: Mis cursos (filtrado)
             cursosAMostrar = userMatriculas
                 .filter(m => m.curs && debeMostrarse(m.curs)) 
                 .map(m => ({ ...m.curs, _matricula: m }));
 
         } else {
+            // VISTA 2: Catálogo (filtrado)
             const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const jsonCat = await resCat.json();
             
@@ -812,7 +816,6 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     setTimeout(() => window.print(), 500);
 };
 
-// --- HELPER MODALES (FIXED BUTTONS) ---
 window.mostrarModalError = function(msg) {
     const m = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = "Informació";
@@ -823,8 +826,10 @@ window.mostrarModalError = function(msg) {
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "D'acord";
     
-    // FIX: Reactivar y asignar directamente
+    // FIX: Reactivar botón por si estaba desactivado
     btn.disabled = false;
+    
+    // FIX 56.3: Asignación directa, no clones
     btn.onclick = () => m.style.display = 'none';
     
     m.style.display = 'flex';
@@ -839,8 +844,10 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "Confirmar";
     
-    // FIX: Reactivar y asignar directamente
+    // FIX: Reactivar botón por si estaba desactivado
     btn.disabled = false;
+
+    // FIX 56.3: Asignación directa de onclick (más robusto)
     btn.onclick = () => { m.style.display = 'none'; callback(); };
     
     const btnC = document.getElementById('modal-btn-cancel');

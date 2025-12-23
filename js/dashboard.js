@@ -1,6 +1,8 @@
 /* ==========================================================================
-   DASHBOARD.JS (v56.2 - FIX CHAT BUTTON & STABILITY)
+   DASHBOARD.JS (v56.3 - STABLE & ROBUST)
    ========================================================================== */
+
+console.log("🚀 Carregant Dashboard v56.3...");
 
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('jwt');
@@ -8,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const appContainer = document.getElementById('app-container');
     const loginView = document.getElementById('login-view');
 
-    // 1. Si no hay token, no hacemos nada
+    // 1. Si no hay token, no hacemos nada (el HTML ya muestra el login por defecto)
     if (!token) return; 
 
     // 2. Simulamos carga
@@ -34,6 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             loginOverlay.style.display = 'none';
             appContainer.style.display = 'block';
             
+            console.log("✅ Usuari validat correctament");
             if (!window.appIniciada) window.iniciarApp();
         } else {
             throw new Error('Token caducado');
@@ -65,7 +68,7 @@ window.iniciarApp = function() {
     if(user) {
         let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
         if(user.apellidos) initials += user.apellidos.charAt(0);
-        const initialsStr = initials.toUpperCase();
+        const initialsStr = initials ? initials.toUpperCase() : 'US';
         
         const safeText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
         
@@ -213,10 +216,9 @@ window.abrirPanelNotificaciones = async function() {
     document.getElementById('modal-btn-cancel').style.display = 'none';
     btnC.innerText = "Tancar";
     
-    // Fix modal button reuse
+    // FIX MODAL 
     btnC.disabled = false;
-    const newBtn = btnC.cloneNode(true); btnC.parentNode.replaceChild(newBtn, btnC);
-    newBtn.onclick = () => modal.style.display = 'none';
+    btnC.onclick = () => modal.style.display = 'none';
     
     msg.innerHTML = '<div class="loader"></div>';
     modal.style.display = 'flex';
@@ -295,7 +297,7 @@ window.openTeacherInbox = function(element) {
     abrirPanelMensajes('profesor');
 };
 
-// --- MENSAJERÍA / CHAT (FIXED) ---
+// --- MENSAJERÍA / CHAT ---
 window.abrirPanelMensajes = async function(modoForzado) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
@@ -320,11 +322,9 @@ window.abrirPanelMensajes = async function(modoForzado) {
     }
 
     btnC.innerText = "Tancar";
-    // Fix modal button reuse
+    // FIX MODAL: Asignación directa, sin clones
     btnC.disabled = false;
-    const newBtn = btnC.cloneNode(true);
-    btnC.parentNode.replaceChild(newBtn, btnC);
-    newBtn.onclick = () => modal.style.display = 'none';
+    btnC.onclick = () => modal.style.display = 'none';
     
     msgEl.innerHTML = '<div class="loader"></div>';
     modal.style.display = 'flex';
@@ -368,7 +368,6 @@ window.abrirPanelMensajes = async function(modoForzado) {
                 
                 if (modoActual === 'profesor') {
                     const alumnoNombre = m.alumne_nom || 'Alumne';
-                    // Seguridad: IDs pueden venir como null si el usuario fue borrado
                     const alumnoId = m.users_permissions_user?.id || m.users_permissions_user?.documentId;
                     
                     html += `
@@ -382,7 +381,7 @@ window.abrirPanelMensajes = async function(modoForzado) {
                                 </div>
                                 <div class="reply-area">
                                     <textarea id="reply-${m.documentId||m.id}" class="modal-textarea" placeholder="Escriu la resposta..." style="height:80px;"></textarea>
-                                    <!-- FIX: USAMOS 'this' PARA PASAR EL BOTON -->
+                                    <!-- FIX: 'this' en onclick para pasar el botón -->
                                     <button class="btn-primary" style="margin-top:5px; padding:5px 15px; font-size:0.85rem;" 
                                         onclick="enviarRespostaProfessor(this, '${m.documentId||m.id}', '${alumnoId}', '${encodeURIComponent(m.tema)}')">
                                         Enviar Resposta
@@ -421,15 +420,19 @@ window.abrirPanelMensajes = async function(modoForzado) {
     } catch(e) { msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>'; }
 };
 
-// FIX: AHORA RECIBE EL BOTON COMO PRIMER ARGUMENTO
+// FIX: Función de envío robusta
 window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, encodedTema) {
     const txt = document.getElementById(`reply-${msgId}`);
     const respuesta = txt.value.trim();
-    if(!respuesta) return alert("Escriu una resposta.");
+    
+    if(!respuesta) {
+        alert("Escriu una resposta.");
+        return;
+    }
     
     const token = localStorage.getItem('jwt');
     
-    // Control visual del botón
+    // UI Feedback
     btnElement.innerText = "Enviant..."; 
     btnElement.disabled = true;
 
@@ -441,10 +444,12 @@ window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, en
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ data: { resposta_professor: respuesta, estat: 'respost' } })
         });
+        
+        // Eliminar de la lista visual
         const card = document.getElementById(`msg-card-${msgId}`);
         if(card) card.remove();
 
-        // Control de seguridad por si el alumno se borró
+        // Notificación al alumno
         if(studentId && studentId !== 'undefined' && studentId !== 'null') {
             const tema = decodeURIComponent(encodedTema);
             await fetch(API_ROUTES.notifications, {
@@ -470,7 +475,7 @@ window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, en
     }
 };
 
-// --- CARGA DE CURSOS ---
+// --- CARGA DE DATOS Y CURSOS ---
 window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
 window.loadCatalog = async function() { await renderCoursesLogic('home'); };
 
@@ -485,7 +490,7 @@ async function renderCoursesLogic(viewMode) {
 
     try {
         const ts = new Date().getTime();
-        // 1. CARGAMOS TODO (Luego filtraremos en JS para asegurar que desaparece)
+        // 1. Cargamos TODO para filtrar en cliente
         const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
         
         if (resMat.status === 401 || resMat.status === 403) {
@@ -499,24 +504,23 @@ async function renderCoursesLogic(viewMode) {
         
         let cursosAMostrar = [];
 
-        // =========================================================================
-        // FILTRADO ROBUSTO: Javascript (Client-Side)
-        // =========================================================================
+        // LÓGICA DE FILTRADO JS (Robustez)
         const debeMostrarse = (curs) => {
             if (!curs) return false;
+            // Profesor ve todo
             if (user.es_professor === true) return true;
-            // Si es alumno, SOLO ve si mode_esborrany NO es true
+            // Alumno ve si no es borrador
             return curs.mode_esborrany !== true;
         };
 
         if (viewMode === 'dashboard') {
-            // VISTA MIS CURSOS (Filtrado para que no salgan los borradores)
+            // VISTA 1: Mis cursos (filtrado)
             cursosAMostrar = userMatriculas
                 .filter(m => m.curs && debeMostrarse(m.curs)) 
                 .map(m => ({ ...m.curs, _matricula: m }));
 
         } else {
-            // VISTA CATÁLOGO
+            // VISTA 2: Catálogo (filtrado)
             const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const jsonCat = await resCat.json();
             
@@ -770,10 +774,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                     <div class="diploma-footer">
                         <div class="footer-qr-area"><img src="${qrSrc}" class="qr-image"><div class="qr-ref">Ref: ${matId}</div></div>
                         <div class="footer-signature-area">
-                            <!-- INICIO FIRMA -->
-                            <img src="img/firma-miguel.png" 
-                                 style="height: 70px; display: block; margin: 0 auto -20px auto; position: relative; z-index: 10;">
-                            <!-- FIN FIRMA -->
+                            <img src="img/firma-miguel.png" style="height: 70px; display: block; margin: 0 auto -20px auto; position: relative; z-index: 10;">
                             <div class="signature-line"></div>
                             <span class="signature-name">Miguel Pueyo Pérez</span>
                             <span class="signature-role">Secretari General</span>
@@ -827,10 +828,9 @@ window.mostrarModalError = function(msg) {
     // FIX: Reactivar botón por si estaba desactivado
     btn.disabled = false;
     
-    const newBtn = btn.cloneNode(true); 
-    btn.parentNode.replaceChild(newBtn, btn);
+    // FIX 56.3: Asignación directa, no clones
+    btn.onclick = () => m.style.display = 'none';
     
-    newBtn.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
 };
 
@@ -846,13 +846,11 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     // FIX: Reactivar botón por si estaba desactivado
     btn.disabled = false;
 
-    const newBtn = btn.cloneNode(true); 
-    btn.parentNode.replaceChild(newBtn, btn);
-    const btnC = document.getElementById('modal-btn-cancel');
-    const newBtnC = btnC.cloneNode(true); 
-    btnC.parentNode.replaceChild(newBtnC, btnC);
+    // FIX 56.3: Asignación directa de onclick (más robusto)
+    btn.onclick = () => { m.style.display = 'none'; callback(); };
     
-    newBtn.onclick = () => { m.style.display = 'none'; callback(); };
-    newBtnC.onclick = () => m.style.display = 'none';
+    const btnC = document.getElementById('modal-btn-cancel');
+    btnC.onclick = () => m.style.display = 'none';
+    
     m.style.display = 'flex';
 };

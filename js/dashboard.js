@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DASHBOARD.JS (v56.0 - PRODUCTION MASTER)
+   DASHBOARD.JS (v56.1 - PRODUCTION FIX: MODAL BUTTON & FULL FEATURES)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -8,15 +8,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const appContainer = document.getElementById('app-container');
     const loginView = document.getElementById('login-view');
 
-    // 1. Si no hay token, no hacemos nada (el HTML ya muestra el login por defecto)
+    // 1. Si no hay token, no hacemos nada
     if (!token) {
         return; 
     }
 
-    // 2. Si hay token, SIMULAMOS estar cargando dentro del login (UX Profesional)
+    // 2. Simulamos carga
     if(loginView) loginView.style.display = 'none';
-    
-    // Añadimos un spinner temporal a la tarjeta de login
     const loginCard = document.querySelector('.login-card');
     let spinner = document.createElement('div');
     spinner.id = 'auth-loader';
@@ -25,37 +23,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(loginCard) loginCard.appendChild(spinner);
 
     try {
-        // 3. Validar Token y REFRESCAR DATOS DE USUARIO (Vital para el rol de profesor)
+        // 3. Validar Token y refrescar usuario
         const res = await fetch(`${STRAPI_URL}/api/users/me?populate=*`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (res.ok) {
             const freshUser = await res.json();
-            // Actualizamos el usuario en memoria con los datos frescos de la BD
             localStorage.setItem('user', JSON.stringify(freshUser));
 
-            // A) TOKEN VÁLIDO: Entramos al Dashboard
             if(spinner) spinner.remove();
             loginOverlay.style.display = 'none';
             appContainer.style.display = 'block';
             
-            // Iniciamos la lógica de la app
             if (!window.appIniciada) window.iniciarApp();
         } else {
-            // B) TOKEN CADUCADO (401/403)
             throw new Error('Token caducado');
         }
 
     } catch (error) {
-        // Limpieza silenciosa
         console.warn("Sessió caducada.");
         localStorage.clear(); 
         if(spinner) spinner.remove();
         if(loginView) loginView.style.display = 'block';
     }
 
-    // Lógica del botón Scroll Top
+    // Botón Scroll Top
     const scrollBtn = document.getElementById('scroll-top-btn');
     if(scrollBtn) {
         window.onscroll = () => { scrollBtn.style.display = (document.documentElement.scrollTop > 300) ? "flex" : "none"; };
@@ -69,7 +62,7 @@ window.sesionLeidas = new Set();
 window.iniciarApp = function() {
     window.appIniciada = true;
     
-    // 1. Cargar datos usuario
+    // Cargar datos usuario cabecera
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
         let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
@@ -86,12 +79,10 @@ window.iniciarApp = function() {
         safeText('profile-dni-display', user.username);
     }
 
-    // 2. Configurar eventos y notificaciones
     setupDirectClicks();
     checkRealNotifications();
     setInterval(checkRealNotifications, 60000);
 
-    // 3. Router inicial
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.get('slug')) {
         window.showView('dashboard');
@@ -102,30 +93,25 @@ window.iniciarApp = function() {
 };
 
 window.showView = function(viewName) {
-    // Parar vídeos al cambiar de pestaña
     const iframes = document.querySelectorAll('iframe');
     iframes.forEach(iframe => { const t = iframe.src; iframe.src = ''; iframe.src = t; });
     const html5Videos = document.querySelectorAll('video');
     html5Videos.forEach(video => { video.pause(); });
 
-    // Ocultar todas las vistas
     ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
-    // Mostrar vista seleccionada
     const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';
 
-    // Activar menú navegación
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
     if(viewName === 'home') document.getElementById('nav-catalog')?.classList.add('active');
     if(viewName === 'dashboard') document.getElementById('nav-dashboard')?.classList.add('active');
     if(viewName === 'profile') document.getElementById('nav-profile')?.classList.add('active');
 
-    // Cargar datos según vista
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
@@ -136,14 +122,12 @@ function setupDirectClicks() {
     document.getElementById('btn-notifs').onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     document.getElementById('btn-messages').onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
     
-    // Navegación
     const navs = {'nav-catalog': 'home', 'nav-profile': 'profile', 'nav-dashboard': 'dashboard'};
     for(const [id, view] of Object.entries(navs)) {
         const el = document.getElementById(id);
         if(el) el.onclick = (e) => { e.preventDefault(); window.showView(view); };
     }
 
-    // Menú Usuario
     const btnUser = document.getElementById('user-menu-trigger');
     const userDropdown = document.getElementById('user-dropdown-menu');
 
@@ -192,7 +176,6 @@ async function checkRealNotifications() {
     try {
         let total = 0;
         const ts = new Date().getTime();
-        
         const res = await fetch(`${API_ROUTES.notifications}?filters[users_permissions_user][id][$eq]=${user.id}&filters[llegida][$eq]=false&_t=${ts}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -491,7 +474,6 @@ async function renderCoursesLogic(viewMode) {
 
     try {
         const ts = new Date().getTime();
-        // 1. CARGAMOS TODO (Luego filtraremos en JS para asegurar que desaparece)
         const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
         
         if (resMat.status === 401 || resMat.status === 403) {
@@ -510,21 +492,19 @@ async function renderCoursesLogic(viewMode) {
         // =========================================================================
         const debeMostrarse = (curs) => {
             if (!curs) return false;
-            // Si es profesor, ve todo
             if (user.es_professor === true) return true;
             // Si es alumno, SOLO ve si mode_esborrany NO es true
             return curs.mode_esborrany !== true;
         };
 
         if (viewMode === 'dashboard') {
-            // VISTA MIS CURSOS (Aquí estaba el fallo antes, ahora aplicamos el filtro)
+            // VISTA MIS CURSOS (Filtrado para que no salgan los borradores)
             cursosAMostrar = userMatriculas
                 .filter(m => m.curs && debeMostrarse(m.curs)) 
                 .map(m => ({ ...m.curs, _matricula: m }));
 
         } else {
             // VISTA CATÁLOGO
-            // Traemos todo y filtramos
             const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const jsonCat = await resCat.json();
             
@@ -553,14 +533,12 @@ async function renderCoursesLogic(viewMode) {
                 if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url;
             }
 
-            // FIX FECHAS
             const rawInicio = curs.fecha_inicio || curs.data_inici || curs.publishedAt;
             const hoy = new Date();
             const fechaInicio = new Date(rawInicio);
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES');
 
-            // BADGES
             let badge = '';
             if (curs.mode_esborrany) {
                 badge = `<span class="course-badge" style="background:#6f42c1; color:white; border:1px solid #59359a;">👁️ OCULT (MODE TEST)</span>`;
@@ -828,9 +806,16 @@ window.mostrarModalError = function(msg) {
     document.getElementById('modal-title').style.color = "var(--brand-blue)";
     document.getElementById('modal-msg').innerHTML = msg;
     document.getElementById('modal-btn-cancel').style.display = 'none';
+    
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "D'acord";
-    const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
+    
+    // FIX: Reactivar botón por si estaba desactivado
+    btn.disabled = false;
+    
+    const newBtn = btn.cloneNode(true); 
+    btn.parentNode.replaceChild(newBtn, btn);
+    
     newBtn.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
 };
@@ -840,11 +825,18 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     document.getElementById('modal-title').innerText = titulo;
     document.getElementById('modal-msg').innerHTML = msg;
     document.getElementById('modal-btn-cancel').style.display = 'block';
+    
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "Confirmar";
-    const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
+    
+    // FIX: Reactivar botón por si estaba desactivado
+    btn.disabled = false;
+
+    const newBtn = btn.cloneNode(true); 
+    btn.parentNode.replaceChild(newBtn, btn);
     const btnC = document.getElementById('modal-btn-cancel');
-    const newBtnC = btnC.cloneNode(true); btnC.parentNode.replaceChild(newBtnC, btnC);
+    const newBtnC = btnC.cloneNode(true); 
+    btnC.parentNode.replaceChild(newBtnC, btnC);
     
     newBtn.onclick = () => { m.style.display = 'none'; callback(); };
     newBtnC.onclick = () => m.style.display = 'none';

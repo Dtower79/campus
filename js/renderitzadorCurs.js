@@ -486,7 +486,13 @@ document.addEventListener('DOMContentLoaded', () => {
             html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
             
             if ((!isLocked || state.godMode) && mod.material_pdf) {
-                const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
+                // Convertimos a array si hace falta
+                let archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
+                
+                // --- NUEVO: ORDENACIÓN ALFABÉTICA/NUMÉRICA EN EL MENÚ ---
+                archivos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+                // --------------------------------------------------------
+
                 if (archivos.length > 0) {
                     archivos.forEach(pdf => {
                         const pdfUrl = pdf.url.startsWith('/') ? STRAPI_URL + pdf.url : pdf.url;
@@ -494,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             }
+            
             if (tieneFlash) {
                 const fCheck = flashDone ? '✓' : '';
                 html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);

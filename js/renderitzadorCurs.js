@@ -605,7 +605,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
         
         if (mod.material_pdf) {
-            const archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
+            // Convertimos a array si no lo es
+            let archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
+            
+            // --- NUEVA LÍNEA: ORDENACIÓN INTELIGENTE ---
+            // 'numeric: true' hace que el 2 vaya antes que el 11
+            archivos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+            // -------------------------------------------
+
             if(archivos.length > 0) {
                 html += `<div class="materials-section"><span class="materials-title">Material Descarregable</span>`;
                 archivos.forEach(a => {

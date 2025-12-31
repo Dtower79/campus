@@ -697,13 +697,28 @@ async function loadGrades() {
             let btnCert = '<small>Pendent</small>';
             
             if (isDone) {
+                // --- LÓGICA DE FECHAS (2 SEMANAS O FIN DE CURSO) ---
                 const hoy = new Date();
-                const rawFin = curs.fecha_fin || curs.data_fi;
-                const fechaFin = rawFin ? new Date(rawFin) : null;
                 
-                if (fechaFin && hoy <= fechaFin) {
-                    const fechaStr = fechaFin.toLocaleDateString('ca-ES');
-                    btnCert = `<small style="color:#d97706; font-weight:bold;">Disponible el ${fechaStr}</small>`;
+                // 1. Calculamos fecha inscripción + 14 días
+                const fechaInscripcion = new Date(mat.createdAt); 
+                const fechaDesbloqueo = new Date(fechaInscripcion);
+                fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14); // Sumamos 2 semanas
+
+                // 2. Si el curso tiene fecha fin, miramos cual ocurre ANTES
+                const rawFin = curs.fecha_fin || curs.data_fi;
+                if (rawFin) {
+                    const fechaFinCurso = new Date(rawFin);
+                    // Si el curso acaba ANTES de las 2 semanas, el diploma se da al acabar el curso
+                    if (fechaFinCurso < fechaDesbloqueo) {
+                        fechaDesbloqueo = fechaFinCurso;
+                    }
+                }
+
+                // 3. Comprobación final
+                if (hoy < fechaDesbloqueo) {
+                    const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
+                    btnCert = `<small style="color:#d97706; font-weight:bold; cursor:help;" title="Per normativa, el certificat s'emet 15 dies després de la inscripció o al finalitzar el curs.">Disponible el ${fechaStr}</small>`;
                 } else {
                     btnCert = `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>`;
                 }
@@ -717,7 +732,7 @@ async function loadGrades() {
                     <td data-label="Diploma" style="padding:15px;">${btnCert}</td>
                 </tr>`;
         });
-    } catch(e) { tbody.innerHTML = '<tr><td colspan="4">Error.</td></tr>'; }
+    } catch(e) { console.error(e); tbody.innerHTML = '<tr><td colspan="4">Error al carregar notes.</td></tr>'; }
 }
 
 window.callPrintDiploma = function(idx) {

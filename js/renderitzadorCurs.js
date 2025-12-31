@@ -195,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const mat = json.data[0];
         state.matriculaId = mat.documentId || mat.id;
+        state.matriculaCreatedAt = mat.createdAt;
         state.curso = mat.curs;
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
@@ -313,19 +314,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function notificarAprobado(cursoTitulo) {
-        // --- LÓGICA DE FECHAS AÑADIDA ---
+        // --- LÓGICA DE FECHAS ---
         const hoy = new Date();
-        const rawFin = state.curso.fecha_fin || state.curso.data_fi;
-        const fechaFin = rawFin ? new Date(rawFin) : null;
-        const estaBloqueadoPorFecha = fechaFin && hoy <= fechaFin;
+        
+        // Usamos la fecha guardada en el estado o hoy por defecto
+        let fechaInscripcion = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt) : new Date();
+        const fechaDesbloqueo = new Date(fechaInscripcion);
+        fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14);
 
+        const rawFin = state.curso.fecha_fin || state.curso.data_fi;
+        if (rawFin) {
+            const fechaFinCurso = new Date(rawFin);
+            if (fechaFinCurso < fechaDesbloqueo) {
+                fechaDesbloqueo = fechaFinCurso;
+            }
+        }
+
+        const estaBloqueado = hoy < fechaDesbloqueo;
         let mensaje = "";
         
-        if (estaBloqueadoPorFecha) {
-            const fechaStr = fechaFin.toLocaleDateString('ca-ES');
-            mensaje = `Enhorabona! Has aprovat el curs "${cursoTitulo}". Recorda que el diploma es desbloquejarà automàticament el dia ${fechaStr}.`;
+        if (estaBloqueado) {
+            const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
+            mensaje = `Enhorabona! Has aprovat "${cursoTitulo}". El diploma estarà disponible automàticament el dia ${fechaStr} (segons normativa de 15 dies lectius).`;
         } else {
-            mensaje = `Enhorabona! Has aprovat el curs "${cursoTitulo}". El teu diploma ja està disponible a l'apartat de Qualificacions o a la pàgina final del curs.`;
+            mensaje = `Enhorabona! Has aprovat "${cursoTitulo}". El teu diploma ja està disponible per descarregar.`;
         }
 
         crearNotificacion("Curs Completat! 🎓", mensaje);
@@ -1051,21 +1063,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const finalData = state.progreso.examen_final;
         
         if (finalData.aprobado) {
-            // --- LÓGICA DE FECHAS AÑADIDA ---
+            // --- LÓGICA DE FECHAS (2 SEMANAS O FIN DE CURSO) ---
             const hoy = new Date();
-            // Miramos ambas posibilidades por si acaso (data_fi o fecha_fin)
-            const rawFin = state.curso.fecha_fin || state.curso.data_fi;
-            const fechaFin = rawFin ? new Date(rawFin) : null;
             
-            // Si hay fecha fin y hoy es anterior o igual, está bloqueado
-            const estaBloqueadoPorFecha = fechaFin && hoy <= fechaFin;
+            // 1. Obtenemos fecha de matrícula desde el estado global (se cargó al inicio)
+            // Necesitamos acceder a la matrícula actual. Como 'cargarDatos' ya la leyó, 
+            // Strapi guarda el 'createdAt' en el objeto de matrícula.
+            // NOTA: Para que esto funcione, necesitamos que 'cargarDatos' guarde el 'createdAt'.
+            // Si no lo tenemos a mano, usamos una fecha segura o hacemos un fetch rápido, 
+            // pero normalmente 'state.matriculaData' debería tenerlo.
+            // VAMOS A ASUMIR QUE state.matriculaId ES EL ID, PERO NECESITAMOS LA FECHA.
+            // TRUCO: Usamos la fecha actual como fallback si no tenemos la de inscripcion a mano, 
+            // pero lo ideal es que 'cargarDatos' guarde todo el objeto matrícula en 'state.matriculaFull'.
+            
+            // Para no complicar la arquitectura ahora, usaremos la lógica de bloqueo visual.
+            // Si acabas de aprobar AHORA, seguro que hoy < hoy + 14 días.
+            // Así que siempre saldrá el mensaje de espera a menos que el curso haya acabado ya.
+            
+            let fechaInscripcion = new Date(); // Por defecto hoy si acaba de aprobar
+            // Intentamos recuperar la fecha real si la tenemos en cache o state
+            // (Esta parte asume que añadiremos state.matriculaCreatedAt en cargarDatos, ver abajo)
+            if (state.matriculaCreatedAt) {
+                fechaInscripcion = new Date(state.matriculaCreatedAt);
+            }
+
+            const fechaDesbloqueo = new Date(fechaInscripcion);
+            fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14);
+
+            const rawFin = state.curso.fecha_fin || state.curso.data_fi;
+            if (rawFin) {
+                const fechaFinCurso = new Date(rawFin);
+                if (fechaFinCurso < fechaDesbloqueo) {
+                    fechaDesbloqueo = fechaFinCurso;
+                }
+            }
+            
+            const estaBloqueado = hoy < fechaDesbloqueo;
             
             let botonHtml = '';
             
-            if (estaBloqueadoPorFecha) {
-                const fechaStr = fechaFin.toLocaleDateString('ca-ES');
+            if (estaBloqueado) {
+                const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
                 botonHtml = `<div class="alert-info" style="margin-top:15px; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:15px; border-radius:6px; font-size:0.9rem;">
-                                <i class="fa-solid fa-clock"></i> El diploma estarà disponible per descarregar a partir del dia <strong>${fechaStr}</strong>.
+                                <i class="fa-solid fa-clock"></i> <strong>Certificat en procés d'emissió.</strong><br>
+                                Estarà disponible per descarregar a partir del dia <strong>${fechaStr}</strong>.
                              </div>`;
             } else {
                 botonHtml = `<button class="btn-primary" onclick="window.imprimirDiploma('${finalData.nota}')"><i class="fa-solid fa-download"></i> Descarregar Diploma</button>`;
@@ -1083,7 +1124,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // ... (El resto de la función se queda igual para intentos agotados o inicio examen)
         if (finalData.intentos >= 2 && !state.godMode) { 
             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Intents esgotats.</p></div>`; 
             return; 

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v57.0 - NULL SAFETY & DATES INTEGRATION)
+   RENDERITZADORCURS.JS (v57.2 - MODULE SYNC & GOD MODE UI FIX)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let state = {
         matriculaId: null,
-        matriculaCreatedAt: null, // Vital para fecha diploma
+        matriculaCreatedAt: null,
         curso: null,
         progreso: {},
         currentModuleIndex: -1,
@@ -103,9 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function prepararExamen(mod) {
         const pool = mod.banc_preguntes || [];
         const limite = pool.length; 
-        
         let seleccionadas = shuffleArray(pool).slice(0, limite);
-
         return seleccionadas.map(p => {
             const pClon = JSON.parse(JSON.stringify(p));
             pClon.opcions = shuffleArray(pClon.opcions);
@@ -154,9 +152,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
                 const flippedIndices = getFlippedCards(idx);
                 const localmenteCompletado = flippedIndices.length >= mod.targetes_memoria.length;
-                const estadoRemoto = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx].flashcards_done : false;
+                
+                if (!state.progreso.modulos[idx]) {
+                    state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
+                }
+                
+                const estadoRemoto = state.progreso.modulos[idx].flashcards_done;
                 if (localmenteCompletado && !estadoRemoto) {
-                    if (!state.progreso.modulos[idx]) state.progreso.modulos[idx] = { aprobado:false, nota:0, intentos:0, flashcards_done: false };
                     state.progreso.modulos[idx].flashcards_done = true;
                     huboCambios = true;
                 }
@@ -186,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const mat = json.data[0];
         state.matriculaId = mat.documentId || mat.id;
-        state.matriculaCreatedAt = mat.createdAt; // GUARDAR FECHA PARA DIPLOMA
+        state.matriculaCreatedAt = mat.createdAt;
         state.curso = mat.curs;
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
@@ -305,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function notificarAprobado(cursoTitulo) {
-        // --- LOGICA DE FECHAS ---
         const hoy = new Date();
         let fechaInscripcion = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt) : new Date();
         const fechaDesbloqueo = new Date(fechaInscripcion);
@@ -372,14 +373,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===============================================================
-    // 6. LÓGICA DE BLOQUEO (SAFE NULL CHECK)
+    // 6. LÓGICA DE BLOQUEO
     // ===============================================================
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
         const prevIdx = indexModulo - 1;
         
-        // Null Safety: Si no existe el módulo anterior en progreso, bloqueamos
         if (!state.progreso.modulos || !state.progreso.modulos[prevIdx]) return true;
         
         const prevProgreso = state.progreso.modulos[prevIdx];
@@ -397,17 +397,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.godMode) return true; 
         if (!state.progreso || !state.progreso.modulos) return false;
         
-        // FIX CRASH: Iteramos módulos del curso y verificamos que exista progreso
         const modulosCurso = state.curso.moduls || [];
-        
         return modulosCurso.every((modObj, idx) => {
             const m = state.progreso.modulos[idx];
-            if (!m) return false; // Si falta progreso, no puede hacer final
-
+            if (!m) return false;
             const tieneFlash = modObj && modObj.targetes_memoria && modObj.targetes_memoria.length > 0;
             const flashOk = tieneFlash ? (m.flashcards_done === true) : true;
             const testOk = (m.aprobado === true);
-            
             return testOk && flashOk;
         });
     }
@@ -483,8 +479,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         (state.curso.moduls || []).forEach((mod, idx) => {
             const isLocked = estaBloqueado(idx);
-            
-            // Null Safety
             const modProgreso = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx] : null;
             
             const tieneFlash = mod.targetes_memoria && mod.targetes_memoria.length > 0;
@@ -500,7 +494,6 @@ document.addEventListener('DOMContentLoaded', () => {
             html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
             
             if ((!isLocked || state.godMode) && mod.material_pdf) {
-                // ORDENAR PDFS
                 let archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
                 archivos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
 
@@ -802,9 +795,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 9. LOGICA DE TESTS (SMART ENGINE + MULTICHOICE)
     // ===============================================================
     function renderTestIntro(container, mod, modIdx) { 
-        // Null Safety
         const progreso = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx] : { aprobado: false, intentos: 0, nota: 0 };
-        
         if (progreso.aprobado) {
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Test Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="revisarTest(${modIdx})">Veure resultats anteriors</button></div></div>`;
              return;
@@ -813,7 +804,14 @@ document.addEventListener('DOMContentLoaded', () => {
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">Bloquejat ⛔</h2><p>Has esgotat els 2 intents.</p></div>`;
              return;
         }
-        container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2>📝 Test d'Avaluació</h2><div class="exam-info-box"><p>✅ <strong>Aprovat:</strong> 70% d'encerts.</p><p>🔄 <strong>Intent:</strong> ${progreso.intentos + 1} de 2.</p></div><br><div class="btn-centered-container"><button class="btn-primary" onclick="iniciarTest()">COMENÇAR EL TEST</button></div></div>`;
+        
+        // FIX VISUAL PARA MODO PROFESOR
+        let labelIntent = `Intent: ${progreso.intentos + 1} de 2.`;
+        if (progreso.intentos >= 2) {
+             labelIntent = `Intent: ${progreso.intentos + 1} (Mode Professor)`;
+        }
+
+        container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2>📝 Test d'Avaluació</h2><div class="exam-info-box"><p>✅ <strong>Aprovat:</strong> 70% d'encerts.</p><p>🔄 <strong>${labelIntent}</strong></p></div><br><div class="btn-centered-container"><button class="btn-primary" onclick="iniciarTest()">COMENÇAR EL TEST</button></div></div>`;
     }
     window.iniciarTest = function() { state.testEnCurso = true; renderMainContent(); }
 
@@ -846,11 +844,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.godMode && state.respuestasTemp[qId] === undefined) {
                 if (isMulti) {
                     state.respuestasTemp[qId] = preg.opcions
-                        .filter(o => o.esCorrecta || o.correct || o.isCorrect)
-                        .map(o => o.id || preg.opcions.indexOf(o));
+                        .map((o, idx) => (o.esCorrecta || o.correct || o.isCorrect) ? idx : -1)
+                        .filter(i => i !== -1);
                 } else {
-                    const correctOpt = preg.opcions.find(o => o.esCorrecta || o.correct || o.isCorrect);
-                    if (correctOpt) state.respuestasTemp[qId] = preg.opcions.indexOf(correctOpt);
+                    const correctIdx = preg.opcions.findIndex(o => o.esCorrecta || o.correct || o.isCorrect);
+                    if (correctIdx !== -1) state.respuestasTemp[qId] = correctIdx;
                 }
             }
 
@@ -861,7 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             preg.opcions.forEach((opt, oIdx) => {
                 let isSelected = false;
-                const valToStore = oIdx; // Index
+                const valToStore = oIdx; // INDEX
                 if (isMulti) isSelected = savedVal.includes(valToStore);
                 else isSelected = (savedVal == valToStore);
                 const checked = isSelected ? 'checked' : '';
@@ -926,26 +924,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     const isCorrect = (userArr.length === correctas.length) && userArr.every(val => correctas.includes(val));
                     if (isCorrect) aciertos++;
                 } else {
-                    // FIX: ACCESO DIRECTO POR ÍNDICE
                     const selectedOpt = preg.opcions[userRes];
                     if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) aciertos++;
                 }
             });
             const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); 
             const aprobado = nota >= 7.0;
-            const p = state.progreso;
-            if (!p.modulos[modIdx]) p.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false, flashcards_done: false };
-            p.modulos[modIdx].intentos += 1; 
-            p.modulos[modIdx].nota = Math.max(p.modulos[modIdx].nota, nota); 
-            if (aprobado) p.modulos[modIdx].aprobado = true;
             
-            await guardarProgreso(p); 
+            // 1. ACTUALIZACIÓN LOCAL
+            if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false, flashcards_done: false };
+            state.progreso.modulos[modIdx].intentos += 1; 
+            state.progreso.modulos[modIdx].nota = Math.max(state.progreso.modulos[modIdx].nota, nota); 
+            if (aprobado) state.progreso.modulos[modIdx].aprobado = true;
+            
+            // 2. SINCRONIZACIÓN Y GUARDADO
+            try {
+                // Preparamos payload
+                const payload = { data: { progres_detallat: state.progreso } }; 
+                
+                const res = await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { 
+                    method: 'PUT', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, 
+                    body: JSON.stringify(payload) 
+                });
+
+                // FIX SYNC: Leemos lo que dice el servidor
+                const json = await res.json();
+                if (json.data && json.data.attributes && json.data.attributes.progres_detallat) {
+                     state.progreso = json.data.attributes.progres_detallat;
+                } else if (json.data && json.data.progres_detallat) {
+                     state.progreso = json.data.progres_detallat;
+                }
+
+                if (aprobado) verificarFinModulo(modIdx);
+                else if (state.progreso.modulos[modIdx].intentos < 2) crearNotificacion("Has d'estudiar una mica més 📖", `Has tret un ${nota}. Et queda 1 intent.`);
+            
+            } catch(e) { console.error(e); }
+
             limpiarRespuestasLocales(`test_mod_${modIdx}`); 
             state.testEnCurso = false; 
             document.body.classList.remove('exam-active');
-            
-            if (aprobado) verificarFinModulo(modIdx);
-            else if (p.modulos[modIdx].intentos < 2) crearNotificacion("Has d'estudiar una mica més 📖", `Has tret un ${nota}. Et queda 1 intent.`);
             
             mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, modIdx, false);
         });
@@ -1030,7 +1048,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===============================================================
-    // 10. EXAMEN FINAL (CON LOGICA DE FECHAS Y BLINDAJE NULL)
+    // 10. EXAMEN FINAL
     // ===============================================================
     function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
@@ -1120,11 +1138,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.godMode && state.respuestasTemp[qId] === undefined) {
                 if (isMulti) {
                     state.respuestasTemp[qId] = preg.opcions
-                        .filter(o => o.esCorrecta || o.correct || o.isCorrect)
-                        .map(o => o.id || preg.opcions.indexOf(o));
+                        .map((o, idx) => (o.esCorrecta || o.correct || o.isCorrect) ? idx : -1)
+                        .filter(i => i !== -1);
                 } else {
-                    const correctOpt = preg.opcions.find(o => o.esCorrecta || o.correct || o.isCorrect);
-                    if (correctOpt) state.respuestasTemp[qId] = preg.opcions.indexOf(correctOpt);
+                    const correctOpt = preg.opcions.findIndex(o => o.esCorrecta || o.correct || o.isCorrect);
+                    if (correctOpt !== -1) state.respuestasTemp[qId] = correctOpt;
                 }
             }
 
@@ -1134,7 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div class="question-card" id="card-final-${idx}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text" style="margin-top:10px;">${preg.text}</div><div class="options-list">`;
             preg.opcions.forEach((opt, oIdx) => { 
                 let isSelected = false;
-                const valToStore = opt.id || oIdx; 
+                const valToStore = oIdx; // Index
                 if (isMulti) isSelected = savedVal.includes(valToStore);
                 else isSelected = (savedVal == valToStore);
                 const checked = isSelected ? 'checked' : '';
@@ -1158,10 +1176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     window.entregarExamenFinal = function(forzado = false) {
         const doDelivery = async () => {
-            detenerCronometro(); 
-            const preguntas = window.currentQuestions; 
-            let aciertos = 0;
-            
+            detenerCronometro(); const preguntas = window.currentQuestions; let aciertos = 0;
             preguntas.forEach((preg, idx) => { 
                 const qId = `final-${idx}`; 
                 const userRes = state.respuestasTemp[qId];
@@ -1175,9 +1190,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) aciertos++;
                 }
             });
-
-            const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); 
-            const aprobado = nota >= 7.5; 
+            const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); const aprobado = nota >= 7.5; 
             
             // 1. ACTUALIZACIÓN LOCAL (PRELIMINAR)
             if (!state.progreso.examen_final) state.progreso.examen_final = { intentos: 0, nota: 0, aprobado: false };
@@ -1212,18 +1225,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const json = await res.json();
                 
                 // 3. SINCRONIZACIÓN CRÍTICA (FIX)
-                // Actualizamos el estado local con lo que nos confirma el servidor que ha guardado.
-                // Así aseguramos que si el servidor dice "2 intentos", el frontend sepa que son 2.
                 if (json.data && json.data.progres_detallat) {
                     state.progreso = json.data.progres_detallat;
                 } else if (json.data && json.data.attributes && json.data.attributes.progres_detallat) {
-                    // Soporte por si la estructura de Strapi varía
                     state.progreso = json.data.attributes.progres_detallat;
                 }
 
             } catch (e) {
                 console.error("Error guardant examen:", e);
-                // Si falla la conexión, confiamos en la actualización local que hicimos arriba
             }
             
             limpiarRespuestasLocales('examen_final'); 

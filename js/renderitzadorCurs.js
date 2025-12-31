@@ -1,11 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS - Lógica del LMS (v45.1 - PRODUCTION FIXED)
-   --------------------------------------------------------------------------
-   - Base: v45.0 (Estable)
-   - Modificaciones: 
-     1. Eliminado campo 'preguntes' (Deprecated).
-     2. Límite de preguntas = Total del banco.
-     3. Fix ID vs Index en corrección de tests.
+   RENDERITZADORCURS.JS (v57.0 - NULL SAFETY & DATES INTEGRATION)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -69,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let state = {
         matriculaId: null,
+        matriculaCreatedAt: null, // Vital para fecha diploma
         curso: null,
         progreso: {},
         currentModuleIndex: -1,
@@ -106,10 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function prepararExamen(mod) {
-        // CAMBIO: Eliminada referencia a 'preguntes', solo usa 'banc_preguntes'
         const pool = mod.banc_preguntes || [];
-        
-        // CAMBIO: Límite dinámico para mostrar TODAS las preguntas disponibles
         const limite = pool.length; 
         
         let seleccionadas = shuffleArray(pool).slice(0, limite);
@@ -176,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        // CAMBIO: Eliminado populate de 'preguntes'
         const query = [
             `filters[users_permissions_user][id][$eq]=${USER.id}`,
             `filters[curs][slug][$eq]=${SLUG}`,
@@ -195,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const mat = json.data[0];
         state.matriculaId = mat.documentId || mat.id;
-        state.matriculaCreatedAt = mat.createdAt;
+        state.matriculaCreatedAt = mat.createdAt; // GUARDAR FECHA PARA DIPLOMA
         state.curso = mat.curs;
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
@@ -277,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===============================================================
-    // 4. NOTIFICACIONES
+    // 4. NOTIFICACIONES & LOGICA FECHAS
     // ===============================================================
     async function crearNotificacion(titulo, mensaje) {
         try {
@@ -314,10 +305,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function notificarAprobado(cursoTitulo) {
-        // --- LÓGICA DE FECHAS ---
+        // --- LOGICA DE FECHAS ---
         const hoy = new Date();
-        
-        // Usamos la fecha guardada en el estado o hoy por defecto
         let fechaInscripcion = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt) : new Date();
         const fechaDesbloqueo = new Date(fechaInscripcion);
         fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14);
@@ -325,9 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const rawFin = state.curso.fecha_fin || state.curso.data_fi;
         if (rawFin) {
             const fechaFinCurso = new Date(rawFin);
-            if (fechaFinCurso < fechaDesbloqueo) {
-                fechaDesbloqueo = fechaFinCurso;
-            }
+            if (fechaFinCurso < fechaDesbloqueo) fechaDesbloqueo = fechaFinCurso;
         }
 
         const estaBloqueado = hoy < fechaDesbloqueo;
@@ -335,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (estaBloqueado) {
             const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
-            mensaje = `Enhorabona! Has aprovat "${cursoTitulo}". El diploma estarà disponible automàticament el dia ${fechaStr} (segons normativa de 15 dies lectius).`;
+            mensaje = `Enhorabona! Has aprovat "${cursoTitulo}". El diploma estarà disponible automàticament el dia ${fechaStr}.`;
         } else {
             mensaje = `Enhorabona! Has aprovat "${cursoTitulo}". El teu diploma ja està disponible per descarregar.`;
         }
@@ -385,31 +372,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===============================================================
-    // 6. LÓGICA DE BLOQUEO
+    // 6. LÓGICA DE BLOQUEO (SAFE NULL CHECK)
     // ===============================================================
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
         const prevIdx = indexModulo - 1;
-        const prevProgreso = (state.progreso.modulos && state.progreso.modulos[prevIdx]) ? state.progreso.modulos[prevIdx] : null;
-        if (!prevProgreso) return true; 
+        
+        // Null Safety: Si no existe el módulo anterior en progreso, bloqueamos
+        if (!state.progreso.modulos || !state.progreso.modulos[prevIdx]) return true;
+        
+        const prevProgreso = state.progreso.modulos[prevIdx];
         const testOk = prevProgreso.aprobado === true;
         const modulos = state.curso.moduls || [];
         const prevModuloData = modulos[prevIdx];
+        
         const tieneFlashcards = prevModuloData && prevModuloData.targetes_memoria && prevModuloData.targetes_memoria.length > 0;
         const flashcardsOk = tieneFlashcards ? (prevProgreso.flashcards_done === true) : true;
+        
         return !(testOk && flashcardsOk);
     }
 
     function puedeHacerExamenFinal() {
         if (state.godMode) return true; 
-        if (!state.progreso.modulos) return false;
-        const modulos = state.curso.moduls || [];
-        return state.progreso.modulos.every((m, idx) => {
-            const modObj = modulos[idx];
+        if (!state.progreso || !state.progreso.modulos) return false;
+        
+        // FIX CRASH: Iteramos módulos del curso y verificamos que exista progreso
+        const modulosCurso = state.curso.moduls || [];
+        
+        return modulosCurso.every((modObj, idx) => {
+            const m = state.progreso.modulos[idx];
+            if (!m) return false; // Si falta progreso, no puede hacer final
+
             const tieneFlash = modObj && modObj.targetes_memoria && modObj.targetes_memoria.length > 0;
-            const flashOk = tieneFlash ? m.flashcards_done : true;
-            return m.aprobado && flashOk;
+            const flashOk = tieneFlash ? (m.flashcards_done === true) : true;
+            const testOk = (m.aprobado === true);
+            
+            return testOk && flashOk;
         });
     }
 
@@ -484,7 +483,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         (state.curso.moduls || []).forEach((mod, idx) => {
             const isLocked = estaBloqueado(idx);
+            
+            // Null Safety
             const modProgreso = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx] : null;
+            
             const tieneFlash = mod.targetes_memoria && mod.targetes_memoria.length > 0;
             const flashDone = modProgreso ? modProgreso.flashcards_done : false;
             const testDone = modProgreso ? modProgreso.aprobado : false;
@@ -498,12 +500,9 @@ document.addEventListener('DOMContentLoaded', () => {
             html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
             
             if ((!isLocked || state.godMode) && mod.material_pdf) {
-                // Convertimos a array si hace falta
+                // ORDENAR PDFS
                 let archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
-                
-                // --- NUEVO: ORDENACIÓN ALFABÉTICA/NUMÉRICA EN EL MENÚ ---
                 archivos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-                // --------------------------------------------------------
 
                 if (archivos.length > 0) {
                     archivos.forEach(pdf => {
@@ -512,7 +511,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             }
-            
             if (tieneFlash) {
                 const fCheck = flashDone ? '✓' : '';
                 html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);
@@ -624,13 +622,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
         
         if (mod.material_pdf) {
-            // Convertimos a array si no lo es
+            // ORDENAR PDFS
             let archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
-            
-            // --- NUEVA LÍNEA: ORDENACIÓN INTELIGENTE ---
-            // 'numeric: true' hace que el 2 vaya antes que el 11
             archivos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-            // -------------------------------------------
 
             if(archivos.length > 0) {
                 html += `<div class="materials-section"><span class="materials-title">Material Descarregable</span>`;
@@ -642,7 +636,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        const check = state.progreso.modulos[state.currentModuleIndex]?.flashcards_done ? '✓' : '';
+        const modProg = state.progreso.modulos[state.currentModuleIndex];
+        const check = (modProg && modProg.flashcards_done) ? '✓' : '';
+        
         if(mod.targetes_memoria && mod.targetes_memoria.length > 0) {
              html += `<div style="margin-top:30px;"><button class="btn-primary" onclick="window.cambiarVista(${state.currentModuleIndex}, 'flashcards')">Anar a Targetes ${check}</button></div>`;
         } else {
@@ -655,24 +651,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedNote = localStorage.getItem(`sicap_notes_${USER.id}_${state.curso.slug}`) || '';
         const modTitleSafe = mod && mod.titol ? mod.titol.replace(/'/g, "\\'") : 'General';
 
-        // --- 1. GENERACIÓN DE LA RUTA (BREADCRUMBS) ---
+        // BREADCRUMBS
         let rutaHtml = `<div class="breadcrumbs" style="margin-bottom: 20px;">`;
-        
-        // Nivel 1: Título del Curso (recortado si es muy largo)
         const cursoTituloCorto = state.curso.titol.length > 25 ? state.curso.titol.substring(0, 25) + '...' : state.curso.titol;
         rutaHtml += `<span style="color:var(--brand-blue); font-weight:bold;">${cursoTituloCorto}</span>`;
 
-        // Nivel 2: Sección actual
         if (state.currentView === 'intro') {
             rutaHtml += `<span class="breadcrumb-separator">/</span> <span class="breadcrumb-current">Informació</span>`;
         } else if (state.currentView === 'glossary') {
             rutaHtml += `<span class="breadcrumb-separator">/</span> <span class="breadcrumb-current">Glossari</span>`;
         } else if (mod) {
-            // Título del Módulo
             const modName = mod.titol.length > 20 ? mod.titol.substring(0, 20) + '...' : mod.titol;
             rutaHtml += `<span class="breadcrumb-separator">/</span> <span>${modName}</span>`;
-
-            // Tipo de vista (Teoría, Test, Flashcards)
+            
             let tipoVista = '';
             if (state.currentView === 'teoria') tipoVista = 'Teoria';
             else if (state.currentView === 'flashcards') tipoVista = 'Repàs';
@@ -683,42 +674,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         rutaHtml += `</div>`;
-        // ------------------------------------------------
 
-        // --- 2. RENDERIZADO FINAL ---
         container.innerHTML = `
             ${rutaHtml}
-            
             <div class="sidebar-header"><h3>Eines d'Estudi</h3></div>
-            
             <div class="tools-box">
                 <div class="tools-title" style="display:flex; justify-content:space-between; align-items:center;">
                     <span><i class="fa-regular fa-note-sticky"></i> Les meves notes</span>
-                    <button class="btn-small" onclick="window.downloadNotes()" title="Descarregar .txt" style="padding:2px 8px; font-size:0.7rem;">
-                        <i class="fa-solid fa-download"></i>
-                    </button>
+                    <button class="btn-small" onclick="window.downloadNotes()" title="Descarregar .txt" style="padding:2px 8px; font-size:0.7rem;"><i class="fa-solid fa-download"></i></button>
                 </div>
                 <textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea>
                 <small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small>
             </div>
-
             <div class="tools-box" style="border-color: var(--brand-blue);">
                 <div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div>
-                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">
-                    Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquest apartat'}"</strong>?
-                </p>
-                <button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')">
-                    <i class="fa-regular fa-paper-plane"></i> Enviar Dubte
-                </button>
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquí'}"</strong>?</p>
+                <button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')"><i class="fa-regular fa-paper-plane"></i> Enviar Dubte</button>
             </div>`;
-
-        // Event listener para guardar notas
+            
         const noteArea = document.getElementById('quick-notes');
-        if(noteArea) {
-            noteArea.addEventListener('input', (e) => {
-                localStorage.setItem(`sicap_notes_${USER.id}_${state.curso.slug}`, e.target.value);
-            });
-        }
+        if(noteArea) noteArea.addEventListener('input', (e) => localStorage.setItem(`sicap_notes_${USER.id}_${state.curso.slug}`, e.target.value));
     }
 
     // ===============================================================
@@ -827,7 +802,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 9. LOGICA DE TESTS (SMART ENGINE + MULTICHOICE)
     // ===============================================================
     function renderTestIntro(container, mod, modIdx) { 
+        // Null Safety
         const progreso = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx] : { aprobado: false, intentos: 0, nota: 0 };
+        
         if (progreso.aprobado) {
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Test Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="revisarTest(${modIdx})">Veure resultats anteriors</button></div></div>`;
              return;
@@ -872,7 +849,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         .filter(o => o.esCorrecta || o.correct || o.isCorrect)
                         .map(o => o.id || preg.opcions.indexOf(o));
                 } else {
-                    // FIX ID vs INDEX GOD MODE
                     const correctOpt = preg.opcions.find(o => o.esCorrecta || o.correct || o.isCorrect);
                     if (correctOpt) state.respuestasTemp[qId] = preg.opcions.indexOf(correctOpt);
                 }
@@ -885,7 +861,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             preg.opcions.forEach((opt, oIdx) => {
                 let isSelected = false;
-                const valToStore = oIdx; // Guardamos índice
+                const valToStore = oIdx; // Index
                 if (isMulti) isSelected = savedVal.includes(valToStore);
                 else isSelected = (savedVal == valToStore);
                 const checked = isSelected ? 'checked' : '';
@@ -1005,8 +981,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     window.revisarTest = function(modIdx) {
         const mod = state.curso.moduls[modIdx];
-        
-        // CAMBIO: Solo usar banc_preguntes
         const todasLasPreguntas = mod.banc_preguntes || [];
 
         if (todasLasPreguntas.length === 0) {
@@ -1056,46 +1030,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===============================================================
-    // 10. EXAMEN FINAL
+    // 10. EXAMEN FINAL (CON LOGICA DE FECHAS Y BLINDAJE NULL)
     // ===============================================================
     function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
         
         if (finalData.aprobado) {
-            // --- LÓGICA DE FECHAS (2 SEMANAS O FIN DE CURSO) ---
+            // --- LOGICA FECHAS (2 SEMANAS O FIN CURSO) ---
             const hoy = new Date();
-            
-            // 1. Obtenemos fecha de matrícula desde el estado global (se cargó al inicio)
-            // Necesitamos acceder a la matrícula actual. Como 'cargarDatos' ya la leyó, 
-            // Strapi guarda el 'createdAt' en el objeto de matrícula.
-            // NOTA: Para que esto funcione, necesitamos que 'cargarDatos' guarde el 'createdAt'.
-            // Si no lo tenemos a mano, usamos una fecha segura o hacemos un fetch rápido, 
-            // pero normalmente 'state.matriculaData' debería tenerlo.
-            // VAMOS A ASUMIR QUE state.matriculaId ES EL ID, PERO NECESITAMOS LA FECHA.
-            // TRUCO: Usamos la fecha actual como fallback si no tenemos la de inscripcion a mano, 
-            // pero lo ideal es que 'cargarDatos' guarde todo el objeto matrícula en 'state.matriculaFull'.
-            
-            // Para no complicar la arquitectura ahora, usaremos la lógica de bloqueo visual.
-            // Si acabas de aprobar AHORA, seguro que hoy < hoy + 14 días.
-            // Así que siempre saldrá el mensaje de espera a menos que el curso haya acabado ya.
-            
-            let fechaInscripcion = new Date(); // Por defecto hoy si acaba de aprobar
-            // Intentamos recuperar la fecha real si la tenemos en cache o state
-            // (Esta parte asume que añadiremos state.matriculaCreatedAt en cargarDatos, ver abajo)
-            if (state.matriculaCreatedAt) {
-                fechaInscripcion = new Date(state.matriculaCreatedAt);
-            }
-
+            let fechaInscripcion = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt) : new Date();
             const fechaDesbloqueo = new Date(fechaInscripcion);
             fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14);
 
             const rawFin = state.curso.fecha_fin || state.curso.data_fi;
             if (rawFin) {
                 const fechaFinCurso = new Date(rawFin);
-                if (fechaFinCurso < fechaDesbloqueo) {
-                    fechaDesbloqueo = fechaFinCurso;
-                }
+                if (fechaFinCurso < fechaDesbloqueo) fechaDesbloqueo = fechaFinCurso;
             }
             
             const estaBloqueado = hoy < fechaDesbloqueo;
@@ -1111,7 +1062,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 botonHtml = `<button class="btn-primary" onclick="window.imprimirDiploma('${finalData.nota}')"><i class="fa-solid fa-download"></i> Descarregar Diploma</button>`;
             }
-            // --------------------------------
 
             let revisarHtml = `<button class="btn-secondary" style="margin-top:10px;" onclick="revisarExamenFinal()"><i class="fa-solid fa-eye"></i> Revisar Respostes</button>`;
             
@@ -1184,7 +1134,7 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div class="question-card" id="card-final-${idx}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text" style="margin-top:10px;">${preg.text}</div><div class="options-list">`;
             preg.opcions.forEach((opt, oIdx) => { 
                 let isSelected = false;
-                const valToStore = oIdx; // Index
+                const valToStore = opt.id || oIdx; 
                 if (isMulti) isSelected = savedVal.includes(valToStore);
                 else isSelected = (savedVal == valToStore);
                 const checked = isSelected ? 'checked' : '';

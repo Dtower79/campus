@@ -1158,7 +1158,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     window.entregarExamenFinal = function(forzado = false) {
         const doDelivery = async () => {
-            detenerCronometro(); const preguntas = window.currentQuestions; let aciertos = 0;
+            detenerCronometro(); 
+            const preguntas = window.currentQuestions; 
+            let aciertos = 0;
+            
             preguntas.forEach((preg, idx) => { 
                 const qId = `final-${idx}`; 
                 const userRes = state.respuestasTemp[qId];
@@ -1172,10 +1175,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) aciertos++;
                 }
             });
-            const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); const aprobado = nota >= 7.5; 
-            state.progreso.examen_final.intentos += 1; state.progreso.examen_final.nota = Math.max(state.progreso.examen_final.nota, nota); if (aprobado) state.progreso.examen_final.aprobado = true;
+
+            const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); 
+            const aprobado = nota >= 7.5; 
+            
+            // 1. ACTUALIZACIÓN LOCAL (PRELIMINAR)
+            if (!state.progreso.examen_final) state.progreso.examen_final = { intentos: 0, nota: 0, aprobado: false };
+            state.progreso.examen_final.intentos += 1; 
+            state.progreso.examen_final.nota = Math.max(state.progreso.examen_final.nota, nota); 
+            if (aprobado) state.progreso.examen_final.aprobado = true;
+            
             let porcentaje = state.progreso.progres || 0;
             if (aprobado) porcentaje = 100;
+            
             const payload = { data: { progres_detallat: state.progreso, progres: porcentaje } }; 
             
             if (aprobado) { 
@@ -1189,11 +1201,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 else crearNotificacion("Intents Esgotats ⛔", `Has esgotat els 2 intents amb un ${nota}.`);
             }
             
-            await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) });
-            limpiarRespuestasLocales('examen_final'); state.testEnCurso = false; document.body.classList.remove('exam-active');
+            try {
+                // 2. ENVIAR A STRAPI Y ESPERAR RESPUESTA
+                const res = await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { 
+                    method: 'PUT', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, 
+                    body: JSON.stringify(payload) 
+                });
+                
+                const json = await res.json();
+                
+                // 3. SINCRONIZACIÓN CRÍTICA (FIX)
+                // Actualizamos el estado local con lo que nos confirma el servidor que ha guardado.
+                // Así aseguramos que si el servidor dice "2 intentos", el frontend sepa que son 2.
+                if (json.data && json.data.progres_detallat) {
+                    state.progreso = json.data.progres_detallat;
+                } else if (json.data && json.data.attributes && json.data.attributes.progres_detallat) {
+                    // Soporte por si la estructura de Strapi varía
+                    state.progreso = json.data.attributes.progres_detallat;
+                }
+
+            } catch (e) {
+                console.error("Error guardant examen:", e);
+                // Si falla la conexión, confiamos en la actualización local que hicimos arriba
+            }
+            
+            limpiarRespuestasLocales('examen_final'); 
+            state.testEnCurso = false; 
+            document.body.classList.remove('exam-active');
+            
             mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, 999, true);
         };
-        if(forzado) { doDelivery(); } else { window.mostrarModalConfirmacion("Entregar Examen", "Segur que vols entregar?", () => { document.getElementById('custom-modal').style.display = 'none'; doDelivery(); }); }
+
+        if(forzado) { 
+            doDelivery(); 
+        } else { 
+            window.mostrarModalConfirmacion("Entregar Examen", "Segur que vols entregar?", () => { 
+                document.getElementById('custom-modal').style.display = 'none'; 
+                doDelivery(); 
+            }); 
+        }
     }
 
     // --- REVISIÓN EXAMEN FINAL ---

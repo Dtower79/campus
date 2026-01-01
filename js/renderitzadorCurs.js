@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v57.3 - ROBUST FINAL EXAM FLOW)
+   RENDERITZADORCURS.JS (v57.5 - FINAL PRODUCTION RELEASE - FULL)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let state = {
         matriculaId: null,
-        matriculaCreatedAt: null,
+        matriculaCreatedAt: null, // Vital para fecha diploma
         curso: null,
         progreso: {},
         currentModuleIndex: -1,
@@ -102,8 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function prepararExamen(mod) {
         const pool = mod.banc_preguntes || [];
-        const limite = pool.length; 
+        const limite = pool.length; // Todas las preguntas
+        
         let seleccionadas = shuffleArray(pool).slice(0, limite);
+
         return seleccionadas.map(p => {
             const pClon = JSON.parse(JSON.stringify(p));
             pClon.opcions = shuffleArray(pClon.opcions);
@@ -188,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const mat = json.data[0];
         state.matriculaId = mat.documentId || mat.id;
-        state.matriculaCreatedAt = mat.createdAt;
+        state.matriculaCreatedAt = mat.createdAt; // GUARDAR FECHA
         state.curso = mat.curs;
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
@@ -213,36 +215,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function inicializarProgresoEnStrapi() {
-        const modulos = (state.curso && state.curso.moduls) ? state.curso.moduls : [];
-        const nuevoProgreso = {
+        const modulos = state.curso.moduls || [];
+        state.progreso = {
             modulos: modulos.map(() => ({ aprobado: false, nota: 0, intentos: 0, flashcards_done: false })),
             examen_final: { aprobado: false, nota: 0, intentos: 0 }
         };
-        await guardarProgreso(nuevoProgreso);
+        await guardarProgreso(state.progreso);
     }
 
     async function guardarProgreso(progresoObj) {
-        const modulos = state.curso.moduls || [];
-        let totalActividades = 0;
-        let actividadesCompletadas = 0;
-
-        modulos.forEach((mod, idx) => {
-            const modProg = (progresoObj.modulos && progresoObj.modulos[idx]) ? progresoObj.modulos[idx] : {};
-            totalActividades++;
-            if (modProg.aprobado) actividadesCompletadas++;
-            if (mod.targetes_memoria && mod.targetes_memoria.length > 0) {
-                totalActividades++;
-                if (modProg.flashcards_done) actividadesCompletadas++;
-            }
+        state.progreso = progresoObj;
+        let total = 0, done = 0;
+        state.curso.moduls.forEach((mod, i) => {
+             total++; if(progresoObj.modulos[i]?.aprobado) done++;
+             if(mod.targetes_memoria?.length > 0) { total++; if(progresoObj.modulos[i]?.flashcards_done) done++; }
         });
-
-        if (state.curso.examen_final && state.curso.examen_final.length > 0) {
-            totalActividades++;
-            if (progresoObj.examen_final && progresoObj.examen_final.aprobado) actividadesCompletadas++;
-        }
-
-        let porcentaje = totalActividades > 0 ? Math.round((actividadesCompletadas / totalActividades) * 100) : 0;
-        if (progresoObj.examen_final && progresoObj.examen_final.aprobado) porcentaje = 100;
+        if(state.curso.examen_final?.length > 0) { total++; if(progresoObj.examen_final?.aprobado) done++; }
+        let pct = total > 0 ? Math.round((done/total)*100) : 0;
+        if(progresoObj.examen_final?.aprobado) pct = 100;
 
         const payload = { 
             data: { 
@@ -262,10 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
                 body: JSON.stringify(payload)
             });
-            state.progreso = progresoObj;
-            if (document.getElementById('course-index') && document.getElementById('course-index').innerHTML !== '') {
-                renderSidebar(); 
-            }
+            renderSidebar();
         } catch(e) { console.error("Error guardando progreso:", e); }
     }
 
@@ -373,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===============================================================
-    // 6. LÓGICA DE BLOQUEO
+    // 6. LÓGICA DE BLOQUEO (FIXED)
     // ===============================================================
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
@@ -394,16 +381,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function puedeHacerExamenFinal() {
-        if (state.godMode) return true; 
+        if (state.godMode) return true;
+        
+        // FIX: Si ya está aprobado, SIEMPRE puede entrar
+        if (state.progreso && state.progreso.examen_final && state.progreso.examen_final.aprobado) {
+            return true;
+        }
+
         if (!state.progreso || !state.progreso.modulos) return false;
         
         const modulosCurso = state.curso.moduls || [];
         return modulosCurso.every((modObj, idx) => {
             const m = state.progreso.modulos[idx];
             if (!m) return false;
+            
             const tieneFlash = modObj && modObj.targetes_memoria && modObj.targetes_memoria.length > 0;
             const flashOk = tieneFlash ? (m.flashcards_done === true) : true;
             const testOk = (m.aprobado === true);
+            
             return testOk && flashOk;
         });
     }
@@ -421,28 +416,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.cambiarVista = function(idx, view) {
-        console.log("Navegant a:", idx, view);
         state.currentModuleIndex = parseInt(idx);
         state.currentView = view;
         state.respuestasTemp = {}; 
         state.testEnCurso = false;
         if(view === 'test') state.preguntasSesionActual = [];
-        
-        renderSidebar();
-        renderMainContent();
-        window.scrollTo(0,0);
-        
-        if(window.innerWidth <= 1000) {
-            document.querySelector('.sidebar-left').classList.remove('sidebar-mobile-open');
-        }
-
-        setTimeout(() => {
-            const activeItem = document.querySelector('.sidebar-subitem.active');
-            if(activeItem) {
-                const parentGroup = activeItem.closest('.sidebar-module-group');
-                if(parentGroup) parentGroup.classList.add('open');
-            }
-        }, 100);
+        renderSidebar(); renderMainContent(); window.scrollTo(0,0);
+        if(window.innerWidth <= 1000) document.querySelector('.sidebar-left').classList.remove('sidebar-mobile-open');
+        setTimeout(() => { const activeItem = document.querySelector('.sidebar-subitem.active'); if(activeItem) activeItem.closest('.sidebar-module-group')?.classList.add('open'); }, 100);
     }
 
     window.downloadNotes = function() {
@@ -451,13 +432,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!content) return alert("No tens apunts guardats per descarregar.");
         const blob = new Blob([content], { type: 'text/plain' });
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Notes_${state.curso.slug}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
+        const a = document.createElement('a'); a.href = url; a.download = `Notes_${state.curso.slug}.txt`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
     };
 
     // ===============================================================
@@ -480,6 +456,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         (state.curso.moduls || []).forEach((mod, idx) => {
             const isLocked = estaBloqueado(idx);
+            
+            // Null Safety
             const modProgreso = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx] : null;
             
             const tieneFlash = mod.targetes_memoria && mod.targetes_memoria.length > 0;
@@ -516,7 +494,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const isGlossaryActive = state.currentModuleIndex === 1000;
         html += `<div class="sidebar-module-group ${isGlossaryActive ? 'open' : ''}" style="border-top:1px solid #eee; margin-top:10px;"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span><i class="fa-solid fa-book-bookmark"></i> Recursos</span></div><div class="sidebar-sub-menu">${renderSubLink(1000, 'glossary', '📚 Glossari de Termes', false, true)}</div></div>`;
 
-        const finalIsLocked = !puedeHacerExamenFinal(); 
+        // FIX: Si está aprobado, finalIsLocked = false
+        const finalIsLocked = !puedeHacerExamenFinal();
         const isFinalActive = state.currentModuleIndex === 999;
         const lockedFinalClass = (finalIsLocked && !state.godMode) ? 'locked-module' : '';
         const openFinalClass = isFinalActive ? 'open' : '';
@@ -924,6 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const isCorrect = (userArr.length === correctas.length) && userArr.every(val => correctas.includes(val));
                     if (isCorrect) aciertos++;
                 } else {
+                    // FIX: ACCESO DIRECTO POR ÍNDICE
                     const selectedOpt = preg.opcions[userRes];
                     if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) aciertos++;
                 }
@@ -972,7 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function mostrarFeedback(preguntas, respuestasUsuario, nota, aprobado, modIdx, esFinal) {
         const container = document.getElementById('moduls-container'); const color = aprobado ? 'green' : 'red';
         
-        // FIX V57.3: Forzar recarga si es examen final aprobado
+        // FIX V57.5: Si es final aprobado, RECARGAMOS para garantizar estados
         let action = `window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')`;
         if (esFinal && aprobado) {
             action = "window.location.reload()";
@@ -1207,8 +1187,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); const aprobado = nota >= 7.5; 
             
-            // 1. ACTUALIZACIÓN LOCAL (PRELIMINAR)
-            if (!state.progreso.examen_final) state.progreso.examen_final = { intentos: 0, nota: 0, aprobado: false };
             state.progreso.examen_final.intentos += 1; 
             state.progreso.examen_final.nota = Math.max(state.progreso.examen_final.nota, nota); 
             if (aprobado) state.progreso.examen_final.aprobado = true;
@@ -1230,7 +1208,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             try {
-                // 2. ENVIAR A STRAPI Y ESPERAR RESPUESTA
                 const res = await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { 
                     method: 'PUT', 
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, 
@@ -1239,7 +1216,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const json = await res.json();
                 
-                // 3. SINCRONIZACIÓN CRÍTICA (FIX)
                 if (json.data && json.data.progres_detallat) {
                     state.progreso = json.data.progres_detallat;
                 } else if (json.data && json.data.attributes && json.data.attributes.progres_detallat) {
@@ -1267,7 +1243,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- REVISIÓN EXAMEN FINAL ---
     window.revisarExamenFinal = function() {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid'); 
@@ -1293,7 +1268,6 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html; window.scrollTo(0,0);
     }
 
-    // --- UTILS ---
     window.imprimirDiploma = function(nota) { 
         if (window.imprimirDiplomaCompleto) {
             const matData = { id: state.matriculaId, documentId: state.matriculaId, nota_final: nota, progres_detallat: state.progreso };

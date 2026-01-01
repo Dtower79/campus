@@ -1,8 +1,8 @@
 /* ==========================================================================
-   DASHBOARD.JS (v56.5 - FIX SYNTAX ERROR ON APOSTROPHES)
+   DASHBOARD.JS (v56.7 - PRODUCTION MASTER - FULL & STABLE)
    ========================================================================== */
 
-console.log("🚀 Carregant Dashboard v56.5...");
+console.log("🚀 Carregant Dashboard v56.7...");
 
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('jwt');
@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 1. Si no hay token, no hacemos nada
     if (!token) return; 
 
-    // 2. Simulamos carga
+    // 2. Simulamos carga (UX Profesional)
     if(loginView) loginView.style.display = 'none';
     const loginCard = document.querySelector('.login-card');
     let spinner = document.createElement('div');
@@ -63,6 +63,7 @@ window.sesionLeidas = new Set();
 window.iniciarApp = function() {
     window.appIniciada = true;
     
+    // Cargar datos usuario cabecera
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
         let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
@@ -368,10 +369,7 @@ window.abrirPanelMensajes = async function(modoForzado) {
                     const alumnoNombre = m.alumne_nom || 'Alumne';
                     const alumnoId = m.users_permissions_user?.id || m.users_permissions_user?.documentId;
                     const msgId = m.documentId || m.id;
-                    
-                    // FIX V56.5: ESCAPAR COMILLAS SIMPLES EN EL TEMA
-                    const rawTema = m.tema || 'Dubte';
-                    const temaSafe = encodeURIComponent(rawTema).replace(/'/g, "%27");
+                    const temaEnc = encodeURIComponent(m.tema || 'Dubte').replace(/'/g, "%27");
 
                     html += `
                         <div class="msg-card" id="msg-card-${msgId}">
@@ -386,7 +384,7 @@ window.abrirPanelMensajes = async function(modoForzado) {
                                     <textarea id="reply-${msgId}" class="modal-textarea" placeholder="Escriu la resposta..." style="height:80px;"></textarea>
                                     
                                     <button class="btn-primary" style="margin-top:5px; padding:5px 15px; font-size:0.85rem;" 
-                                        onclick="window.enviarRespostaProfessor(this, '${msgId}', '${alumnoId}', '${temaSafe}')">
+                                        onclick="window.enviarRespostaProfessor(this, '${msgId}', '${alumnoId}', '${temaEnc}')">
                                         Enviar Resposta
                                     </button>
                                 </div>
@@ -423,11 +421,10 @@ window.abrirPanelMensajes = async function(modoForzado) {
     } catch(e) { msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>'; }
 };
 
-// FIX V56.5: FUNCION GLOBAL Y BÚSQUEDA POR PROXIMIDAD
 window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, encodedTema) {
     console.log("Intentant enviar resposta...", msgId);
     
-    // Buscamos el textarea justo antes del botón (hermano anterior)
+    // Buscar el textarea justo antes del botón
     const txt = btnElement.previousElementSibling;
     const respuesta = txt ? txt.value.trim() : '';
     
@@ -439,7 +436,7 @@ window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, en
     
     const token = localStorage.getItem('jwt');
     
-    // Feedback visual
+    // UI Feedback
     btnElement.innerText = "Enviant..."; 
     btnElement.disabled = true;
 
@@ -455,7 +452,7 @@ window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, en
         const card = document.getElementById(`msg-card-${msgId}`);
         if(card) card.remove();
 
-        // Notificación al alumno
+        // Notificar al alumno
         if(studentId && studentId !== 'undefined' && studentId !== 'null') {
             const tema = decodeURIComponent(encodedTema);
             await fetch(API_ROUTES.notifications, {
@@ -481,7 +478,7 @@ window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, en
     }
 };
 
-// --- CARGA DE CURSOS ---
+// --- CARGA DE DATOS Y CURSOS ---
 window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
 window.loadCatalog = async function() { await renderCoursesLogic('home'); };
 
@@ -512,7 +509,9 @@ async function renderCoursesLogic(viewMode) {
         // LÓGICA DE FILTRADO JS (Robustez)
         const debeMostrarse = (curs) => {
             if (!curs) return false;
+            // Si es profesor, ve todo
             if (user.es_professor === true) return true;
+            // Si es alumno, SOLO ve si mode_esborrany NO es true
             return curs.mode_esborrany !== true;
         };
 
@@ -558,6 +557,7 @@ async function renderCoursesLogic(viewMode) {
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES');
 
+            // BADGES
             let badge = '';
             if (curs.mode_esborrany) {
                 badge = `<span class="course-badge" style="background:#6f42c1; color:white; border:1px solid #59359a;">👁️ OCULT (MODE TEST)</span>`;
@@ -684,55 +684,63 @@ async function loadGrades() {
         tbody.innerHTML = '';
         window.gradesCache = [];
 
-        if(json.data.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Sense qualificacions.</td></tr>'; return; }
+        if(!json.data || json.data.length === 0) { 
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Sense qualificacions.</td></tr>'; 
+            return; 
+        }
 
         json.data.forEach((mat, idx) => {
-            const curs = mat.curs;
-            window.gradesCache[idx] = { matricula: mat, curso: curs };
-            
-            const isDone = mat.estat === 'completat' || mat.progres >= 100 || mat.progres_detallat?.examen_final?.aprobado;
-            const nota = mat.nota_final || mat.progres_detallat?.examen_final?.nota || '-';
-            const color = isDone ? '#10b981' : 'var(--brand-blue)';
-            
-            let btnCert = '<small>Pendent</small>';
-            
-            if (isDone) {
-                // --- LÓGICA DE FECHAS (2 SEMANAS O FIN DE CURSO) ---
-                const hoy = new Date();
+            try {
+                const curs = mat.curs;
+                if(!curs) return;
                 
-                // 1. Calculamos fecha inscripción + 14 días
-                const fechaInscripcion = new Date(mat.createdAt); 
-                const fechaDesbloqueo = new Date(fechaInscripcion);
-                fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14); // Sumamos 2 semanas
+                window.gradesCache[idx] = { matricula: mat, curso: curs };
+                
+                const isDone = mat.estat === 'completat' || mat.progres >= 100 || mat.progres_detallat?.examen_final?.aprobado;
+                const nota = mat.nota_final || mat.progres_detallat?.examen_final?.nota || '-';
+                const color = isDone ? '#10b981' : 'var(--brand-blue)';
+                
+                let btnCert = '<small>Pendent</small>';
+                
+                if (isDone) {
+                    const hoy = new Date();
+                    // Fix: Asegurar fecha válida
+                    let fechaInscripcion = mat.createdAt ? new Date(mat.createdAt) : new Date();
+                    
+                    const fechaDesbloqueo = new Date(fechaInscripcion);
+                    fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14); 
 
-                // 2. Si el curso tiene fecha fin, miramos cual ocurre ANTES
-                const rawFin = curs.fecha_fin || curs.data_fi;
-                if (rawFin) {
-                    const fechaFinCurso = new Date(rawFin);
-                    // Si el curso acaba ANTES de las 2 semanas, el diploma se da al acabar el curso
-                    if (fechaFinCurso < fechaDesbloqueo) {
-                        fechaDesbloqueo = fechaFinCurso;
+                    const rawFin = curs.fecha_fin || curs.data_fi;
+                    if (rawFin) {
+                        const fechaFinCurso = new Date(rawFin);
+                        if (!isNaN(fechaFinCurso.getTime()) && fechaFinCurso < fechaDesbloqueo) {
+                            fechaDesbloqueo.setTime(fechaFinCurso.getTime());
+                        }
+                    }
+
+                    if (hoy < fechaDesbloqueo) {
+                        const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
+                        btnCert = `<small style="color:#d97706; font-weight:bold; cursor:help;" title="Disponible el ${fechaStr}">Disponible el ${fechaStr}</small>`;
+                    } else {
+                        btnCert = `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>`;
                     }
                 }
 
-                // 3. Comprobación final
-                if (hoy < fechaDesbloqueo) {
-                    const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
-                    btnCert = `<small style="color:#d97706; font-weight:bold; cursor:help;" title="Per normativa, el certificat s'emet 15 dies després de la inscripció o al finalitzar el curs.">Disponible el ${fechaStr}</small>`;
-                } else {
-                    btnCert = `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>`;
-                }
+                tbody.innerHTML += `
+                    <tr style="border-bottom:1px solid #eee;">
+                        <td data-label="Curs" style="padding:15px;"><strong>${curs.titol}</strong></td>
+                        <td data-label="Estat" style="padding:15px; color:${color}; font-weight:bold;">${isDone ? 'Completat' : mat.progres+'%'}</td>
+                        <td data-label="Nota" style="padding:15px;">${nota}</td>
+                        <td data-label="Diploma" style="padding:15px;">${btnCert}</td>
+                    </tr>`;
+            } catch (innerE) {
+                console.error("Error al renderizar fila de notas:", innerE);
             }
-
-            tbody.innerHTML += `
-                <tr style="border-bottom:1px solid #eee;">
-                    <td data-label="Curs" style="padding:15px;"><strong>${curs.titol}</strong></td>
-                    <td data-label="Estat" style="padding:15px; color:${color}; font-weight:bold;">${isDone ? 'Completat' : mat.progres+'%'}</td>
-                    <td data-label="Nota" style="padding:15px;">${nota}</td>
-                    <td data-label="Diploma" style="padding:15px;">${btnCert}</td>
-                </tr>`;
         });
-    } catch(e) { console.error(e); tbody.innerHTML = '<tr><td colspan="4">Error al carregar notes.</td></tr>'; }
+    } catch(e) { 
+        console.error(e); 
+        tbody.innerHTML = '<tr><td colspan="4">Error al carregar notes.</td></tr>'; 
+    }
 }
 
 window.callPrintDiploma = function(idx) {
@@ -748,21 +756,18 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const matId = matriculaData.documentId || matriculaData.id;
     const nota = matriculaData.nota_final || matriculaData.progres_detallat?.examen_final?.nota || 'APTE';
     
-    // FIX FECHAS DIPLOMA
     const rawInicio = cursoData.fecha_inicio || cursoData.data_inici || cursoData.publishedAt;
     const dataInici = rawInicio ? new Date(rawInicio).toLocaleDateString('ca-ES') : 'N/A';
     const rawFin = cursoData.fecha_fin || cursoData.data_fi;
     const dataFi = rawFin ? new Date(rawFin).toLocaleDateString('ca-ES') : 'N/A';
     const fechaHoy = new Date().toLocaleDateString('ca-ES', { year:'numeric', month:'long', day:'numeric' });
     
-    const currentDomain = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+    const currentDomain = window.location.origin;
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentDomain + '/verify.html?ref=' + matId)}`;
 
-    let temarioHtml = '';
+    let temarioHtml = '<p>Temari complet segons pla formatiu.</p>';
     if(cursoData.moduls && cursoData.moduls.length > 0) {
         temarioHtml = '<ul style="margin:0; padding-left:20px;">' + cursoData.moduls.map((m,i) => `<li style="margin-bottom:5px;"><strong>Mòdul ${i+1}:</strong> ${m.titol}</li>`).join('') + '</ul>';
-    } else {
-        temarioHtml = '<p>Temari complet segons pla formatiu.</p>';
     }
 
     let printDiv = document.getElementById('diploma-print-container');

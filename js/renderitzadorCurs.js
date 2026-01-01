@@ -950,14 +950,70 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function mostrarFeedback(preguntas, respuestasUsuario, nota, aprobado, modIdx, esFinal) {
-        const container = document.getElementById('moduls-container'); const color = aprobado ? 'green' : 'red';
+        const container = document.getElementById('moduls-container'); 
+        const color = aprobado ? 'green' : 'red';
         
-        // FIX V57.5: Si es final aprobado, RECARGAMOS para garantizar estados
+        // --- 1. GENERAR LA CUADRÍCULA DE COLORES EN LA BARRA LATERAL ---
+        const gridRight = document.getElementById('quiz-grid'); 
+        if (gridRight) {
+            gridRight.className = 'grid-container'; 
+            gridRight.innerHTML = ''; 
+            
+            // Título de la barra lateral
+            const header = document.createElement('div'); 
+            header.innerHTML = `<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Resultats</h4>`; 
+            gridRight.appendChild(header);
+            
+            preguntas.forEach((p, i) => { 
+                const qId = esFinal ? `final-${i}` : `q-${i}`; 
+                const userRes = respuestasUsuario[qId];
+                let esCorrecta = false;
+
+                // Lógica de corrección idéntica a la de 'entregarTest'
+                if (p.es_multiresposta) {
+                    const userArr = userRes || [];
+                    const correctas = p.opcions.map((o, idx) => (o.esCorrecta || o.correct || o.isCorrect) ? idx : -1).filter(idx => idx !== -1);
+                    // Comparamos arrays ordenados
+                    const u = userArr.sort().toString();
+                    const c = correctas.sort().toString();
+                    esCorrecta = (u === c);
+                } else {
+                    // Respuesta única
+                    const selectedOpt = p.opcions[userRes];
+                    if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) {
+                        esCorrecta = true;
+                    }
+                }
+
+                const div = document.createElement('div'); 
+                div.className = 'grid-item'; 
+                div.innerText = i + 1; 
+                
+                // Aplicamos color directamente
+                if (esCorrecta) {
+                    div.style.backgroundColor = '#28a745'; // Verde
+                    div.style.color = 'white';
+                } else {
+                    div.style.backgroundColor = '#dc3545'; // Rojo
+                    div.style.color = 'white';
+                }
+
+                div.onclick = () => { 
+                    const card = document.getElementById(esFinal ? `review-card-final-${i}` : `review-card-${i}`); 
+                    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
+                }; 
+                gridRight.appendChild(div); 
+            });
+        }
+        // ----------------------------------------------------------------
+
+        // 2. LÓGICA DE NAVEGACIÓN
         let action = `window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')`;
         if (esFinal && aprobado) {
             action = "window.location.reload()";
         }
 
+        // 3. RENDERIZADO DEL CONTENIDO CENTRAL
         let html = `<div class="dashboard-card" style="border-top:5px solid ${color}; text-align:center; margin-bottom:30px;">
             <h2 style="color:${color}">${aprobado ? 'Superat!' : 'No Superat'}</h2>
             <div style="font-size:4rem; font-weight:bold; margin:10px 0;">${nota}</div>
@@ -969,26 +1025,50 @@ document.addEventListener('DOMContentLoaded', () => {
         
         preguntas.forEach((preg, idx) => {
             const qId = esFinal ? `final-${idx}` : `q-${idx}`; 
+            // ID único para el scroll (diferente si es final o parcial)
+            const cardId = esFinal ? `review-card-final-${idx}` : `review-card-${idx}`;
+            
             const userRes = respuestasUsuario[qId];
             const isMulti = preg.es_multiresposta === true;
-            html += `<div class="question-card review-mode"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
+
+            html += `<div class="question-card review-mode" id="${cardId}">
+                        <div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div>
+                        <div class="q-text">${preg.text}</div>
+                        <div class="options-list">`;
+            
             preg.opcions.forEach((opt, oIdx) => {
                 let classes = 'option-item '; 
                 const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
                 let isSelected = false;
                 const valToCheck = oIdx;
+                
                 if (isMulti) isSelected = (userRes || []).includes(valToCheck);
                 else isSelected = (userRes == valToCheck);
+                
                 if (isCorrect) classes += 'correct-answer '; 
-                if (isSelected) { classes += 'selected '; if (!isCorrect) classes += 'user-wrong '; }
+                if (isSelected) { 
+                    classes += 'selected '; 
+                    if (!isCorrect) classes += 'user-wrong '; 
+                }
+                
                 const inputType = isMulti ? 'checkbox' : 'radio';
                 const checked = isSelected ? 'checked' : '';
-                html += `<div class="${classes}"><input type="${inputType}" ${checked} disabled><span>${opt.text}</span></div>`;
+                
+                html += `<div class="${classes}">
+                            <input type="${inputType}" ${checked} disabled>
+                            <span>${opt.text}</span>
+                         </div>`;
             });
-            if (preg.explicacio) html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
+
+            if (preg.explicacio) {
+                html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
+            }
             html += `</div></div>`;
         });
-        container.innerHTML = html; window.scrollTo(0,0);
+        
+        container.innerHTML = html; 
+        window.scrollTo(0,0);
     }
 
     

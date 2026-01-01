@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v57.5 - FINAL PRODUCTION RELEASE - FULL)
+   RENDERITZADORCURS.JS (v57.6 - FINAL PRODUCTION RELEASE - CLEAN GRID)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let state = {
         matriculaId: null,
-        matriculaCreatedAt: null, // Vital para fecha diploma
+        matriculaCreatedAt: null, 
         curso: null,
         progreso: {},
         currentModuleIndex: -1,
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function prepararExamen(mod) {
         const pool = mod.banc_preguntes || [];
-        const limite = pool.length; // Todas las preguntas
+        const limite = pool.length; 
         
         let seleccionadas = shuffleArray(pool).slice(0, limite);
 
@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const mat = json.data[0];
         state.matriculaId = mat.documentId || mat.id;
-        state.matriculaCreatedAt = mat.createdAt; // GUARDAR FECHA
+        state.matriculaCreatedAt = mat.createdAt; 
         state.curso = mat.curs;
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = mat.progres_detallat || {};
@@ -360,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===============================================================
-    // 6. LÓGICA DE BLOQUEO (FIXED)
+    // 6. LÓGICA DE BLOQUEO
     // ===============================================================
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
@@ -383,7 +383,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function puedeHacerExamenFinal() {
         if (state.godMode) return true;
         
-        // FIX: Si ya está aprobado, SIEMPRE puede entrar
         if (state.progreso && state.progreso.examen_final && state.progreso.examen_final.aprobado) {
             return true;
         }
@@ -432,8 +431,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!content) return alert("No tens apunts guardats per descarregar.");
         const blob = new Blob([content], { type: 'text/plain' });
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = `Notes_${state.curso.slug}.txt`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Notes_${state.curso.slug}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
     };
 
     // ===============================================================
@@ -456,8 +460,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         (state.curso.moduls || []).forEach((mod, idx) => {
             const isLocked = estaBloqueado(idx);
-            
-            // Null Safety
             const modProgreso = (state.progreso.modulos && state.progreso.modulos[idx]) ? state.progreso.modulos[idx] : null;
             
             const tieneFlash = mod.targetes_memoria && mod.targetes_memoria.length > 0;
@@ -494,8 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isGlossaryActive = state.currentModuleIndex === 1000;
         html += `<div class="sidebar-module-group ${isGlossaryActive ? 'open' : ''}" style="border-top:1px solid #eee; margin-top:10px;"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span><i class="fa-solid fa-book-bookmark"></i> Recursos</span></div><div class="sidebar-sub-menu">${renderSubLink(1000, 'glossary', '📚 Glossari de Termes', false, true)}</div></div>`;
 
-        // FIX: Si está aprobado, finalIsLocked = false
-        const finalIsLocked = !puedeHacerExamenFinal();
+        const finalIsLocked = !puedeHacerExamenFinal(); 
         const isFinalActive = state.currentModuleIndex === 999;
         const lockedFinalClass = (finalIsLocked && !state.godMode) ? 'locked-module' : '';
         const openFinalClass = isFinalActive ? 'open' : '';
@@ -950,35 +951,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function mostrarFeedback(preguntas, respuestasUsuario, nota, aprobado, modIdx, esFinal) {
-        const container = document.getElementById('moduls-container'); 
-        const color = aprobado ? 'green' : 'red';
+        const container = document.getElementById('moduls-container'); const color = aprobado ? 'green' : 'red';
         
-        // --- 1. GENERAR LA CUADRÍCULA DE COLORES EN LA BARRA LATERAL ---
+        // FIX V57.5: Si es final aprobado, RECARGAMOS para garantizar estados
+        let action = `window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')`;
+        if (esFinal && aprobado) {
+            action = "window.location.reload()";
+        }
+        
+        // FIX V57.6: RECUPERAR GRID DE COLORES (VERDE/ROJO)
         const gridRight = document.getElementById('quiz-grid'); 
         if (gridRight) {
             gridRight.className = 'grid-container'; 
             gridRight.innerHTML = ''; 
-            
-            // Título de la barra lateral
-            const header = document.createElement('div'); 
-            header.innerHTML = `<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Resultats</h4>`; 
-            gridRight.appendChild(header);
             
             preguntas.forEach((p, i) => { 
                 const qId = esFinal ? `final-${i}` : `q-${i}`; 
                 const userRes = respuestasUsuario[qId];
                 let esCorrecta = false;
 
-                // Lógica de corrección idéntica a la de 'entregarTest'
                 if (p.es_multiresposta) {
                     const userArr = userRes || [];
                     const correctas = p.opcions.map((o, idx) => (o.esCorrecta || o.correct || o.isCorrect) ? idx : -1).filter(idx => idx !== -1);
-                    // Comparamos arrays ordenados
                     const u = userArr.sort().toString();
                     const c = correctas.sort().toString();
                     esCorrecta = (u === c);
                 } else {
-                    // Respuesta única
                     const selectedOpt = p.opcions[userRes];
                     if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) {
                         esCorrecta = true;
@@ -988,15 +986,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const div = document.createElement('div'); 
                 div.className = 'grid-item'; 
                 div.innerText = i + 1; 
-                
-                // Aplicamos color directamente
-                if (esCorrecta) {
-                    div.style.backgroundColor = '#28a745'; // Verde
-                    div.style.color = 'white';
-                } else {
-                    div.style.backgroundColor = '#dc3545'; // Rojo
-                    div.style.color = 'white';
-                }
+                div.style.backgroundColor = esCorrecta ? '#28a745' : '#dc3545';
+                div.style.color = 'white';
 
                 div.onclick = () => { 
                     const card = document.getElementById(esFinal ? `review-card-final-${i}` : `review-card-${i}`); 
@@ -1005,15 +996,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 gridRight.appendChild(div); 
             });
         }
-        // ----------------------------------------------------------------
 
-        // 2. LÓGICA DE NAVEGACIÓN
-        let action = `window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')`;
-        if (esFinal && aprobado) {
-            action = "window.location.reload()";
-        }
-
-        // 3. RENDERIZADO DEL CONTENIDO CENTRAL
         let html = `<div class="dashboard-card" style="border-top:5px solid ${color}; text-align:center; margin-bottom:30px;">
             <h2 style="color:${color}">${aprobado ? 'Superat!' : 'No Superat'}</h2>
             <div style="font-size:4rem; font-weight:bold; margin:10px 0;">${nota}</div>
@@ -1025,50 +1008,28 @@ document.addEventListener('DOMContentLoaded', () => {
         
         preguntas.forEach((preg, idx) => {
             const qId = esFinal ? `final-${idx}` : `q-${idx}`; 
-            // ID único para el scroll (diferente si es final o parcial)
             const cardId = esFinal ? `review-card-final-${idx}` : `review-card-${idx}`;
-            
             const userRes = respuestasUsuario[qId];
             const isMulti = preg.es_multiresposta === true;
             const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
-
-            html += `<div class="question-card review-mode" id="${cardId}">
-                        <div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div>
-                        <div class="q-text">${preg.text}</div>
-                        <div class="options-list">`;
-            
+            html += `<div class="question-card review-mode" id="${cardId}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
             preg.opcions.forEach((opt, oIdx) => {
                 let classes = 'option-item '; 
                 const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
                 let isSelected = false;
                 const valToCheck = oIdx;
-                
                 if (isMulti) isSelected = (userRes || []).includes(valToCheck);
                 else isSelected = (userRes == valToCheck);
-                
                 if (isCorrect) classes += 'correct-answer '; 
-                if (isSelected) { 
-                    classes += 'selected '; 
-                    if (!isCorrect) classes += 'user-wrong '; 
-                }
-                
+                if (isSelected) { classes += 'selected '; if (!isCorrect) classes += 'user-wrong '; }
                 const inputType = isMulti ? 'checkbox' : 'radio';
                 const checked = isSelected ? 'checked' : '';
-                
-                html += `<div class="${classes}">
-                            <input type="${inputType}" ${checked} disabled>
-                            <span>${opt.text}</span>
-                         </div>`;
+                html += `<div class="${classes}"><input type="${inputType}" ${checked} disabled><span>${opt.text}</span></div>`;
             });
-
-            if (preg.explicacio) {
-                html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
-            }
+            if (preg.explicacio) html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
             html += `</div></div>`;
         });
-        
-        container.innerHTML = html; 
-        window.scrollTo(0,0);
+        container.innerHTML = html; window.scrollTo(0,0);
     }
 
     
@@ -1083,20 +1044,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const container = document.getElementById('moduls-container');
         
-        // --- FIX: REGENERAR LA CUADRÍCULA DE NAVEGACIÓN ---
+        // FIX V57.6: RECUPERAR GRID DE NAVEGACIÓN EN REVISIÓN (AZUL)
         const gridRight = document.getElementById('quiz-grid'); 
         if (gridRight) {
             gridRight.className = 'grid-container'; 
             gridRight.innerHTML = ''; 
             
-            // Añadimos un título pequeño
-            const header = document.createElement('div'); 
-            header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Navegació Ràpida</h4>'; 
-            gridRight.appendChild(header);
-            
             todasLasPreguntas.forEach((p, i) => { 
                 const div = document.createElement('div'); 
-                // Usamos la clase 'answered' para que salgan azules (ya que es modo estudio/lectura)
                 div.className = 'grid-item answered'; 
                 div.innerText = i + 1; 
                 div.onclick = () => { 
@@ -1106,7 +1061,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 gridRight.appendChild(div); 
             });
         }
-        // ----------------------------------------------------
         
         let html = `<h3>Revisió (Mode Estudi)</h3>
                     <div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;">
@@ -1118,7 +1072,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
             const inputType = isMulti ? 'checkbox' : 'radio';
 
-            // FIX: AÑADIMOS ID PARA EL SCROLL
             html += `<div class="question-card review-mode" id="review-card-${idx}">
                         <div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div>
                         <div class="q-text">${preg.text}</div>
@@ -1293,6 +1246,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); const aprobado = nota >= 7.5; 
             
+            // 1. ACTUALIZACIÓN LOCAL (PRELIMINAR)
+            if (!state.progreso.examen_final) state.progreso.examen_final = { intentos: 0, nota: 0, aprobado: false };
             state.progreso.examen_final.intentos += 1; 
             state.progreso.examen_final.nota = Math.max(state.progreso.examen_final.nota, nota); 
             if (aprobado) state.progreso.examen_final.aprobado = true;
@@ -1314,6 +1269,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             try {
+                // 2. ENVIAR A STRAPI Y ESPERAR RESPUESTA
                 const res = await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { 
                     method: 'PUT', 
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, 
@@ -1322,6 +1278,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const json = await res.json();
                 
+                // 3. SINCRONIZACIÓN CRÍTICA (FIX)
                 if (json.data && json.data.progres_detallat) {
                     state.progreso = json.data.progres_detallat;
                 } else if (json.data && json.data.attributes && json.data.attributes.progres_detallat) {
@@ -1349,19 +1306,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- REVISIÓN EXAMEN FINAL ---
     window.revisarExamenFinal = function() {
         const container = document.getElementById('moduls-container');
-        const gridRight = document.getElementById('quiz-grid'); 
         const preguntas = state.curso.examen_final || [];
         if (preguntas.length === 0) { alert("No s'han trobat preguntes."); return; }
+        
+        // FIX V57.6: RECUPERAR GRID TAMBIÉN EN EXAMEN FINAL
+        const gridRight = document.getElementById('quiz-grid'); 
         if (gridRight) {
-            gridRight.className = 'grid-container'; gridRight.innerHTML = ''; 
-            const header = document.createElement('div'); header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary);">Navegació Revisió</h4>'; gridRight.appendChild(header);
-            preguntas.forEach((p, i) => { const div = document.createElement('div'); div.className = 'grid-item answered'; div.innerText = i + 1; div.onclick = () => { const card = document.getElementById(`review-card-${i}`); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; gridRight.appendChild(div); });
+            gridRight.className = 'grid-container'; 
+            gridRight.innerHTML = ''; 
+            
+            preguntas.forEach((p, i) => { 
+                const div = document.createElement('div'); 
+                div.className = 'grid-item answered'; 
+                div.innerText = i + 1; 
+                div.onclick = () => { 
+                    const card = document.getElementById(`review-card-final-${i}`); 
+                    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
+                }; 
+                gridRight.appendChild(div); 
+            });
         }
+
         let html = `<h3>Revisió Examen Final</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px;"><i class="fa-solid fa-eye"></i> Mode lectura.</div>`;
         preguntas.forEach((preg, idx) => {
-            html += `<div class="question-card review-mode" id="review-card-${idx}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            html += `<div class="question-card review-mode" id="review-card-final-${idx}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
             preg.opcions.forEach((opt) => {
                 let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
                 if (isCorrect) classes += 'correct-answer '; 
@@ -1374,6 +1345,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html; window.scrollTo(0,0);
     }
 
+    // --- UTILS ---
     window.imprimirDiploma = function(nota) { 
         if (window.imprimirDiplomaCompleto) {
             const matData = { id: state.matriculaId, documentId: state.matriculaId, nota_final: nota, progres_detallat: state.progreso };

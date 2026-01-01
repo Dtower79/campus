@@ -1,8 +1,8 @@
 /* ==========================================================================
-   DASHBOARD.JS (v56.7 - PRODUCTION MASTER - FULL & STABLE)
+   DASHBOARD.JS (v56.8 - SIGNATURE POSITION FIX)
    ========================================================================== */
 
-console.log("🚀 Carregant Dashboard v56.7...");
+console.log("🚀 Carregant Dashboard v56.8...");
 
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('jwt');
@@ -10,10 +10,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const appContainer = document.getElementById('app-container');
     const loginView = document.getElementById('login-view');
 
-    // 1. Si no hay token, no hacemos nada
     if (!token) return; 
 
-    // 2. Simulamos carga (UX Profesional)
     if(loginView) loginView.style.display = 'none';
     const loginCard = document.querySelector('.login-card');
     let spinner = document.createElement('div');
@@ -23,7 +21,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(loginCard) loginCard.appendChild(spinner);
 
     try {
-        // 3. Validar Token y refrescar usuario
         const res = await fetch(`${STRAPI_URL}/api/users/me?populate=*`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -49,7 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(loginView) loginView.style.display = 'block';
     }
 
-    // Botón Scroll Top
     const scrollBtn = document.getElementById('scroll-top-btn');
     if(scrollBtn) {
         window.onscroll = () => { scrollBtn.style.display = (document.documentElement.scrollTop > 300) ? "flex" : "none"; };
@@ -63,7 +59,6 @@ window.sesionLeidas = new Set();
 window.iniciarApp = function() {
     window.appIniciada = true;
     
-    // Cargar datos usuario cabecera
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
         let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
@@ -216,7 +211,6 @@ window.abrirPanelNotificaciones = async function() {
     document.getElementById('modal-btn-cancel').style.display = 'none';
     btnC.innerText = "Tancar";
     
-    // FIX MODAL 
     btnC.disabled = false;
     btnC.onclick = () => modal.style.display = 'none';
     
@@ -478,7 +472,7 @@ window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, en
     }
 };
 
-// --- CARGA DE DATOS Y CURSOS ---
+// --- CARGA DE CURSOS ---
 window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
 window.loadCatalog = async function() { await renderCoursesLogic('home'); };
 
@@ -506,23 +500,21 @@ async function renderCoursesLogic(viewMode) {
         
         let cursosAMostrar = [];
 
-        // LÓGICA DE FILTRADO JS (Robustez)
+        // LÓGICA DE FILTRADO JS
         const debeMostrarse = (curs) => {
             if (!curs) return false;
-            // Si es profesor, ve todo
             if (user.es_professor === true) return true;
-            // Si es alumno, SOLO ve si mode_esborrany NO es true
             return curs.mode_esborrany !== true;
         };
 
         if (viewMode === 'dashboard') {
-            // VISTA 1: Mis cursos (filtrado)
+            // VISTA 1: Mis cursos
             cursosAMostrar = userMatriculas
                 .filter(m => m.curs && debeMostrarse(m.curs)) 
                 .map(m => ({ ...m.curs, _matricula: m }));
 
         } else {
-            // VISTA 2: Catálogo (filtrado)
+            // VISTA 2: Catálogo
             const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const jsonCat = await resCat.json();
             
@@ -704,7 +696,6 @@ async function loadGrades() {
                 
                 if (isDone) {
                     const hoy = new Date();
-                    // Fix: Asegurar fecha válida
                     let fechaInscripcion = mat.createdAt ? new Date(mat.createdAt) : new Date();
                     
                     const fechaDesbloqueo = new Date(fechaInscripcion);
@@ -777,6 +768,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
         document.body.appendChild(printDiv);
     }
 
+    // Firma levantada (margin-bottom: 5px)
     printDiv.innerHTML = `
         <div class="diploma-page">
             <div class="diploma-border-outer">
@@ -796,7 +788,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
                     <div class="diploma-footer">
                         <div class="footer-qr-area"><img src="${qrSrc}" class="qr-image"><div class="qr-ref">Ref: ${matId}</div></div>
                         <div class="footer-signature-area">
-                            <img src="img/firma-miguel.png" style="height: 70px; display: block; margin: 0 auto -20px auto; position: relative; z-index: 10;">
+                            <img src="img/firma-miguel.png" style="height: 70px; display: block; margin: 0 auto 5px auto; position: relative; z-index: 10;">
                             <div class="signature-line"></div>
                             <span class="signature-name">Miguel Pueyo Pérez</span>
                             <span class="signature-role">Secretari General</span>
@@ -842,16 +834,10 @@ window.mostrarModalError = function(msg) {
     document.getElementById('modal-title').style.color = "var(--brand-blue)";
     document.getElementById('modal-msg').innerHTML = msg;
     document.getElementById('modal-btn-cancel').style.display = 'none';
-    
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "D'acord";
-    
-    // FIX: Reactivar botón por si estaba desactivado
     btn.disabled = false;
-    
-    // FIX 56.3: Asignación directa, no clones
     btn.onclick = () => m.style.display = 'none';
-    
     m.style.display = 'flex';
 };
 
@@ -860,18 +846,11 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     document.getElementById('modal-title').innerText = titulo;
     document.getElementById('modal-msg').innerHTML = msg;
     document.getElementById('modal-btn-cancel').style.display = 'block';
-    
     const btn = document.getElementById('modal-btn-confirm');
     btn.innerText = "Confirmar";
-    
-    // FIX: Reactivar botón por si estaba desactivado
     btn.disabled = false;
-
-    // FIX 56.3: Asignación directa de onclick (más robusto)
     btn.onclick = () => { m.style.display = 'none'; callback(); };
-    
     const btnC = document.getElementById('modal-btn-cancel');
     btnC.onclick = () => m.style.display = 'none';
-    
     m.style.display = 'flex';
 };

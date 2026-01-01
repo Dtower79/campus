@@ -1003,6 +1003,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const container = document.getElementById('moduls-container');
         
+        // --- FIX: REGENERAR LA CUADRÍCULA DE NAVEGACIÓN ---
+        const gridRight = document.getElementById('quiz-grid'); 
+        if (gridRight) {
+            gridRight.className = 'grid-container'; 
+            gridRight.innerHTML = ''; 
+            
+            // Añadimos un título pequeño
+            const header = document.createElement('div'); 
+            header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Navegació Ràpida</h4>'; 
+            gridRight.appendChild(header);
+            
+            todasLasPreguntas.forEach((p, i) => { 
+                const div = document.createElement('div'); 
+                // Usamos la clase 'answered' para que salgan azules (ya que es modo estudio/lectura)
+                div.className = 'grid-item answered'; 
+                div.innerText = i + 1; 
+                div.onclick = () => { 
+                    const card = document.getElementById(`review-card-${i}`); 
+                    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
+                }; 
+                gridRight.appendChild(div); 
+            });
+        }
+        // ----------------------------------------------------
+        
         let html = `<h3>Revisió (Mode Estudi)</h3>
                     <div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;">
                         <i class="fa-solid fa-eye"></i> Aquí pots veure totes les preguntes del banc amb les respostes correctes per repassar.
@@ -1013,7 +1038,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
             const inputType = isMulti ? 'checkbox' : 'radio';
 
-            html += `<div class="question-card review-mode">
+            // FIX: AÑADIMOS ID PARA EL SCROLL
+            html += `<div class="question-card review-mode" id="review-card-${idx}">
                         <div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div>
                         <div class="q-text">${preg.text}</div>
                         <div class="options-list">`;

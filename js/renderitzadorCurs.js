@@ -1,12 +1,11 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v57.9 - FINAL EXAM REVIEW FIX)
+   RENDERITZADORCURS.JS (v57.10 - FIX CONST ERROR & CLEAN GRID UI)
    ========================================================================== */
 
-console.log("🚀 Carregant Renderitzador v57.9...");
+console.log("🚀 Carregant Renderitzador v57.10...");
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // 1. HELPER
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
@@ -113,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                  await sincronizarAvanceLocal();
             }
+            
             renderSidebar();
             renderMainContent();
         } catch (e) {
@@ -184,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) {}
     }
 
+    // 4. NOTIFICACIONES
     async function crearNotificacion(titulo, mensaje) {
         try {
             await fetch(API_ROUTES.notifications, {
@@ -208,23 +209,27 @@ document.addEventListener('DOMContentLoaded', () => {
         let fechaInscripcion = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt) : new Date();
         const fechaDesbloqueo = new Date(fechaInscripcion);
         fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14);
+
         const rawFin = state.curso.fecha_fin || state.curso.data_fi;
         if (rawFin) {
             const fechaFinCurso = new Date(rawFin);
             if (fechaFinCurso < fechaDesbloqueo) fechaDesbloqueo = fechaFinCurso;
         }
+
         const estaBloqueado = hoy < fechaDesbloqueo;
         let mensaje = "";
+        
         if (estaBloqueado) {
             const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
-            mensaje = `Enhorabona! Has aprovat. El diploma estarà disponible automàticament el dia ${fechaStr}.`;
+            mensaje = `Enhorabona! Has aprovat "${cursoTitulo}". El diploma estarà disponible automàticament el dia ${fechaStr}.`;
         } else {
-            mensaje = `Enhorabona! Has aprovat. El teu diploma ja està disponible per descarregar.`;
+            mensaje = `Enhorabona! Has aprovat "${cursoTitulo}". El teu diploma ja està disponible per descarregar.`;
         }
+
         crearNotificacion("Curs Completat! 🎓", mensaje);
     }
 
-    // STORAGE & HELPERS
+    // 5. STORAGE & HELPERS
     function getStorageKey(tipo) { return `sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`; }
     function guardarRespuestaLocal(tipo, preguntaId, opcionIdx) {
         const key = getStorageKey(tipo);
@@ -253,7 +258,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return current.length;
     }
 
-    // BLOQUEO
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
@@ -272,6 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.godMode) return true;
         if (state.progreso && state.progreso.examen_final && state.progreso.examen_final.aprobado) return true;
         if (!state.progreso || !state.progreso.modulos) return false;
+        
         const modulosCurso = state.curso.moduls || [];
         return modulosCurso.every((modObj, idx) => {
             const m = state.progreso.modulos[idx];
@@ -323,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
     };
 
-    // RENDERIZADORES
+    // 7. RENDERIZADORES
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
         document.getElementById('curs-titol').innerText = state.curso.titol;
@@ -353,6 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if ((!isLocked || state.godMode) && mod.material_pdf) {
                 let archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
                 archivos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
                 if (archivos.length > 0) {
                     archivos.forEach(pdf => {
                         const pdfUrl = pdf.url.startsWith('/') ? STRAPI_URL + pdf.url : pdf.url;
@@ -414,6 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return; 
         }
         if (state.currentView === 'examen_final') { 
+            // FIX CRASH: PROTECCIÓN DE RENDERIZADO
             try { renderExamenFinal(container); } 
             catch (e) { console.error(e); container.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`; }
             return; 
@@ -521,9 +528,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const isCompletedDB = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx].flashcards_done === true : false;
         const flippedIndices = getFlippedCards(modIdx);
         const isReallyCompleted = isCompletedDB || (flippedIndices.length >= cards.length);
+
         let headerHtml = `<div id="fc-header-container">`;
-        if(isReallyCompleted) headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:green; background:#d4edda; border:1px solid #c3e6cb; padding:15px; border-radius:4px;"><i class="fa-solid fa-check-circle"></i> <strong>Activitat Completada!</strong><br><small>Ja pots accedir al següent mòdul (si has aprovat el test).</small></div>`;
-        else headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:4px;"><i class="fa-solid fa-circle-exclamation"></i> Progrés: <strong id="fc-counter-text">${flippedIndices.length}/${cards.length}</strong> targetes contestades. Has de fer-les totes per avançar.</div>`;
+        if(isReallyCompleted) {
+            headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:green; background:#d4edda; border:1px solid #c3e6cb; padding:15px; border-radius:4px;"><i class="fa-solid fa-check-circle"></i> <strong>Activitat Completada!</strong><br><small>Ja pots accedir al següent mòdul (si has aprovat el test).</small></div>`;
+        } else {
+            const count = flippedIndices.length;
+            const total = cards.length;
+            headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:4px;"><i class="fa-solid fa-circle-exclamation"></i> Progrés: <strong id="fc-counter-text">${count}/${total}</strong> targetes contestades. Has de fer-les totes per avançar.</div>`;
+        }
         headerHtml += `</div>`; 
         let html = `<h3>Targetes de Repàs</h3>${headerHtml}<div class="flashcards-grid-view">`;
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
@@ -610,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTestIntro(container, mod, modIdx) { 
         const progreso = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx] : { aprobado: false, intentos: 0, nota: 0 };
         if (progreso.aprobado) {
-             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Test Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="window.revisarTest(${modIdx})">Veure resultats anteriors</button></div></div>`;
+             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Test Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="revisarTest(${modIdx})">Veure resultats anteriors</button></div></div>`;
              return;
         }
         if (progreso.intentos >= 2 && !state.godMode) {
@@ -718,7 +731,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); 
             const aprobado = nota >= 7.0;
-            
             if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false, flashcards_done: false };
             state.progreso.modulos[modIdx].intentos += 1; 
             state.progreso.modulos[modIdx].nota = Math.max(state.progreso.modulos[modIdx].nota, nota); 
@@ -747,14 +759,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let action = `window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')`;
         if (esFinal && aprobado) action = "window.location.reload()";
 
-        // GRID RESULTADOS
+        // GRID RESULTADOS CON COLORES (FIX V57.10)
         const gridRight = document.getElementById('quiz-grid'); 
         if (gridRight) {
             gridRight.className = 'grid-container'; 
             gridRight.innerHTML = ''; 
-            const header = document.createElement('div'); 
-            header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Resultats</h4>'; 
-            gridRight.appendChild(header);
+            
             preguntas.forEach((p, i) => { 
                 const qId = esFinal ? `final-${i}` : `q-${i}`; 
                 const userRes = respuestasUsuario[qId];
@@ -807,26 +817,22 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html; window.scrollTo(0,0);
     }
 
-    // 10. REVISIÓN POSTERIOR
+    // 10. REVISIÓN POSTERIOR (FIXED GRID UI)
     window.revisarTest = function(modIdx) {
         const mod = state.curso.moduls[modIdx];
         const todasLasPreguntas = mod.banc_preguntes || [];
         if (todasLasPreguntas.length === 0) { console.warn("No preguntes."); return; }
         const container = document.getElementById('moduls-container');
         
-        // GRID REVISIÓN (AZUL)
+        // GRID REVISIÓN LIMPIO (SIN TEXTO FEO)
         const gridRight = document.getElementById('quiz-grid'); 
         if (gridRight) {
             gridRight.className = 'grid-container'; 
             gridRight.innerHTML = ''; 
-            
-            // TITULO PEQUEÑO
-            const header = document.createElement('div'); 
-            header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Navegació Ràpida</h4>'; 
-            gridRight.appendChild(header);
-
             todasLasPreguntas.forEach((p, i) => { 
-                const div = document.createElement('div'); div.className = 'grid-item answered'; div.innerText = i + 1; 
+                const div = document.createElement('div'); 
+                div.className = 'grid-item answered'; // Azul neutro
+                div.innerText = i + 1; 
                 div.onclick = () => { const card = document.getElementById(`review-card-${i}`); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; 
                 gridRight.appendChild(div); 
             });
@@ -850,25 +856,29 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html; window.scrollTo(0,0);
     }
 
-    // 11. EXAMEN FINAL
+    // 11. EXAMEN FINAL (FIXED CONST ERROR & GRID UI)
     function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
         
         if (finalData.aprobado) {
             const hoy = new Date();
+            // FIX: Use let to avoid "Assignment to constant" error
             let fechaInscripcion = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt) : new Date();
-            const fechaDesbloqueo = new Date(fechaInscripcion);
+            if (isNaN(fechaInscripcion.getTime())) fechaInscripcion = new Date(); 
+            
+            let fechaDesbloqueo = new Date(fechaInscripcion);
             fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14);
 
             const rawFin = state.curso.fecha_fin || state.curso.data_fi;
             if (rawFin) {
                 const fechaFinCurso = new Date(rawFin);
-                if (fechaFinCurso < fechaDesbloqueo) fechaDesbloqueo = fechaFinCurso;
+                if (!isNaN(fechaFinCurso.getTime()) && fechaFinCurso < fechaDesbloqueo) {
+                    fechaDesbloqueo.setTime(fechaFinCurso.getTime());
+                }
             }
             
             const estaBloqueado = hoy < fechaDesbloqueo;
-            
             let botonHtml = '';
             
             if (estaBloqueado) {
@@ -878,8 +888,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 botonHtml = `<button class="btn-primary" onclick="window.imprimirDiploma('${finalData.nota}')"><i class="fa-solid fa-download"></i> Descarregar Diploma</button>`;
             }
 
-            // FIX: USAR window.revisarExamenFinal EXPLICITAMENTE
-            let revisarHtml = `<button class="btn-secondary" style="margin-top:10px;" onclick="window.revisarExamenFinal()"><i class="fa-solid fa-eye"></i> Revisar Respostes</button>`;
+            let revisarHtml = `<button class="btn-secondary" style="margin-top:10px;" onclick="revisarExamenFinal()"><i class="fa-solid fa-eye"></i> Revisar Respostes</button>`;
             
             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h1 style="color:green;">🎉 ENHORABONA!</h1><p>Has completat el curs satisfactoriament.</p><div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div><div class="btn-centered-container" style="flex-direction:column; gap:10px;">${botonHtml}${revisarHtml}</div></div>`;
             return;
@@ -920,42 +929,31 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if(savedData) state.respuestasTemp = savedData;
         let html = `<h3 style="color:var(--brand-red);">Examen Final en Curs...</h3>`;
-        
         state.preguntasExamenFinal.forEach((preg, idx) => {
             const qId = `final-${idx}`;
             const isMulti = preg.es_multiresposta === true;
             const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
             const inputType = isMulti ? 'checkbox' : 'radio';
-
-            // GOD MODE AUTO FILL (EXAMEN FINAL)
             if (state.godMode && state.respuestasTemp[qId] === undefined) {
                 if (isMulti) {
-                    state.respuestasTemp[qId] = preg.opcions
-                        .map((o, idx) => (o.esCorrecta || o.correct || o.isCorrect) ? idx : -1)
-                        .filter(i => i !== -1);
+                    state.respuestasTemp[qId] = preg.opcions.map((o, idx) => (o.esCorrecta || o.correct || o.isCorrect) ? idx : -1).filter(i => i !== -1);
                 } else {
-                    const correctOpt = preg.opcions.findIndex(o => o.esCorrecta || o.correct || o.isCorrect);
-                    if (correctOpt !== -1) state.respuestasTemp[qId] = correctOpt;
+                    const correctIdx = preg.opcions.findIndex(o => o.esCorrecta || o.correct || o.isCorrect);
+                    if (correctIdx !== -1) state.respuestasTemp[qId] = correctIdx;
                 }
             }
-
             let savedVal = state.respuestasTemp[qId];
             if (isMulti && !Array.isArray(savedVal)) savedVal = [];
-
             html += `<div class="question-card" id="card-final-${idx}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text" style="margin-top:10px;">${preg.text}</div><div class="options-list">`;
             preg.opcions.forEach((opt, oIdx) => { 
                 let isSelected = false;
-                const valToStore = oIdx; // Index
+                const valToStore = oIdx; 
                 if (isMulti) isSelected = savedVal.includes(valToStore);
                 else isSelected = (savedVal == valToStore);
                 const checked = isSelected ? 'checked' : '';
                 const selectedClass = isSelected ? 'selected' : '';
                 const multiClass = isMulti ? 'multi-select' : '';
-
-                html += `<div class="option-item ${selectedClass} ${multiClass}" onclick="selectTestOption('${qId}', ${valToStore}, ${isMulti}, 'examen_final')">
-                            <input type="${inputType}" name="${qId}" ${checked}>
-                            <span>${opt.text}</span>
-                         </div>`; 
+                html += `<div class="option-item ${selectedClass} ${multiClass}" onclick="selectTestOption('${qId}', ${valToStore}, ${isMulti}, 'examen_final')"><input type="${inputType}" name="${qId}" ${checked}><span>${opt.text}</span></div>`; 
             });
             html += `</div></div>`;
         });
@@ -1031,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- REVISIÓN EXAMEN FINAL (FIXED BUTTON) ---
+    // REVISIÓN EXAMEN FINAL (FIX GRID UI)
     window.revisarExamenFinal = function() {
         const container = document.getElementById('moduls-container');
         const preguntas = state.curso.examen_final || [];
@@ -1041,24 +1039,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gridRight) {
             gridRight.className = 'grid-container'; 
             gridRight.innerHTML = ''; 
-            
-            // TITULO PEQUEÑO
-            const header = document.createElement('div'); 
-            header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Navegació Ràpida</h4>'; 
-            gridRight.appendChild(header);
-
+            // SIN TEXTO FEO
             preguntas.forEach((p, i) => { 
-                const div = document.createElement('div'); 
-                div.className = 'grid-item answered'; 
-                div.innerText = i + 1; 
-                div.onclick = () => { 
-                    const card = document.getElementById(`review-card-final-${i}`); 
-                    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
-                }; 
+                const div = document.createElement('div'); div.className = 'grid-item answered'; div.innerText = i + 1; 
+                div.onclick = () => { const card = document.getElementById(`review-card-final-${i}`); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; 
                 gridRight.appendChild(div); 
             });
         }
-
         let html = `<h3>Revisió Examen Final</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px;"><i class="fa-solid fa-eye"></i> Mode lectura.</div>`;
         preguntas.forEach((preg, idx) => {
             html += `<div class="question-card review-mode" id="review-card-final-${idx}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
@@ -1074,7 +1061,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html; window.scrollTo(0,0);
     }
 
-    // --- UTILS ---
+    // UTILS
     window.imprimirDiploma = function(nota) { 
         if (window.imprimirDiplomaCompleto) {
             const matData = { id: state.matriculaId, documentId: state.matriculaId, nota_final: nota, progres_detallat: state.progreso };
@@ -1089,21 +1076,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const msgEl = document.getElementById('modal-msg');
         const btnConfirm = document.getElementById('modal-btn-confirm');
         const btnCancel = document.getElementById('modal-btn-cancel');
-
         titleEl.innerText = "Enviar Dubte";
         titleEl.style.color = "var(--brand-blue)";
         msgEl.innerHTML = `<div style="padding: 5px 0;"><p style="margin-bottom:10px; color:var(--text-main);">Escriu la teva pregunta sobre: <strong>${moduloTitulo}</strong></p><textarea id="modal-doubt-text" class="modal-textarea" placeholder="Explica el teu dubte detalladament..."></textarea><small style="color:#666; display:flex; align-items:center; gap:5px;"><i class="fa-regular fa-bell"></i> El professor rebrà una notificació instantània.</small></div>`;
-
         btnCancel.style.display = 'block';
         btnConfirm.innerText = "Enviar";
         btnConfirm.disabled = false;
         btnConfirm.style.background = "var(--brand-blue)";
-
         const newConfirm = btnConfirm.cloneNode(true);
         const newCancel = btnCancel.cloneNode(true);
         btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
         btnCancel.parentNode.replaceChild(newCancel, btnCancel);
-
         newCancel.onclick = () => { modal.style.display = 'none'; window.isDoubtSubmitting = false; };
         
         newConfirm.onclick = async () => {
@@ -1111,11 +1094,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const textEl = document.getElementById('modal-doubt-text');
             const text = textEl.value.trim();
             if(!text) { textEl.style.borderColor = "red"; textEl.focus(); return; }
-
             window.isDoubtSubmitting = true;
             newConfirm.innerText = "Enviant...";
             newConfirm.disabled = true;
-
             try {
                 const payload = { data: { missatge: text, tema: moduloTitulo, curs: state.curso.titol, alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`, users_permissions_user: USER.id, estat: 'pendent', data_envio: new Date().toISOString() } };
                 const res = await fetch(`${STRAPI_URL}/api/missatges`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) });

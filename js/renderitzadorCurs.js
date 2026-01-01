@@ -1,12 +1,12 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v57.9 - FINAL EXAM CRASH FIX)
+   RENDERITZADORCURS.JS (v57.9 - FINAL EXAM REVIEW FIX)
    ========================================================================== */
 
 console.log("🚀 Carregant Renderitzador v57.9...");
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // 1. HELPER: TRADUCTOR DE TEXTO
+    // 1. HELPER
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;
@@ -39,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return JSON.stringify(content);
     }
 
-    // 2. CONFIGURACIÓN
     const PARAMS = new URLSearchParams(window.location.search);
     const SLUG = PARAMS.get('slug');
     if (!SLUG) return;
@@ -114,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                  await sincronizarAvanceLocal();
             }
-            
             renderSidebar();
             renderMainContent();
         } catch (e) {
@@ -186,7 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) {}
     }
 
-    // 4. NOTIFICACIONES
     async function crearNotificacion(titulo, mensaje) {
         try {
             await fetch(API_ROUTES.notifications, {
@@ -211,27 +208,23 @@ document.addEventListener('DOMContentLoaded', () => {
         let fechaInscripcion = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt) : new Date();
         const fechaDesbloqueo = new Date(fechaInscripcion);
         fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14);
-
         const rawFin = state.curso.fecha_fin || state.curso.data_fi;
         if (rawFin) {
             const fechaFinCurso = new Date(rawFin);
             if (fechaFinCurso < fechaDesbloqueo) fechaDesbloqueo = fechaFinCurso;
         }
-
         const estaBloqueado = hoy < fechaDesbloqueo;
         let mensaje = "";
-        
         if (estaBloqueado) {
             const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
             mensaje = `Enhorabona! Has aprovat. El diploma estarà disponible automàticament el dia ${fechaStr}.`;
         } else {
-            mensaje = `Enhorabona! Has aprovat. El teu diploma ja està disponible.`;
+            mensaje = `Enhorabona! Has aprovat. El teu diploma ja està disponible per descarregar.`;
         }
-
         crearNotificacion("Curs Completat! 🎓", mensaje);
     }
 
-    // 5. STORAGE & HELPERS
+    // STORAGE & HELPERS
     function getStorageKey(tipo) { return `sicap_progress_${USER.id}_${state.curso.slug}_${tipo}`; }
     function guardarRespuestaLocal(tipo, preguntaId, opcionIdx) {
         const key = getStorageKey(tipo);
@@ -260,6 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return current.length;
     }
 
+    // BLOQUEO
     function estaBloqueado(indexModulo) {
         if (state.godMode) return false;
         if (indexModulo === 0) return false; 
@@ -278,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.godMode) return true;
         if (state.progreso && state.progreso.examen_final && state.progreso.examen_final.aprobado) return true;
         if (!state.progreso || !state.progreso.modulos) return false;
-        
         const modulosCurso = state.curso.moduls || [];
         return modulosCurso.every((modObj, idx) => {
             const m = state.progreso.modulos[idx];
@@ -330,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
     };
 
-    // 7. RENDERIZADORES
+    // RENDERIZADORES
     function renderSidebar() {
         const indexContainer = document.getElementById('course-index');
         document.getElementById('curs-titol').innerText = state.curso.titol;
@@ -402,12 +395,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('moduls-container');
         const gridRight = document.getElementById('quiz-grid');
         
-        container.innerHTML = ''; // LIMPIEZA
+        container.innerHTML = ''; 
         if (gridRight) { gridRight.innerHTML = ''; gridRight.className = ''; }
 
         detenerCronometro(); 
         document.body.classList.remove('exam-active');
-
         setTimeout(() => { container.style.opacity = '1'; }, 50);
 
         if (state.currentView === 'intro') { 
@@ -422,13 +414,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return; 
         }
         if (state.currentView === 'examen_final') { 
-            // FIX V57.7: Control de errores en el renderizado
-            try {
-                renderExamenFinal(container); 
-            } catch (e) {
-                console.error("Error render examen final:", e);
-                container.innerHTML = `<div class="alert alert-danger">Error intern: ${e.message}. Refresca la pàgina.</div>`;
-            }
+            try { renderExamenFinal(container); } 
+            catch (e) { console.error(e); container.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`; }
             return; 
         }
 
@@ -482,7 +469,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = `<h2>${mod.titol}</h2>`;
         html += videoHtml;
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
-        
         if (mod.material_pdf) {
             let archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];
             archivos.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
@@ -495,7 +481,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 html += `</div>`;
             }
         }
-        
         const modProg = state.progreso.modulos[state.currentModuleIndex];
         const check = (modProg && modProg.flashcards_done) ? '✓' : '';
         if(mod.targetes_memoria && mod.targetes_memoria.length > 0) {
@@ -513,11 +498,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let rutaHtml = `<div class="breadcrumbs" style="margin-bottom: 20px;">`;
         const cursoTituloCorto = state.curso.titol.length > 25 ? state.curso.titol.substring(0, 25) + '...' : state.curso.titol;
         rutaHtml += `<span style="color:var(--brand-blue); font-weight:bold;">${cursoTituloCorto}</span>`;
-        if (state.currentView === 'intro') {
-            rutaHtml += `<span class="breadcrumb-separator">/</span> <span class="breadcrumb-current">Informació</span>`;
-        } else if (state.currentView === 'glossary') {
-            rutaHtml += `<span class="breadcrumb-separator">/</span> <span class="breadcrumb-current">Glossari</span>`;
-        } else if (mod) {
+        if (state.currentView === 'intro') rutaHtml += `<span class="breadcrumb-separator">/</span> <span class="breadcrumb-current">Informació</span>`;
+        else if (state.currentView === 'glossary') rutaHtml += `<span class="breadcrumb-separator">/</span> <span class="breadcrumb-current">Glossari</span>`;
+        else if (mod) {
             const modName = mod.titol.length > 20 ? mod.titol.substring(0, 20) + '...' : mod.titol;
             rutaHtml += `<span class="breadcrumb-separator">/</span> <span>${modName}</span>`;
             let tipoVista = '';
@@ -527,22 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tipoVista) rutaHtml += `<span class="breadcrumb-separator">/</span> <span class="breadcrumb-current" style="color:var(--brand-red);">${tipoVista}</span>`;
         }
         rutaHtml += `</div>`;
-        container.innerHTML = `
-            ${rutaHtml}
-            <div class="sidebar-header"><h3>Eines d'Estudi</h3></div>
-            <div class="tools-box">
-                <div class="tools-title" style="display:flex; justify-content:space-between; align-items:center;">
-                    <span><i class="fa-regular fa-note-sticky"></i> Les meves notes</span>
-                    <button class="btn-small" onclick="window.downloadNotes()" title="Descarregar .txt" style="padding:2px 8px; font-size:0.7rem;"><i class="fa-solid fa-download"></i></button>
-                </div>
-                <textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea>
-                <small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small>
-            </div>
-            <div class="tools-box" style="border-color: var(--brand-blue);">
-                <div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div>
-                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquí'}"</strong>?</p>
-                <button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')"><i class="fa-regular fa-paper-plane"></i> Enviar Dubte</button>
-            </div>`;
+        container.innerHTML = `${rutaHtml}<div class="sidebar-header"><h3>Eines d'Estudi</h3></div><div class="tools-box"><div class="tools-title" style="display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-regular fa-note-sticky"></i> Les meves notes</span><button class="btn-small" onclick="window.downloadNotes()" title="Descarregar .txt" style="padding:2px 8px; font-size:0.7rem;"><i class="fa-solid fa-download"></i></button></div><textarea id="quick-notes" class="notepad-area" placeholder="Escriu apunts aquí...">${savedNote}</textarea><small style="color:var(--text-secondary); font-size:0.75rem;">Es guarda automàticament.</small></div><div class="tools-box" style="border-color: var(--brand-blue);"><div class="tools-title"><i class="fa-regular fa-life-ring"></i> Dubtes del Temari</div><p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:10px;">Tens alguna pregunta sobre <strong>"${mod ? mod.titol : 'aquí'}"</strong>?</p><button class="btn-doubt" onclick="obrirFormulariDubte('${modTitleSafe}')"><i class="fa-regular fa-paper-plane"></i> Enviar Dubte</button></div>`;
         const noteArea = document.getElementById('quick-notes');
         if(noteArea) noteArea.addEventListener('input', (e) => localStorage.setItem(`sicap_notes_${USER.id}_${state.curso.slug}`, e.target.value));
     }
@@ -553,15 +521,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const isCompletedDB = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx].flashcards_done === true : false;
         const flippedIndices = getFlippedCards(modIdx);
         const isReallyCompleted = isCompletedDB || (flippedIndices.length >= cards.length);
-
         let headerHtml = `<div id="fc-header-container">`;
-        if(isReallyCompleted) {
-            headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:green; background:#d4edda; border:1px solid #c3e6cb; padding:15px; border-radius:4px;"><i class="fa-solid fa-check-circle"></i> <strong>Activitat Completada!</strong><br><small>Ja pots accedir al següent mòdul (si has aprovat el test).</small></div>`;
-        } else {
-            const count = flippedIndices.length;
-            const total = cards.length;
-            headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:4px;"><i class="fa-solid fa-circle-exclamation"></i> Progrés: <strong id="fc-counter-text">${count}/${total}</strong> targetes contestades. Has de fer-les totes per avançar.</div>`;
-        }
+        if(isReallyCompleted) headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:green; background:#d4edda; border:1px solid #c3e6cb; padding:15px; border-radius:4px;"><i class="fa-solid fa-check-circle"></i> <strong>Activitat Completada!</strong><br><small>Ja pots accedir al següent mòdul (si has aprovat el test).</small></div>`;
+        else headerHtml += `<div class="alert-info" style="margin-bottom:15px; color:#856404; background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:4px;"><i class="fa-solid fa-circle-exclamation"></i> Progrés: <strong id="fc-counter-text">${flippedIndices.length}/${cards.length}</strong> targetes contestades. Has de fer-les totes per avançar.</div>`;
         headerHtml += `</div>`; 
         let html = `<h3>Targetes de Repàs</h3>${headerHtml}<div class="flashcards-grid-view">`;
         const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
@@ -648,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTestIntro(container, mod, modIdx) { 
         const progreso = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx] : { aprobado: false, intentos: 0, nota: 0 };
         if (progreso.aprobado) {
-             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Test Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="revisarTest(${modIdx})">Veure resultats anteriors</button></div></div>`;
+             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Test Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="window.revisarTest(${modIdx})">Veure resultats anteriors</button></div></div>`;
              return;
         }
         if (progreso.intentos >= 2 && !state.godMode) {
@@ -756,10 +718,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); 
             const aprobado = nota >= 7.0;
+            
             if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false, flashcards_done: false };
             state.progreso.modulos[modIdx].intentos += 1; 
             state.progreso.modulos[modIdx].nota = Math.max(state.progreso.modulos[modIdx].nota, nota); 
             if (aprobado) state.progreso.modulos[modIdx].aprobado = true;
+            
             try {
                 const payload = { data: { progres_detallat: state.progreso } }; 
                 const res = await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { 
@@ -783,7 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let action = `window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')`;
         if (esFinal && aprobado) action = "window.location.reload()";
 
-        // FIX GRID COLORES
+        // GRID RESULTADOS
         const gridRight = document.getElementById('quiz-grid'); 
         if (gridRight) {
             gridRight.className = 'grid-container'; 
@@ -843,7 +807,50 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html; window.scrollTo(0,0);
     }
 
-    // 10. EXAMEN FINAL (FIXED)
+    // 10. REVISIÓN POSTERIOR
+    window.revisarTest = function(modIdx) {
+        const mod = state.curso.moduls[modIdx];
+        const todasLasPreguntas = mod.banc_preguntes || [];
+        if (todasLasPreguntas.length === 0) { console.warn("No preguntes."); return; }
+        const container = document.getElementById('moduls-container');
+        
+        // GRID REVISIÓN (AZUL)
+        const gridRight = document.getElementById('quiz-grid'); 
+        if (gridRight) {
+            gridRight.className = 'grid-container'; 
+            gridRight.innerHTML = ''; 
+            
+            // TITULO PEQUEÑO
+            const header = document.createElement('div'); 
+            header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Navegació Ràpida</h4>'; 
+            gridRight.appendChild(header);
+
+            todasLasPreguntas.forEach((p, i) => { 
+                const div = document.createElement('div'); div.className = 'grid-item answered'; div.innerText = i + 1; 
+                div.onclick = () => { const card = document.getElementById(`review-card-${i}`); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; 
+                gridRight.appendChild(div); 
+            });
+        }
+        
+        let html = `<h3>Revisió (Mode Estudi)</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Aquí pots veure totes les preguntes del banc amb les respostes correctes per repassar.</div>`;
+        todasLasPreguntas.forEach((preg, idx) => {
+            const isMulti = preg.es_multiresposta === true;
+            const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
+            const inputType = isMulti ? 'checkbox' : 'radio';
+            html += `<div class="question-card review-mode" id="review-card-${idx}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            preg.opcions.forEach((opt, oIdx) => {
+                let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                if (isCorrect) classes += 'correct-answer ';
+                html += `<div class="${classes}"><input type="${inputType}" disabled ${isCorrect ? 'checked' : ''}><span>${opt.text}</span></div>`;
+            });
+            if (preg.explicacio) html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
+            html += `</div></div>`;
+        });
+        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(${modIdx}, 'test')">Tornar</button></div>`;
+        container.innerHTML = html; window.scrollTo(0,0);
+    }
+
+    // 11. EXAMEN FINAL
     function renderExamenFinal(container) {
         if (!state.progreso.examen_final) state.progreso.examen_final = { aprobado: false, nota: 0, intentos: 0 };
         const finalData = state.progreso.examen_final;
@@ -851,20 +858,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (finalData.aprobado) {
             const hoy = new Date();
             let fechaInscripcion = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt) : new Date();
-            if (isNaN(fechaInscripcion.getTime())) fechaInscripcion = new Date(); // Safety
-            
             const fechaDesbloqueo = new Date(fechaInscripcion);
             fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14);
 
             const rawFin = state.curso.fecha_fin || state.curso.data_fi;
             if (rawFin) {
                 const fechaFinCurso = new Date(rawFin);
-                if (!isNaN(fechaFinCurso.getTime()) && fechaFinCurso < fechaDesbloqueo) {
-                    fechaDesbloqueo.setTime(fechaFinCurso.getTime());
-                }
+                if (fechaFinCurso < fechaDesbloqueo) fechaDesbloqueo = fechaFinCurso;
             }
             
             const estaBloqueado = hoy < fechaDesbloqueo;
+            
             let botonHtml = '';
             
             if (estaBloqueado) {
@@ -874,22 +878,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 botonHtml = `<button class="btn-primary" onclick="window.imprimirDiploma('${finalData.nota}')"><i class="fa-solid fa-download"></i> Descarregar Diploma</button>`;
             }
 
-            let revisarHtml = `<button class="btn-secondary" style="margin-top:10px;" onclick="revisarExamenFinal()"><i class="fa-solid fa-eye"></i> Revisar Respostes</button>`;
+            // FIX: USAR window.revisarExamenFinal EXPLICITAMENTE
+            let revisarHtml = `<button class="btn-secondary" style="margin-top:10px;" onclick="window.revisarExamenFinal()"><i class="fa-solid fa-eye"></i> Revisar Respostes</button>`;
             
             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h1 style="color:green;">🎉 ENHORABONA!</h1><p>Has completat el curs satisfactoriament.</p><div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div><div class="btn-centered-container" style="flex-direction:column; gap:10px;">${botonHtml}${revisarHtml}</div></div>`;
             return;
         }
         
         if (finalData.intentos >= 2 && !state.godMode) { 
-            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Intents esgotats.</p></div>`; return; 
+            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Intents esgotats.</p></div>`; 
+            return; 
         }
         const savedData = cargarRespuestasLocales('examen_final');
         const isActive = (Object.keys(savedData).length > 0) || state.testEnCurso;
         if (isActive) { state.testEnCurso = true; renderFinalQuestions(container, savedData); } 
         else { container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2 style="color:var(--brand-blue);">🏆 Examen Final</h2><div class="exam-info-box"><p>⏱️ 30 minuts.</p><p>🎯 Nota tall: 7.5</p><p>🔄 Intents: ${finalData.intentos}/2</p></div><br><div class="btn-centered-container"><button class="btn-primary" onclick="iniciarExamenFinal()">COMENÇAR EXAMEN FINAL</button></div></div>`; }
     }
-
-    // ... Resto de funciones (iniciar, questions, crono, etc) ...
 
     window.iniciarExamenFinal = function() {
         if (!state.curso.examen_final || state.curso.examen_final.length === 0) { alert("Error: No s'han carregat preguntes."); return; }
@@ -904,49 +908,54 @@ document.addEventListener('DOMContentLoaded', () => {
         const storedOrder = JSON.parse(localStorage.getItem(`sicap_exam_order_${USER.id}_${SLUG}`));
         if (storedOrder && state.curso.examen_final) { state.preguntasExamenFinal = []; storedOrder.forEach(id => { const found = state.curso.examen_final.find(p => (p.id || p.documentId) === id); if(found) state.preguntasExamenFinal.push(found); }); if(state.preguntasExamenFinal.length === 0) state.preguntasExamenFinal = state.curso.examen_final; } else if (state.preguntasExamenFinal.length === 0) { state.preguntasExamenFinal = state.curso.examen_final; }
         const storedStartTime = localStorage.getItem(`sicap_timer_start_${USER.id}_${SLUG}`); if(storedStartTime) state.testStartTime = parseInt(storedStartTime); else { state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime); }
-        const gridRight = document.getElementById('quiz-grid'); 
+        const gridRight = document.getElementById('quiz-grid'); gridRight.className = ''; gridRight.innerHTML = `<div id="exam-timer-container"><div id="exam-timer" class="timer-box">30:00</div></div><div id="grid-inner-numbers"></div>`; iniciarCronometro();
+        const gridInner = document.getElementById('grid-inner-numbers');
         
-        if (gridRight) {
-            gridRight.className = 'grid-container'; 
-            gridRight.innerHTML = `<div id="exam-timer-container"><div id="exam-timer" class="timer-box">30:00</div></div><div id="grid-inner-numbers"></div>`; 
-            const gridInner = document.getElementById('grid-inner-numbers');
-            
-            state.preguntasExamenFinal.forEach((p, i) => {
-                const div = document.createElement('div'); div.className = 'grid-item'; div.id = `grid-final-q-${i}`; div.innerText = i + 1;
-                div.onclick = () => document.getElementById(`card-final-${i}`).scrollIntoView({behavior:'smooth', block:'center'});
-                if (state.respuestasTemp[`final-${i}`] !== undefined || (savedData && savedData[`final-${i}`] !== undefined)) div.classList.add('answered');
-                gridInner.appendChild(div);
-            });
-            iniciarCronometro();
-        }
+        state.preguntasExamenFinal.forEach((p, i) => {
+            const div = document.createElement('div'); div.className = 'grid-item'; div.id = `grid-final-q-${i}`; div.innerText = i + 1;
+            div.onclick = () => document.getElementById(`card-final-${i}`).scrollIntoView({behavior:'smooth', block:'center'});
+            if (state.respuestasTemp[`final-${i}`] !== undefined || (savedData && savedData[`final-${i}`] !== undefined)) div.classList.add('answered');
+            gridInner.appendChild(div);
+        });
         
         if(savedData) state.respuestasTemp = savedData;
         let html = `<h3 style="color:var(--brand-red);">Examen Final en Curs...</h3>`;
+        
         state.preguntasExamenFinal.forEach((preg, idx) => {
             const qId = `final-${idx}`;
             const isMulti = preg.es_multiresposta === true;
             const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
             const inputType = isMulti ? 'checkbox' : 'radio';
+
+            // GOD MODE AUTO FILL (EXAMEN FINAL)
             if (state.godMode && state.respuestasTemp[qId] === undefined) {
                 if (isMulti) {
-                    state.respuestasTemp[qId] = preg.opcions.map((o, idx) => (o.esCorrecta || o.correct || o.isCorrect) ? idx : -1).filter(i => i !== -1);
+                    state.respuestasTemp[qId] = preg.opcions
+                        .map((o, idx) => (o.esCorrecta || o.correct || o.isCorrect) ? idx : -1)
+                        .filter(i => i !== -1);
                 } else {
-                    const correctIdx = preg.opcions.findIndex(o => o.esCorrecta || o.correct || o.isCorrect);
-                    if (correctIdx !== -1) state.respuestasTemp[qId] = correctIdx;
+                    const correctOpt = preg.opcions.findIndex(o => o.esCorrecta || o.correct || o.isCorrect);
+                    if (correctOpt !== -1) state.respuestasTemp[qId] = correctOpt;
                 }
             }
+
             let savedVal = state.respuestasTemp[qId];
             if (isMulti && !Array.isArray(savedVal)) savedVal = [];
+
             html += `<div class="question-card" id="card-final-${idx}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text" style="margin-top:10px;">${preg.text}</div><div class="options-list">`;
             preg.opcions.forEach((opt, oIdx) => { 
                 let isSelected = false;
-                const valToStore = oIdx; 
+                const valToStore = oIdx; // Index
                 if (isMulti) isSelected = savedVal.includes(valToStore);
                 else isSelected = (savedVal == valToStore);
                 const checked = isSelected ? 'checked' : '';
                 const selectedClass = isSelected ? 'selected' : '';
                 const multiClass = isMulti ? 'multi-select' : '';
-                html += `<div class="option-item ${selectedClass} ${multiClass}" onclick="selectTestOption('${qId}', ${valToStore}, ${isMulti}, 'examen_final')"><input type="${inputType}" name="${qId}" ${checked}><span>${opt.text}</span></div>`; 
+
+                html += `<div class="option-item ${selectedClass} ${multiClass}" onclick="selectTestOption('${qId}', ${valToStore}, ${isMulti}, 'examen_final')">
+                            <input type="${inputType}" name="${qId}" ${checked}>
+                            <span>${opt.text}</span>
+                         </div>`; 
             });
             html += `</div></div>`;
         });
@@ -999,9 +1008,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             try {
                 const res = await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { 
-                    method: 'PUT', 
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, 
-                    body: JSON.stringify(payload) 
+                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) 
                 });
                 const json = await res.json();
                 if (json.data && json.data.progres_detallat) { state.progreso = json.data.progres_detallat; }
@@ -1024,7 +1031,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // UTILS
+    // --- REVISIÓN EXAMEN FINAL (FIXED BUTTON) ---
+    window.revisarExamenFinal = function() {
+        const container = document.getElementById('moduls-container');
+        const preguntas = state.curso.examen_final || [];
+        if (preguntas.length === 0) { alert("No s'han trobat preguntes."); return; }
+        
+        const gridRight = document.getElementById('quiz-grid'); 
+        if (gridRight) {
+            gridRight.className = 'grid-container'; 
+            gridRight.innerHTML = ''; 
+            
+            // TITULO PEQUEÑO
+            const header = document.createElement('div'); 
+            header.innerHTML = '<h4 style="grid-column: span 5; margin:0 0 10px 0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Navegació Ràpida</h4>'; 
+            gridRight.appendChild(header);
+
+            preguntas.forEach((p, i) => { 
+                const div = document.createElement('div'); 
+                div.className = 'grid-item answered'; 
+                div.innerText = i + 1; 
+                div.onclick = () => { 
+                    const card = document.getElementById(`review-card-final-${i}`); 
+                    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
+                }; 
+                gridRight.appendChild(div); 
+            });
+        }
+
+        let html = `<h3>Revisió Examen Final</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px;"><i class="fa-solid fa-eye"></i> Mode lectura.</div>`;
+        preguntas.forEach((preg, idx) => {
+            html += `<div class="question-card review-mode" id="review-card-final-${idx}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            preg.opcions.forEach((opt) => {
+                let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                if (isCorrect) classes += 'correct-answer '; 
+                html += `<div class="${classes}"><input type="radio" disabled ${isCorrect ? 'checked' : ''}><span>${opt.text}</span></div>`;
+            });
+            if (preg.explicacio) html += `<div class="explanation-box"><strong>Explicació:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
+            html += `</div></div>`;
+        });
+        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(999, 'examen_final')">Tornar</button></div>`;
+        container.innerHTML = html; window.scrollTo(0,0);
+    }
+
+    // --- UTILS ---
     window.imprimirDiploma = function(nota) { 
         if (window.imprimirDiplomaCompleto) {
             const matData = { id: state.matriculaId, documentId: state.matriculaId, nota_final: nota, progres_detallat: state.progreso };
@@ -1039,17 +1089,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const msgEl = document.getElementById('modal-msg');
         const btnConfirm = document.getElementById('modal-btn-confirm');
         const btnCancel = document.getElementById('modal-btn-cancel');
+
         titleEl.innerText = "Enviar Dubte";
         titleEl.style.color = "var(--brand-blue)";
         msgEl.innerHTML = `<div style="padding: 5px 0;"><p style="margin-bottom:10px; color:var(--text-main);">Escriu la teva pregunta sobre: <strong>${moduloTitulo}</strong></p><textarea id="modal-doubt-text" class="modal-textarea" placeholder="Explica el teu dubte detalladament..."></textarea><small style="color:#666; display:flex; align-items:center; gap:5px;"><i class="fa-regular fa-bell"></i> El professor rebrà una notificació instantània.</small></div>`;
+
         btnCancel.style.display = 'block';
         btnConfirm.innerText = "Enviar";
         btnConfirm.disabled = false;
         btnConfirm.style.background = "var(--brand-blue)";
+
         const newConfirm = btnConfirm.cloneNode(true);
         const newCancel = btnCancel.cloneNode(true);
         btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
         btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
         newCancel.onclick = () => { modal.style.display = 'none'; window.isDoubtSubmitting = false; };
         
         newConfirm.onclick = async () => {
@@ -1057,9 +1111,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const textEl = document.getElementById('modal-doubt-text');
             const text = textEl.value.trim();
             if(!text) { textEl.style.borderColor = "red"; textEl.focus(); return; }
+
             window.isDoubtSubmitting = true;
             newConfirm.innerText = "Enviant...";
             newConfirm.disabled = true;
+
             try {
                 const payload = { data: { missatge: text, tema: moduloTitulo, curs: state.curso.titol, alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`, users_permissions_user: USER.id, estat: 'pendent', data_envio: new Date().toISOString() } };
                 const res = await fetch(`${STRAPI_URL}/api/missatges`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) });

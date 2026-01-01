@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v57.2 - MODULE SYNC & GOD MODE UI FIX)
+   RENDERITZADORCURS.JS (v57.3 - ROBUST FINAL EXAM FLOW)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -421,6 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.cambiarVista = function(idx, view) {
+        console.log("Navegant a:", idx, view);
         state.currentModuleIndex = parseInt(idx);
         state.currentView = view;
         state.respuestasTemp = {}; 
@@ -484,8 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tieneFlash = mod.targetes_memoria && mod.targetes_memoria.length > 0;
             const flashDone = modProgreso ? modProgreso.flashcards_done : false;
             const testDone = modProgreso ? modProgreso.aprobado : false;
-            const moduloCompleto = tieneFlash ? (testDone && flashDone) : testDone;
-            const check = moduloCompleto ? '<i class="fa-solid fa-check" style="color:green"></i>' : '';
+            const check = (testDone && (tieneFlash ? flashDone : true)) ? '<i class="fa-solid fa-check" style="color:green"></i>' : '';
             const isOpen = (state.currentModuleIndex === idx);
             const lockedClass = (isLocked && !state.godMode) ? 'locked-module' : '';
             const openClass = isOpen ? 'open' : '';
@@ -795,7 +795,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 9. LOGICA DE TESTS (SMART ENGINE + MULTICHOICE)
     // ===============================================================
     function renderTestIntro(container, mod, modIdx) { 
+        // Null Safety
         const progreso = (state.progreso.modulos && state.progreso.modulos[modIdx]) ? state.progreso.modulos[modIdx] : { aprobado: false, intentos: 0, nota: 0 };
+        
         if (progreso.aprobado) {
              container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h2 style="color:green">Test Superat! ✅</h2><div style="font-size:3rem; margin:20px 0;">${progreso.nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="revisarTest(${modIdx})">Veure resultats anteriors</button></div></div>`;
              return;
@@ -805,11 +807,9 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
         }
         
-        // FIX VISUAL PARA MODO PROFESOR
+        // FIX UI: INTENTOS
         let labelIntent = `Intent: ${progreso.intentos + 1} de 2.`;
-        if (progreso.intentos >= 2) {
-             labelIntent = `Intent: ${progreso.intentos + 1} (Mode Professor)`;
-        }
+        if (progreso.intentos >= 2) labelIntent = `Intent: ${progreso.intentos + 1} (Mode Professor)`;
 
         container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2>📝 Test d'Avaluació</h2><div class="exam-info-box"><p>✅ <strong>Aprovat:</strong> 70% d'encerts.</p><p>🔄 <strong>${labelIntent}</strong></p></div><br><div class="btn-centered-container"><button class="btn-primary" onclick="iniciarTest()">COMENÇAR EL TEST</button></div></div>`;
     }
@@ -937,9 +937,8 @@ document.addEventListener('DOMContentLoaded', () => {
             state.progreso.modulos[modIdx].nota = Math.max(state.progreso.modulos[modIdx].nota, nota); 
             if (aprobado) state.progreso.modulos[modIdx].aprobado = true;
             
-            // 2. SINCRONIZACIÓN Y GUARDADO
             try {
-                // Preparamos payload
+                // 2. SINCRONIZACIÓN
                 const payload = { data: { progres_detallat: state.progreso } }; 
                 
                 const res = await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { 
@@ -948,12 +947,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify(payload) 
                 });
 
-                // FIX SYNC: Leemos lo que dice el servidor
                 const json = await res.json();
-                if (json.data && json.data.attributes && json.data.attributes.progres_detallat) {
-                     state.progreso = json.data.attributes.progres_detallat;
-                } else if (json.data && json.data.progres_detallat) {
-                     state.progreso = json.data.progres_detallat;
+                
+                // 3. ACTUALIZACIÓN ESTADO
+                if (json.data && json.data.progres_detallat) {
+                    state.progreso = json.data.progres_detallat;
+                } else if (json.data && json.data.attributes && json.data.attributes.progres_detallat) {
+                    state.progreso = json.data.attributes.progres_detallat;
                 }
 
                 if (aprobado) verificarFinModulo(modIdx);
@@ -971,7 +971,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function mostrarFeedback(preguntas, respuestasUsuario, nota, aprobado, modIdx, esFinal) {
         const container = document.getElementById('moduls-container'); const color = aprobado ? 'green' : 'red';
-        let html = `<div class="dashboard-card" style="border-top:5px solid ${color}; text-align:center; margin-bottom:30px;"><h2 style="color:${color}">${aprobado ? 'Superat!' : 'No Superat'}</h2><div style="font-size:4rem; font-weight:bold; margin:10px 0;">${nota}</div><div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')">Continuar</button></div></div><h3>Revisió:</h3>`;
+        
+        // FIX V57.3: Forzar recarga si es examen final aprobado
+        let action = `window.cambiarVista(${esFinal ? 999 : modIdx}, '${esFinal ? 'examen_final' : 'test'}')`;
+        if (esFinal && aprobado) {
+            action = "window.location.reload()";
+        }
+
+        let html = `<div class="dashboard-card" style="border-top:5px solid ${color}; text-align:center; margin-bottom:30px;">
+            <h2 style="color:${color}">${aprobado ? 'Superat!' : 'No Superat'}</h2>
+            <div style="font-size:4rem; font-weight:bold; margin:10px 0;">${nota}</div>
+            <div class="btn-centered-container">
+                <button class="btn-primary" onclick="${action}">Continuar</button>
+            </div>
+        </div>
+        <h3>Revisió:</h3>`;
+        
         preguntas.forEach((preg, idx) => {
             const qId = esFinal ? `final-${idx}` : `q-${idx}`; 
             const userRes = respuestasUsuario[qId];

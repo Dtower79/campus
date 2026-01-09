@@ -140,8 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][video_fitxer]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true`;
-        const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
+        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true`;const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const json = await res.json();
         if (!json.data || json.data.length === 0) throw new Error("Matrícula no trobada.");
         const mat = json.data[0];
@@ -449,26 +448,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderVideoPlayer(mod) {
-        let html = '';
-        if (mod.video_fitxer && mod.video_fitxer.url) {
-            const videoUrl = mod.video_fitxer.url.startsWith('/') ? STRAPI_URL + mod.video_fitxer.url : mod.video_fitxer.url;
-            html = `<div class="video-badge"><i class="fa-solid fa-file-video"></i> Video Resum</div><div class="video-responsive-container"><video controls controlsList="nodownload"><source src="${videoUrl}" type="${mod.video_fitxer.mime}">El teu navegador no suporta video HTML5.</video></div>`;
-        } 
-        else if (mod.video_url) {
-            let embedUrl = '';
-            if (mod.video_url.includes('youtube.com') || mod.video_url.includes('youtu.be')) {
-                const videoId = mod.video_url.split('v=')[1] || mod.video_url.split('/').pop();
-                const cleanId = videoId.split('&')[0];
-                embedUrl = `https://www.youtube.com/embed/${cleanId}`;
-            } else if (mod.video_url.includes('vimeo.com')) {
-                const videoId = mod.video_url.split('/').pop();
-                embedUrl = `https://player.vimeo.com/video/${videoId}`;
+        if (!mod.videos || mod.videos.length === 0) return '';
+
+        return mod.videos.map(vid => {
+            let htmlVideo = '';
+            const titolVideo = vid.titol || 'Vídeo del mòdul';
+
+            // CASO 1: Es un archivo subido a Strapi
+            if (vid.fitxer && vid.fitxer.url) {
+                const videoUrl = vid.fitxer.url.startsWith('/') ? STRAPI_URL + vid.fitxer.url : vid.fitxer.url;
+                htmlVideo = `
+                    <div class="video-badge"><i class="fa-solid fa-file-video"></i> ${titolVideo}</div>
+                    <div class="video-responsive-container">
+                        <video controls controlsList="nodownload">
+                            <source src="${videoUrl}" type="${vid.fitxer.mime}">
+                            El teu navegador no suporta video HTML5.
+                        </video>
+                    </div>`;
+            } 
+            // CASO 2: Es una URL externa (YouTube/Vimeo)
+            else if (vid.url) {
+                let embedUrl = '';
+                if (vid.url.includes('youtube.com') || vid.url.includes('youtu.be')) {
+                    const videoId = vid.url.split('v=')[1] || vid.url.split('/').pop();
+                    const cleanId = videoId.split('&')[0];
+                    embedUrl = `https://www.youtube.com/embed/${cleanId}`;
+                } else if (vid.url.includes('vimeo.com')) {
+                    const videoId = vid.url.split('/').pop();
+                    embedUrl = `https://player.vimeo.com/video/${videoId}`;
+                }
+
+                if (embedUrl) {
+                    htmlVideo = `
+                        <div class="video-badge" style="background:#cc181e;">
+                            <i class="fa-brands fa-youtube"></i> ${titolVideo}
+                        </div>
+                        <div class="video-responsive-container">
+                            <iframe src="${embedUrl}" title="${titolVideo}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>`;
+                }
             }
-            if (embedUrl) {
-                html = `<div class="video-badge" style="background:#cc181e;"><i class="fa-brands fa-youtube"></i> Video Resum</div><div class="video-responsive-container"><iframe src="${embedUrl}" title="Video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
-            }
-        }
-        return html;
+
+            return htmlVideo;
+        }).join(''); // Unimos todos los vídeos en un solo string de HTML
     }
 
     function renderTeoria(container, mod) {

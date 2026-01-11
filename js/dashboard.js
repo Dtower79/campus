@@ -825,7 +825,7 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
             </div>
         </div>`;
     
-    setTimeout(() => window.print(), 500);
+    setTimeout(() => window.print(), 1500);
 };
 
 window.mostrarModalError = function(msg) {

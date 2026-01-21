@@ -553,6 +553,7 @@ async function renderCoursesLogic(viewMode) {
             return;
         }
 
+        // Dins de dashboard.js -> renderCoursesLogic
         cursosAMostrar.forEach((curs) => {
             const cursId = curs.documentId || curs.id;
             const safeTitle = curs.titol.replace(/'/g, "\\'");
@@ -562,53 +563,65 @@ async function renderCoursesLogic(viewMode) {
                 if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url;
             }
 
-            const rawInicio = curs.fecha_inicio || curs.data_inici || curs.publishedAt;
+            // --- LÒGICA DE DATES I PERMISOS ---
             const hoy = new Date();
+            const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
             const fechaInicio = new Date(rawInicio);
             const esFuturo = fechaInicio > hoy;
-            const dateStr = fechaInicio.toLocaleDateString('ca-ES');
+            const dateStr = fechaInicio.toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const esProfe = user.es_professor === true;
 
-            // BADGES
+            // Badges
             let badge = '';
             if (curs.mode_esborrany) {
-                badge = `<span class="course-badge" style="background:#6f42c1; color:white; border:1px solid #59359a;">👁️ OCULT (MODE TEST)</span>`;
+                badge = `<span class="course-badge" style="background:#6f42c1;">👁️ OCULT (MODE TEST)</span>`;
             } else if (esFuturo) {
-                badge = `<span class="course-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">Properament: ${dateStr}</span>`;
+                badge = `<span class="course-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">Disponible el ${dateStr}</span>`;
             } else if (curs.etiqueta) {
                 badge = `<span class="course-badge">${curs.etiqueta}</span>`;
             }
 
-            let descHtml = '';
-            if (curs.descripcio && typeof curs.descripcio === 'string') {
-                 descHtml = `<div class="course-desc-container"><p class="course-desc short">${curs.descripcio.substring(0, 100)}...</p></div>`;
-            }
+            let actionHtml = '';
+            let progressHtml = '';
 
-            const horasHtml = `<div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'N/A'}</div>`;
-            
-            let actionHtml = '', progressHtml = '';
-
+            // Si l'usuari ja està matriculat
             if (curs._matricula) {
                 const mat = curs._matricula;
                 let pct = mat.progres || 0;
                 if(mat.progres_detallat?.examen_final?.aprobado) { pct = 100; }
                 
                 const color = pct >= 100 ? '#10b981' : 'var(--brand-blue)';
-                progressHtml = `<div class="progress-container"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%; background:${color}"></div></div><span class="progress-text">${pct}% Completat</span></div>`;
+                progressHtml = `
+                    <div class="progress-container">
+                        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%; background:${color}"></div></div>
+                        <span class="progress-text">${pct}% Completat</span>
+                    </div>`;
                 
-                actionHtml = esFuturo 
-                    ? `<button class="btn-primary" style="background-color:#ccc; cursor:pointer;" onclick="window.mostrarModalError('Aquest curs estarà disponible per accedir a partir del dia <strong>${dateStr}</strong>.')">Inicia el ${dateStr}</button>` 
-                    : `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
+                // CONDICIÓ CRÍTICA: Bloqueig d'accés per data futura
+                if (esFuturo && !esProfe) {
+                    // Alumne en curs futur: Botó deshabilitat amb la data
+                    actionHtml = `
+                        <button class="btn-primary" style="background-color:#95a5a6; cursor:not-allowed; opacity:0.8;" 
+                            onclick="window.mostrarModalError('Aquest curs s’obrirà el dia <strong>${dateStr}</strong>. Fins aleshores no pots accedir al contingut.')">
+                            Inicia el ${dateStr}
+                        </button>`;
+                } else {
+                    // Professor o Alumne en data vigent: Accés lliure
+                    actionHtml = `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
+                }
             } else {
+                // No matriculat: Sempre pot matricular-se, encara que sigui futur
                 actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${safeTitle}')">Matricular-me</button>`;
             }
 
+            // Render de la card
             list.innerHTML += `
                 <div class="course-card-item">
                     <div class="card-image-header" style="background-image: url('${imgUrl}');">${badge}</div>
                     <div class="card-body">
                         <h3 class="course-title">${curs.titol}</h3>
-                        ${horasHtml}
-                        ${descHtml}
+                        <div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'N/A'}</div>
+                        <div class="course-desc-container"><p class="course-desc short">${curs.descripcio || ''}</p></div>
                         ${progressHtml}
                         ${actionHtml}
                     </div>

@@ -56,36 +56,47 @@ document.addEventListener('DOMContentLoaded', async () => {
 window.appIniciada = false;
 window.sesionLeidas = new Set(); 
 
-window.iniciarApp = function() {
+window.iniciarApp = async function() { // Añadimos 'async' aquí
     window.appIniciada = true;
-    
+    const token = localStorage.getItem('jwt');
     const user = JSON.parse(localStorage.getItem('user'));
+    
     if(user) {
-        let initials = user.nombre ? user.nombre.charAt(0) : user.username.substring(0, 1);
-        if(user.apellidos) initials += user.apellidos.charAt(0);
-        const initialsStr = initials ? initials.toUpperCase() : 'US';
-        
         const safeText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
-        
-        safeText('user-initials', initialsStr);
-        safeText('dropdown-username', user.nombre ? `${user.nombre} ${user.apellidos}` : user.username);
+
+        // 1. Ponemos el DNI y el Email de forma provisional
+        safeText('dropdown-username', user.username);
         safeText('dropdown-email', user.email);
-        safeText('profile-avatar-big', initialsStr);
-        safeText('profile-name-display', user.nombre ? `${user.nombre} ${user.apellidos}` : user.username);
-        safeText('profile-dni-display', user.username);
+        safeText('user-initials', user.username.substring(0, 2).toUpperCase());
+
+        // 2. BUSCAMOS EL NOMBRE REAL EN LA TABLA DE AFILIADOS
+        try {
+            const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const jsonAfi = await resAfi.json();
+
+            if (jsonAfi.data && jsonAfi.data.length > 0) {
+                const afi = jsonAfi.data[0];
+                const nombreCompleto = `${afi.nombre} ${afi.apellidos}`;
+                
+                // Calculamos iniciales reales
+                let initials = afi.nombre.charAt(0) + (afi.apellidos ? afi.apellidos.charAt(0) : "");
+                
+                // ACTUALIZAMOS LA UI CON EL NOMBRE REAL
+                safeText('dropdown-username', nombreCompleto);
+                safeText('user-initials', initials.toUpperCase());
+                safeText('profile-avatar-big', initials.toUpperCase());
+                safeText('profile-name-display', nombreCompleto);
+            }
+        } catch (e) {
+            console.error("No se pudo recuperar el nombre real:", e);
+        }
     }
 
     setupDirectClicks();
     checkRealNotifications();
-    setInterval(checkRealNotifications, 60000);
-
-    const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.get('slug')) {
-        window.showView('dashboard');
-    } else {
-        document.getElementById('dashboard-view').style.display = 'none';
-        document.getElementById('exam-view').style.display = 'flex';
-    }
+    // ... resto del código ...
 };
 
 window.showView = function(viewName) {

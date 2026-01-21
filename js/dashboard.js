@@ -79,6 +79,7 @@ window.iniciarApp = async function() { // Añadimos 'async' aquí
             if (jsonAfi.data && jsonAfi.data.length > 0) {
                 const afi = jsonAfi.data[0];
                 const nombreCompleto = `${afi.nombre} ${afi.apellidos}`;
+                localStorage.setItem('user_fullname', nombreCompleto);
                 
                 // Calculamos iniciales reales
                 let initials = afi.nombre.charAt(0) + (afi.apellidos ? afi.apellidos.charAt(0) : "");
@@ -752,7 +753,7 @@ window.callPrintDiploma = function(idx) {
 
 window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const user = JSON.parse(localStorage.getItem('user'));
-    const nombreAlumno = `${user.nombre || ''} ${user.apellidos || user.username}`.toUpperCase();
+    const nombreAlumno = (localStorage.getItem('user_fullname') || user.username).toUpperCase();
     const nombreCurso = cursoData.titol;
     const horas = cursoData.hores || 'N/A';
     const matId = matriculaData.documentId || matriculaData.id;

@@ -503,7 +503,8 @@ async function renderCoursesLogic(viewMode) {
     const token = localStorage.getItem('jwt');
     const user = JSON.parse(localStorage.getItem('user'));
     list.innerHTML = '<div class="loader"></div>';
-
+    
+    // 1. Funció per netejar el text de Strapi v5
     const extractPlainText = (blocks) => {
         if (!blocks) return "";
         if (typeof blocks === 'string') return blocks;
@@ -533,7 +534,6 @@ async function renderCoursesLogic(viewMode) {
         
         let cursosAMostrar = [];
 
-        // LÓGICA DE FILTRADO JS
         const debeMostrarse = (curs) => {
             if (!curs) return false;
             if (user.es_professor === true) return true;
@@ -541,13 +541,10 @@ async function renderCoursesLogic(viewMode) {
         };
 
         if (viewMode === 'dashboard') {
-            // VISTA 1: Mis cursos
             cursosAMostrar = userMatriculas
                 .filter(m => m.curs && debeMostrarse(m.curs)) 
                 .map(m => ({ ...m.curs, _matricula: m }));
-
         } else {
-            // VISTA 2: Catálogo
             const resCat = await fetch(`${STRAPI_URL}/api/cursos?populate=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const jsonCat = await resCat.json();
             
@@ -567,7 +564,6 @@ async function renderCoursesLogic(viewMode) {
             return;
         }
 
-        // Dins de dashboard.js -> renderCoursesLogic
         cursosAMostrar.forEach((curs) => {
             const cursId = curs.documentId || curs.id;
             const safeTitle = curs.titol.replace(/'/g, "\\'");
@@ -577,7 +573,6 @@ async function renderCoursesLogic(viewMode) {
                 if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url;
             }
 
-            // --- LÒGICA DE DATES I PERMISOS ---
             const hoy = new Date();
             const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
             const fechaInicio = new Date(rawInicio);
@@ -585,7 +580,6 @@ async function renderCoursesLogic(viewMode) {
             const dateStr = fechaInicio.toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const esProfe = user.es_professor === true;
 
-            // Badges
             let badge = '';
             if (curs.mode_esborrany) {
                 badge = `<span class="course-badge" style="background:#6f42c1;">👁️ OCULT (MODE TEST)</span>`;
@@ -598,7 +592,6 @@ async function renderCoursesLogic(viewMode) {
             let actionHtml = '';
             let progressHtml = '';
 
-            // Si l'usuari ja està matriculat
             if (curs._matricula) {
                 const mat = curs._matricula;
                 let pct = mat.progres || 0;
@@ -611,48 +604,40 @@ async function renderCoursesLogic(viewMode) {
                         <span class="progress-text">${pct}% Completat</span>
                     </div>`;
                 
-                // CONDICIÓ CRÍTICA: Bloqueig d'accés per data futura
                 if (esFuturo && !esProfe) {
-                    // Alumne en curs futur: Botó deshabilitat amb la data
                     actionHtml = `
                         <button class="btn-primary" style="background-color:#95a5a6; cursor:not-allowed; opacity:0.8;" 
                             onclick="window.mostrarModalError('Aquest curs s’obrirà el dia <strong>${dateStr}</strong>. Fins aleshores no pots accedir al contingut.')">
                             Inicia el ${dateStr}
                         </button>`;
                 } else {
-                    // Professor o Alumne en data vigent: Accés lliure
                     actionHtml = `<a href="index.html?slug=${curs.slug}" class="btn-primary">Accedir</a>`;
                 }
             } else {
-                // No matriculat: Sempre pot matricular-se, encara que sigui futur
                 actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${safeTitle}')">Matricular-me</button>`;
             }
-            
+
+            // 2. APLICAR LA NETEJA DE TEXT AQUÍ
             const descripcionLimpia = extractPlainText(curs.descripcio);
-            
-            // Render de la card
+
             list.innerHTML += `
                 <div class="course-card-item">
                     <div class="card-image-header" style="background-image: url('${imgUrl}');">${badge}</div>
                     <div class="card-body">
                         <h3 class="course-title">${curs.titol}</h3>
                         <div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'N/A'}</div>
-                        <div class="course-desc-container"><p class="course-desc short">${descripcionLimpia}</p></div>
+                        
+                        <!-- 3. USAR LA VARIABLE DESCRIPCIONLIMPIA -->
+                        <div class="course-desc-container">
+                            <p class="course-desc short">${descripcionLimpia}</p>
+                        </div>
+
                         ${progressHtml}
                         ${actionHtml}
                     </div>
                 </div>`;
         });
     } catch(e) { console.error(e); }
-        const extractPlainText = (blocks) => {
-        if (!blocks || !Array.isArray(blocks)) return typeof blocks === 'string' ? blocks : "";
-        return blocks.map(block => {
-            if (block.children) {
-                return block.children.map(child => child.text || "").join("");
-            }
-            return "";
-        }).join(" ");
-    };
 }
 
 window.solicitarMatricula = function(id, title) {

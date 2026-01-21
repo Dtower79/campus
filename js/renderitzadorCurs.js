@@ -141,8 +141,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarDatos() {
         const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true`;const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
+        const res = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const json = await res.json();
-        if (!json.data || json.data.length === 0) throw new Error("Matrícula no trobada.");
+
+        if (!json.data || json.data.length === 0) {
+            console.warn("L'usuari no està matriculat, redirigint al catàleg...");
+            window.location.href = 'index.html'; // Si intenta entrar sin estar matriculado, lo mandamos fuera
+            return;
+        }
+        
         const mat = json.data[0];
         state.matriculaId = mat.documentId || mat.id;
         state.matriculaCreatedAt = mat.createdAt;

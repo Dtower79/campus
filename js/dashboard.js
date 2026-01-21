@@ -504,6 +504,20 @@ async function renderCoursesLogic(viewMode) {
     const user = JSON.parse(localStorage.getItem('user'));
     list.innerHTML = '<div class="loader"></div>';
 
+    const extractPlainText = (blocks) => {
+        if (!blocks) return "";
+        if (typeof blocks === 'string') return blocks;
+        if (Array.isArray(blocks)) {
+            return blocks.map(block => {
+                if (block.children) {
+                    return block.children.map(child => child.text || "").join("");
+                }
+                return "";
+            }).join(" ");
+        }
+        return "";
+    };
+
     try {
         const ts = new Date().getTime();
         const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -613,7 +627,9 @@ async function renderCoursesLogic(viewMode) {
                 // No matriculat: Sempre pot matricular-se, encara que sigui futur
                 actionHtml = `<button class="btn-enroll" onclick="window.solicitarMatricula('${cursId}', '${safeTitle}')">Matricular-me</button>`;
             }
-
+            
+            const descripcionLimpia = extractPlainText(curs.descripcio);
+            
             // Render de la card
             list.innerHTML += `
                 <div class="course-card-item">
@@ -621,13 +637,22 @@ async function renderCoursesLogic(viewMode) {
                     <div class="card-body">
                         <h3 class="course-title">${curs.titol}</h3>
                         <div class="course-hours"><i class="fa-regular fa-clock"></i> ${curs.hores ? curs.hores + ' Hores' : 'N/A'}</div>
-                        <div class="course-desc-container"><p class="course-desc short">${curs.descripcio || ''}</p></div>
+                        <div class="course-desc-container"><p class="course-desc short">${descripcionLimpia}</p></div>
                         ${progressHtml}
                         ${actionHtml}
                     </div>
                 </div>`;
         });
     } catch(e) { console.error(e); }
+        const extractPlainText = (blocks) => {
+        if (!blocks || !Array.isArray(blocks)) return typeof blocks === 'string' ? blocks : "";
+        return blocks.map(block => {
+            if (block.children) {
+                return block.children.map(child => child.text || "").join("");
+            }
+            return "";
+        }).join(" ");
+    };
 }
 
 window.solicitarMatricula = function(id, title) {

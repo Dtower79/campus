@@ -550,15 +550,7 @@ async function renderCoursesLogic(viewMode) {
         return "";
     };
 
-    const extractPlainText = (blocks) => {
-        if (!blocks) return "";
-        if (typeof blocks === 'string') return blocks.split('\n')[0];
-        if (Array.isArray(blocks) && blocks[0]?.children) {
-            return blocks[0].children.map(c => c.text || "").join("").split('\n')[0];
-        }
-        return "";
-    };
-
+    
     try {
         const ts = new Date().getTime();
         const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });

@@ -89,6 +89,7 @@ window.iniciarApp = async function() { // Añadimos 'async' aquí
                 safeText('user-initials', initials.toUpperCase());
                 safeText('profile-avatar-big', initials.toUpperCase());
                 safeText('profile-name-display', nombreCompleto);
+                safeText('profile-dni-display', user.username); 
             }
         } catch (e) {
             console.error("No se pudo recuperar el nombre real:", e);

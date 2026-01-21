@@ -1120,7 +1120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             newConfirm.innerText = "Enviant...";
             newConfirm.disabled = true;
             try {
-                const payload = { data: { missatge: text, tema: moduloTitulo, curs: state.curso.titol, alumne_nom: `${USER.nombre || USER.username} ${USER.apellidos || ''}`, users_permissions_user: USER.id, estat: 'pendent', data_envio: new Date().toISOString() } };
+                const payload = { data: { missatge: text, tema: moduloTitulo, curs: state.curso.titol, alumne_nom: localStorage.getItem('user_fullname') || USER.username, users_permissions_user: USER.id, estat: 'pendent', data_envio: new Date().toISOString() } };
                 const res = await fetch(`${STRAPI_URL}/api/missatges`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) });
                 if(res.ok) {
                     modal.style.display = 'none';

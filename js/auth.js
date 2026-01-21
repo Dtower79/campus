@@ -133,13 +133,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const regRes = await fetch(API_ROUTES.register, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        username: dni, 
+                        username: dni,      // El DNI es el identificador único
                         email: emailAfiliado, 
-                        password: pass,
-                        nombre: afiliado.nombre || "", 
-                        apellidos: afiliado.apellidos || ""
+                        password: pass      // Eliminamos 'nombre' y 'apellidos' de aquí
                     })
                 });
                 const regData = await regRes.json();

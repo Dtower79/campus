@@ -96,14 +96,44 @@ window.iniciarApp = async function() {
     checkRealNotifications();
 
     // === AÑADE ESTO AQUÍ (CONTROL DE REDIRECCIÓN) ===
+    // Dins de dashboard.js -> window.iniciarApp
     const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.get('slug')) {
-        // Si no está entrando a un curso concreto, va directo al Catálogo
+    const slug = urlParams.get('slug');
+
+    if (!slug) {
         window.showView('home'); 
     } else {
-        // Si hay un slug en la URL, ocultamos el dashboard y mostramos el examen/curso
-        document.getElementById('dashboard-view').style.display = 'none';
-        document.getElementById('exam-view').style.display = 'flex';
+        // Si hi ha un slug, abans d'obrir-lo, verifiquem si tenim accés
+        const token = localStorage.getItem('jwt');
+        const user = JSON.parse(localStorage.getItem('user'));
+
+        fetch(`${STRAPI_URL}/api/cursos?filters[slug][$eq]=${slug}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(json => {
+            const curs = json.data[0];
+            const hoy = new Date();
+            const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
+            const fechaInicio = new Date(rawInicio);
+            const esFuturo = fechaInicio > hoy;
+            const esProfe = user.es_professor === true;
+
+            if (esFuturo && !esProfe) {
+                // SI ÉS FUTUR I NO ÉS PROFE: El fem fora al catàleg
+                const dateStr = fechaInicio.toLocaleDateString('ca-ES');
+                window.location.href = 'index.html'; 
+                alert(`Aquest curs encara no ha començat. Data d'inici: ${dateStr}`);
+            } else {
+                // SI TOT ÉS CORRECTE: Mostrem el curs
+                document.getElementById('dashboard-view').style.display = 'none';
+                document.getElementById('exam-view').style.display = 'flex';
+            }
+        })
+        .catch(err => {
+            console.error("Error validant accés:", err);
+            window.location.href = 'index.html';
+        });
     }
 };
 

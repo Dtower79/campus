@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 window.appIniciada = false;
 window.sesionLeidas = new Set(); 
 
-window.iniciarApp = async function() { // Añadimos 'async' aquí
+window.iniciarApp = async function() {
     window.appIniciada = true;
     const token = localStorage.getItem('jwt');
     const user = JSON.parse(localStorage.getItem('user'));
@@ -64,12 +64,10 @@ window.iniciarApp = async function() { // Añadimos 'async' aquí
     if(user) {
         const safeText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
 
-        // 1. Ponemos el DNI y el Email de forma provisional
         safeText('dropdown-username', user.username);
         safeText('dropdown-email', user.email);
         safeText('user-initials', user.username.substring(0, 2).toUpperCase());
 
-        // 2. BUSCAMOS EL NOMBRE REAL EN LA TABLA DE AFILIADOS
         try {
             const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -81,10 +79,8 @@ window.iniciarApp = async function() { // Añadimos 'async' aquí
                 const nombreCompleto = `${afi.nombre} ${afi.apellidos}`;
                 localStorage.setItem('user_fullname', nombreCompleto);
                 
-                // Calculamos iniciales reales
                 let initials = afi.nombre.charAt(0) + (afi.apellidos ? afi.apellidos.charAt(0) : "");
                 
-                // ACTUALIZAMOS LA UI CON EL NOMBRE REAL
                 safeText('dropdown-username', nombreCompleto);
                 safeText('user-initials', initials.toUpperCase());
                 safeText('profile-avatar-big', initials.toUpperCase());
@@ -98,7 +94,17 @@ window.iniciarApp = async function() { // Añadimos 'async' aquí
 
     setupDirectClicks();
     checkRealNotifications();
-    // ... resto del código ...
+
+    // === AÑADE ESTO AQUÍ (CONTROL DE REDIRECCIÓN) ===
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!urlParams.get('slug')) {
+        // Si no está entrando a un curso concreto, va directo al Catálogo
+        window.showView('home'); 
+    } else {
+        // Si hay un slug en la URL, ocultamos el dashboard y mostramos el examen/curso
+        document.getElementById('dashboard-view').style.display = 'none';
+        document.getElementById('exam-view').style.display = 'flex';
+    }
 };
 
 window.showView = function(viewName) {

@@ -507,14 +507,19 @@ async function renderCoursesLogic(viewMode) {
     // 1. Funció per netejar el text de Strapi v5
     const extractPlainText = (blocks) => {
         if (!blocks) return "";
-        if (typeof blocks === 'string') return blocks;
-        if (Array.isArray(blocks)) {
-            return blocks.map(block => {
-                if (block.children) {
-                    return block.children.map(child => child.text || "").join("");
-                }
-                return "";
-            }).join(" ");
+        
+        // Si és un text simple, agafem fins al primer salt de línia
+        if (typeof blocks === 'string') return blocks.split('\n')[0];
+        
+        // Si és l'array de blocs de Strapi v5
+        if (Array.isArray(blocks) && blocks.length > 0) {
+            // Agafem només el primer bloc (la primera línia/paràgraf)
+            const firstBlock = blocks[0];
+            if (firstBlock.children) {
+                const text = firstBlock.children.map(child => child.text || "").join("");
+                // Per si dins del mateix paràgraf han fet un salt de línia manual
+                return text.split('\n')[0];
+            }
         }
         return "";
     };

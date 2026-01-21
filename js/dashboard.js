@@ -64,11 +64,8 @@ window.iniciarApp = async function() {
     if(user) {
         const safeText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
 
-        safeText('dropdown-username', user.username);
-        safeText('dropdown-email', user.email);
-        safeText('user-initials', user.username.substring(0, 2).toUpperCase());
-
         try {
+            // Buscamos en la tabla afiliados usando el DNI (username)
             const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -76,20 +73,19 @@ window.iniciarApp = async function() {
 
             if (jsonAfi.data && jsonAfi.data.length > 0) {
                 const afi = jsonAfi.data[0];
-                const nombreCompleto = `${afi.nombre} ${afi.apellidos}`;
-                localStorage.setItem('user_fullname', nombreCompleto);
+                const nombreReal = `${afi.nombre} ${afi.apellidos}`;
+                localStorage.setItem('user_fullname', nombreReal); // Guardamos para diplomas y dudas
                 
                 let initials = afi.nombre.charAt(0) + (afi.apellidos ? afi.apellidos.charAt(0) : "");
                 
-                safeText('dropdown-username', nombreCompleto);
+                safeText('dropdown-username', nombreReal);
                 safeText('user-initials', initials.toUpperCase());
+                safeText('profile-name-display', nombreReal);
                 safeText('profile-avatar-big', initials.toUpperCase());
-                safeText('profile-name-display', nombreCompleto);
-                safeText('profile-dni-display', user.username); 
+            } else {
+                safeText('dropdown-username', user.username);
             }
-        } catch (e) {
-            console.error("No se pudo recuperar el nombre real:", e);
-        }
+        } catch (e) { console.error("Error nombre real:", e); }
     }
 
     setupDirectClicks();
@@ -550,6 +546,15 @@ async function renderCoursesLogic(viewMode) {
                 // Per si dins del mateix paràgraf han fet un salt de línia manual
                 return text.split('\n')[0];
             }
+        }
+        return "";
+    };
+
+    const extractPlainText = (blocks) => {
+        if (!blocks) return "";
+        if (typeof blocks === 'string') return blocks.split('\n')[0];
+        if (Array.isArray(blocks) && blocks[0]?.children) {
+            return blocks[0].children.map(c => c.text || "").join("").split('\n')[0];
         }
         return "";
     };

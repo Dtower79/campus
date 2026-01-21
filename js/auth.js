@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // ÉXITO REGISTRO -> Modal profesional
                     lanzarModal(
                         "Compte Creat!", 
-                        `Hem trobat el teu email d'afiliat: <strong>${emailAfiliado}</strong>.<br>Ja pots iniciar sessió.`, 
+                        `Hem trobat el teu email d'afiliat: <strong>${emailAfiliado}</strong><br>Ja pots iniciar sessió.`, 
                         false,
                         () => window.location.reload()
                     );

@@ -550,7 +550,7 @@ async function renderCoursesLogic(viewMode) {
         return "";
     };
 
-    
+
     try {
         const ts = new Date().getTime();
         const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -639,7 +639,7 @@ async function renderCoursesLogic(viewMode) {
                 if (esFuturo && !esProfe) {
                     actionHtml = `
                         <button class="btn-primary" style="background-color:#95a5a6; cursor:not-allowed; opacity:0.8;" 
-                            onclick="window.mostrarModalError('Aquest curs s’obrirà el dia <strong>${dateStr}</strong>. Fins aleshores no pots accedir al contingut.')">
+                            onclick="window.mostrarModalError('Aquest curs s’obrirà el dia <strong>${dateStr}</strong>Fins aleshores no pots accedir al contingut.')">
                             Inicia el ${dateStr}
                         </button>`;
                 } else {

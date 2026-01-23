@@ -699,42 +699,89 @@ window.solicitarMatricula = function(id, title) {
 async function loadFullProfile() {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('jwt');
+    if (!user) return;
+
+    // 1. Recuperar nombre e iniciales del localStorage (guardados en iniciarApp)
+    const nombreReal = localStorage.getItem('user_fullname') || user.username;
+    let initials = nombreReal.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+    // 2. Rellenar la Sidebar de la ficha (Nombre, Iniciales y DNI)
+    const safeSet = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
+    
+    safeSet('profile-name-display', nombreReal);
+    safeSet('profile-avatar-big', initials);
+    safeSet('profile-dni-display', user.username); // Aquí es donde se quitan los puntos ...
+
+    // 3. Rellenar el input de Email
     const emailInput = document.getElementById('prof-email');
-    if(emailInput) emailInput.value = user.email;
+    if (emailInput) emailInput.value = user.email;
 
     try {
-        const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': `Bearer ${token}` }});
+        // 4. Cargar datos detallados desde Afiliados
+        const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { 
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         const jsonAfi = await resAfi.json();
-        if(jsonAfi.data && jsonAfi.data.length > 0) {
+
+        if (jsonAfi.data && jsonAfi.data.length > 0) {
             const afi = jsonAfi.data[0];
-            const map = { 'prof-movil': 'TelefonoMobil', 'prof-prov': 'Provincia', 'prof-pob': 'Poblacion', 'prof-centre': 'CentroTrabajo', 'prof-cat': 'CategoriaProfesional', 'prof-dir': 'Direccion', 'prof-iban': 'IBAN' };
-            for(const [id, key] of Object.entries(map)) {
+            // Mapa de IDs de inputs vs Campos en Strapi
+            const map = { 
+                'prof-movil': 'TelefonoMobil', 
+                'prof-prov': 'Provincia', 
+                'prof-pob': 'Poblacion', 
+                'prof-centre': 'CentroTrabajo', 
+                'prof-cat': 'CategoriaProfesional', 
+                'prof-dir': 'Direccion', 
+                'prof-iban': 'IBAN' 
+            };
+
+            for (const [id, key] of Object.entries(map)) {
                 const el = document.getElementById(id);
-                if(el && afi[key]) {
+                if (el && afi[key]) {
                     el.value = afi[key];
                     el.style.cursor = "copy";
-                    el.title = "Copiar";
-                    el.onclick = () => navigator.clipboard.writeText(el.value);
+                    el.title = "Clic per copiar";
+                    el.onclick = () => {
+                        navigator.clipboard.writeText(el.value);
+                        // Opcional: mini feedback visual al copiar
+                        const originalColor = el.style.backgroundColor;
+                        el.style.backgroundColor = "#e8f5e9";
+                        setTimeout(() => el.style.backgroundColor = originalColor, 500);
+                    };
                 }
             }
         }
-        
-        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`, { headers: { 'Authorization': `Bearer ${token}` }});
-        const jsonMat = await resMat.json();
-        let started = 0, finished = 0, hours = 0;
-        jsonMat.data.forEach(m => {
-            started++;
-            if(m.estat === 'completat' || m.progres >= 100 || m.progres_detallat?.examen_final?.aprobado) {
-                finished++;
-                if(m.curs && m.curs.hores) hours += parseInt(m.curs.hores);
-            }
-        });
-        document.getElementById('profile-stats-container').style.display = 'block';
-        document.getElementById('stat-started').innerText = started;
-        document.getElementById('stat-finished').innerText = finished;
-        document.getElementById('stat-hours').innerText = hours + 'h';
 
-    } catch(e) { console.error(e); }
+        // 5. Cargar Estadísticas (Cursos y Horas)
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`, { 
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const jsonMat = await resMat.json();
+        
+        let started = 0, finished = 0, hours = 0;
+        
+        if (jsonMat.data) {
+            jsonMat.data.forEach(m => {
+                started++;
+                const isDone = m.estat === 'completat' || m.progres >= 100 || m.progres_detallat?.examen_final?.aprobado;
+                if (isDone) {
+                    finished++;
+                    if (m.curs && m.curs.hores) hours += parseInt(m.curs.hores);
+                }
+            });
+        }
+
+        const statsCont = document.getElementById('profile-stats-container');
+        if (statsCont) statsCont.style.display = 'block';
+        
+        safeSet('stat-started', started);
+        safeSet('stat-finished', finished);
+        safeSet('stat-hours', hours + 'h');
+
+    } catch (e) { 
+        console.error("Error al cargar el perfil completo:", e); 
+    }
 }
 
 async function loadGrades() {

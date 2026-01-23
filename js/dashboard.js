@@ -64,13 +64,19 @@ window.iniciarApp = async function() {
     if(user) {
         const safeText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
 
+        // 1. Cargamos datos básicos inmediatos (evita ver placeholders o puntos)
+        safeText('dropdown-email', user.email);
+        safeText('profile-dni-display', user.username);
+        safeText('dropdown-username', user.username);
+        safeText('user-initials', user.username.substring(0, 2).toUpperCase());
+
         try {
-            // Buscamos en la tabla afiliados usando el DNI (username)
+            // 2. Buscamos en la tabla afiliados usando el DNI (username) para obtener el nombre real
             const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const jsonAfi = await resAfi.json();
-
+            
             if (jsonAfi.data && jsonAfi.data.length > 0) {
                 const afi = jsonAfi.data[0];
                 const nombreReal = `${afi.nombre} ${afi.apellidos}`;
@@ -78,36 +84,35 @@ window.iniciarApp = async function() {
                 
                 let initials = afi.nombre.charAt(0) + (afi.apellidos ? afi.apellidos.charAt(0) : "");
                 
+                // Actualizamos la UI con el nombre real e iniciales correctas
                 safeText('dropdown-username', nombreReal);
                 safeText('user-initials', initials.toUpperCase());
                 safeText('profile-name-display', nombreReal);
                 safeText('profile-avatar-big', initials.toUpperCase());
-            } else {
-                safeText('dropdown-username', user.username);
             }
-        } catch (e) { console.error("Error nombre real:", e); }
+        } catch (e) { 
+            console.error("Error recuperando nombre real:", e); 
+        }
     }
 
     setupDirectClicks();
     checkRealNotifications();
 
-    // === AÑADE ESTO AQUÍ (CONTROL DE REDIRECCIÓN) ===
-    // Dins de dashboard.js -> window.iniciarApp
+    // 3. Control de redirección por Slug
     const urlParams = new URLSearchParams(window.location.search);
     const slug = urlParams.get('slug');
 
     if (!slug) {
         window.showView('home'); 
     } else {
-        // Si hi ha un slug, abans d'obrir-lo, verifiquem si tenim accés
-        const token = localStorage.getItem('jwt');
-        const user = JSON.parse(localStorage.getItem('user'));
-
+        // Verificamos acceso al curso específico si hay un slug en la URL
         fetch(`${STRAPI_URL}/api/cursos?filters[slug][$eq]=${slug}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
         .then(res => res.json())
         .then(json => {
+            if (!json.data || json.data.length === 0) throw new Error("Curs no trobat");
+            
             const curs = json.data[0];
             const hoy = new Date();
             const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
@@ -116,12 +121,12 @@ window.iniciarApp = async function() {
             const esProfe = user.es_professor === true;
 
             if (esFuturo && !esProfe) {
-                // SI ÉS FUTUR I NO ÉS PROFE: El fem fora al catàleg
+                // SI ES FUTURO Y NO ES PROFE: Redirigimos al catálogo con aviso
                 const dateStr = fechaInicio.toLocaleDateString('ca-ES');
                 window.location.href = 'index.html'; 
                 alert(`Aquest curs encara no ha començat. Data d'inici: ${dateStr}`);
             } else {
-                // SI TOT ÉS CORRECTE: Mostrem el curs
+                // SI TODO ES CORRECTO: Mostramos la vista de examen/curso
                 document.getElementById('dashboard-view').style.display = 'none';
                 document.getElementById('exam-view').style.display = 'flex';
             }

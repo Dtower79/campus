@@ -72,7 +72,7 @@ window.iniciarApp = async function() {
 
         try {
             // 2. Buscamos en la tabla afiliados usando el DNI (username) para obtener el nombre real
-            const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, {
+            const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$iEq]=${user.username}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const jsonAfi = await resAfi.json();

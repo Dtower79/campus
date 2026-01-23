@@ -99,90 +99,96 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. REGISTRO
-    const registerForm = document.getElementById('register-form');
-    if (registerForm) {
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const dni = document.getElementById('reg-dni').value.trim().toUpperCase();
-            const pass = document.getElementById('reg-pass').value;
-            const passConf = document.getElementById('reg-pass-conf').value;
-            const btnSubmit = registerForm.querySelector('button[type="submit"]');
+         // 2. REGISTRO
+        const registerForm = document.getElementById('register-form');
 
-            if(pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
-            
-            btnSubmit.innerText = "Verificant..."; btnSubmit.disabled = true;
+        if (registerForm) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
 
-            try {
-                const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dni}`);
-                const jsonAfi = await resAfi.json();
+                // 1. CAPTURAMOS Y LIMPIAMOS EL DNI JUSTO AL HACER CLIC EN EL BOTÓN
+                let dni = document.getElementById('reg-dni').value.trim().toUpperCase();
+                dni = dni.replace(/[^0-9A-Z]/g, ''); // Això elimina punts, guions i espais
+
+                const pass = document.getElementById('reg-pass').value;
+                const passConf = document.getElementById('reg-pass-conf').value;
+                const btnSubmit = registerForm.querySelector('button[type="submit"]');
+
+                if(pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
                 
-                if(!jsonAfi.data || jsonAfi.data.length === 0) {
-                     lanzarModal("DNI no autoritzat", "No constes com a afiliat actiu.");
-                     btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
-                     return;
-                }
+                btnSubmit.innerText = "Verificant..."; btnSubmit.disabled = true;
 
-                const afiliado = jsonAfi.data[0];
-                const emailAfiliado = afiliado.email; 
-
-                if (!emailAfiliado) {
-                    lanzarModal("Error de Dades", "Ets afiliat però no tenim el teu email registrat. Contacta amb secretaria.");
-                    btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
-                    return;
-                }
-
-                const regRes = await fetch(API_ROUTES.register, {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        username: dni,      // El DNI es el identificador único
-                        email: emailAfiliado, 
-                        password: pass      // Eliminamos 'nombre' y 'apellidos' de aquí
-                    })
-                });
-                const regData = await regRes.json();
-
-                if(regRes.ok) {
-                    try {
-                        if (regData.jwt) {
-                            await fetch(API_ROUTES.notifications, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${regData.jwt}` },
-                                body: JSON.stringify({
-                                    data: {
-                                        titol: "Benvingut al Campus! 👋",
-                                        missatge: "Compte activat correctament.",
-                                        llegida: false,
-                                        users_permissions_user: regData.user.id
-                                    }
-                                })
-                            });
-                        }
-                    } catch(err) {}
-
-                    // ÉXITO REGISTRO -> Modal profesional
-                    lanzarModal(
-                        "Compte Creat!", 
-                        `Hem trobat el teu email d'afiliat: <strong>${emailAfiliado}</strong><br>Ja pots iniciar sessió.`, 
-                        false,
-                        () => window.location.reload()
-                    );
-                } else {
-                    let errorMsg = regData.error?.message || "Error al crear compte.";
-                    if(errorMsg.includes('username')) errorMsg = "Aquest DNI ja està registrat.";
-                    if(errorMsg.includes('email')) errorMsg = "El teu email d'afiliat ja està en ús per un altre usuari.";
+                try {
+                    // 2. BUSQUEDA EN AFILIADOS USANDO EL DNI LIMPIO Y EL FILTRO $iEq
+                    const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$iEq]=${dni}`);
+                    const jsonAfi = await resAfi.json();
                     
-                    lanzarModal("Error", errorMsg);
+                    if(!jsonAfi.data || jsonAfi.data.length === 0) {
+                         lanzarModal("DNI no autoritzat", "No constes com a afiliat actiu.");
+                         btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
+                         return;
+                    }
+
+                    const afiliado = jsonAfi.data[0];
+                    const emailAfiliado = afiliado.email; 
+
+                    if (!emailAfiliado) {
+                        lanzarModal("Error de Dades", "Ets afiliat però no tenim el teu email registrat. Contacta amb secretaria.");
+                        btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
+                        return;
+                    }
+
+                    const regRes = await fetch(API_ROUTES.register, {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            username: dni,      // El DNI net és l'identificador únic
+                            email: emailAfiliado, 
+                            password: pass
+                        })
+                    });
+                    const regData = await regRes.json();
+
+                    if(regRes.ok) {
+                        try {
+                            if (regData.jwt) {
+                                await fetch(API_ROUTES.notifications, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${regData.jwt}` },
+                                    body: JSON.stringify({
+                                        data: {
+                                            titol: "Benvingut al Campus! 👋",
+                                            missatge: "Compte activat correctament.",
+                                            llegida: false,
+                                            users_permissions_user: regData.user.id
+                                        }
+                                    })
+                                });
+                            }
+                        } catch(err) {}
+
+                        // ÉXITO REGISTRO -> Modal professional
+                        lanzarModal(
+                            "Compte Creat!", 
+                            `Hem trobat el teu email d'afiliat: <strong>${emailAfiliado}</strong><br>Ja pots iniciar sessió.`, 
+                            false,
+                            () => window.location.reload()
+                        );
+                    } else {
+                        let errorMsg = regData.error?.message || "Error al crear compte.";
+                        if(errorMsg.includes('username')) errorMsg = "Aquest DNI ja està registrat.";
+                        if(errorMsg.includes('email')) errorMsg = "El teu email d'afiliat ja està en ús per un altre usuari.";
+                        
+                        lanzarModal("Error", errorMsg);
+                        btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
+                    }
+                } catch(e) { 
+                    console.error(e);
+                    lanzarModal("Error", "Error de connexió."); 
                     btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
                 }
-            } catch(e) { 
-                console.error(e);
-                lanzarModal("Error", "Error de connexió."); 
-                btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
-            }
-        });
-    }
+            });
+        }
 
     // 3. RECUPERACIÓN
     const forgotForm = document.getElementById('forgot-form');

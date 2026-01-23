@@ -72,39 +72,28 @@ window.iniciarApp = async function() {
 
         try {
             // 2. Buscamos en la tabla afiliados usando el DNI (username) para obtener el nombre real
-            // Usamos $iEq para que no importe si el DNI tiene la letra en mayúscula o minúscula
-            const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$iEq]=${user.username}`, {
+            const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const jsonAfi = await resAfi.json();
             
             if (jsonAfi.data && jsonAfi.data.length > 0) {
-                // PARCHE: Compatibilidad total con Strapi v4 (attributes) y Strapi v5 (flat)
-                const item = jsonAfi.data[0];
-                const afi = item.attributes ? item.attributes : item;
-
-                // Extraemos nombre y apellidos (usamos || "" por seguridad si algún campo es nulo)
-                const nombre = afi.nombre || "";
-                const apellidos = afi.apellidos || "";
-                const nombreReal = `${nombre} ${apellidos}`.trim();
-
-                if (nombreReal) {
-                    localStorage.setItem('user_fullname', nombreReal); // Guardamos para diplomas y dudas
-                    
-                    // Generar iniciales correctamente
-                    let initials = nombre.charAt(0) + (apellidos ? apellidos.charAt(0) : "");
-                    
-                    // Actualizamos la UI con el nombre real e iniciales correctas
-                    safeText('dropdown-username', nombreReal);
-                    safeText('user-initials', initials.toUpperCase());
-                    safeText('profile-name-display', nombreReal);
-                    safeText('profile-avatar-big', initials.toUpperCase());
-                }
+                const afi = jsonAfi.data[0];
+                const nombreReal = `${afi.nombre} ${afi.apellidos}`;
+                localStorage.setItem('user_fullname', nombreReal); // Guardamos para diplomas y dudas
+                
+                let initials = afi.nombre.charAt(0) + (afi.apellidos ? afi.apellidos.charAt(0) : "");
+                
+                // Actualizamos la UI con el nombre real e iniciales correctas
+                safeText('dropdown-username', nombreReal);
+                safeText('user-initials', initials.toUpperCase());
+                safeText('profile-name-display', nombreReal);
+                safeText('profile-avatar-big', initials.toUpperCase());
             }
         } catch (e) { 
             console.error("Error recuperando nombre real:", e); 
         }
-            }
+    }
 
     setupDirectClicks();
     checkRealNotifications();
@@ -717,35 +706,31 @@ async function loadFullProfile() {
     const token = localStorage.getItem('jwt');
     if (!user) return;
 
-    // 1. Elementos de la UI
+    // 1. Recuperar nombre e iniciales del localStorage (guardados en iniciarApp)
+    const nombreReal = localStorage.getItem('user_fullname') || user.username;
+    let initials = nombreReal.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+    // 2. Rellenar la Sidebar de la ficha (Nombre, Iniciales y DNI)
+    const safeSet = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
+    
+    safeSet('profile-name-display', nombreReal);
+    safeSet('profile-avatar-big', initials);
+    safeSet('profile-dni-display', user.username); // Aquí es donde se quitan los puntos ...
+
+    // 3. Rellenar el input de Email
     const emailInput = document.getElementById('prof-email');
-    const nameDisplay = document.getElementById('profile-name-display');
-    const dniDisplay = document.getElementById('profile-dni-display');
-    const avatarDisplay = document.getElementById('profile-avatar-big');
+    if (emailInput) emailInput.value = user.email;
 
     try {
-        // 2. Buscamos al AFILIADO por DNI (Aquí es donde recuperamos a JOSE)
-        const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$iEq]=${user.username}`, { 
+        // 4. Cargar datos detallados desde Afiliados
+        const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { 
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const jsonAfi = await resAfi.json();
 
         if (jsonAfi.data && jsonAfi.data.length > 0) {
-            const item = jsonAfi.data[0];
-            const afi = item.attributes ? item.attributes : item;
-
-            // 3. ACTUALIZAMOS EL NOMBRE REAL (Prioridad absoluta a la base de datos)
-            const nombreCompleto = `${afi.nombre || ""} ${afi.apellidos || ""}`.trim();
-            const iniciales = (afi.nombre ? afi.nombre[0] : "") + (afi.apellidos ? afi.apellidos[0] : "");
-
-            if (nameDisplay) nameDisplay.innerText = nombreCompleto;
-            if (avatarDisplay) avatarDisplay.innerText = iniciales.toUpperCase();
-            if (dniDisplay) dniDisplay.innerText = user.username;
-            
-            // Guardamos el nombre correcto para los Diplomas
-            localStorage.setItem('user_fullname', nombreCompleto);
-
-            // 4. Rellenamos los campos profesionales (IBAN, Teléfono, etc.)
+            const afi = jsonAfi.data[0];
+            // Mapa de IDs de inputs vs Campos en Strapi
             const map = { 
                 'prof-movil': 'TelefonoMobil', 
                 'prof-prov': 'Provincia', 
@@ -758,52 +743,49 @@ async function loadFullProfile() {
 
             for (const [id, key] of Object.entries(map)) {
                 const el = document.getElementById(id);
-                if (el) {
-                    el.value = afi[key] || "";
+                if (el && afi[key]) {
+                    el.value = afi[key];
                     el.style.cursor = "copy";
+                    el.title = "Clic per copiar";
                     el.onclick = () => {
                         navigator.clipboard.writeText(el.value);
+                        // Opcional: mini feedback visual al copiar
+                        const originalColor = el.style.backgroundColor;
                         el.style.backgroundColor = "#e8f5e9";
-                        setTimeout(() => el.style.backgroundColor = "", 500);
+                        setTimeout(() => el.style.backgroundColor = originalColor, 500);
                     };
                 }
             }
-
-            // 5. El Email: Mostramos el de la ficha si existe, si no, el del login
-            if (emailInput) emailInput.value = afi.email || user.email;
-
-        } else {
-            // Si no hay ficha de afiliado, usamos los datos básicos del login
-            if (nameDisplay) nameDisplay.innerText = user.username;
-            if (dniDisplay) dniDisplay.innerText = user.username;
-            if (emailInput) emailInput.value = user.email;
         }
 
-        // 6. Cargar Estadísticas (Cursos y Horas)
+        // 5. Cargar Estadísticas (Cursos y Horas)
         const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate=curs`, { 
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const jsonMat = await resMat.json();
+        
         let started = 0, finished = 0, hours = 0;
         
         if (jsonMat.data) {
             jsonMat.data.forEach(m => {
                 started++;
-                const isDone = m.estat === 'completat' || m.progres >= 100 || (m.progres_detallat && m.progres_detallat.examen_final && m.progres_detallat.examen_final.aprobado);
+                const isDone = m.estat === 'completat' || m.progres >= 100 || m.progres_detallat?.examen_final?.aprobado;
                 if (isDone) {
                     finished++;
                     if (m.curs && m.curs.hores) hours += parseInt(m.curs.hores);
                 }
             });
         }
+
         const statsCont = document.getElementById('profile-stats-container');
         if (statsCont) statsCont.style.display = 'block';
-        document.getElementById('stat-started').innerText = started;
-        document.getElementById('stat-finished').innerText = finished;
-        document.getElementById('stat-hours').innerText = hours + 'h';
+        
+        safeSet('stat-started', started);
+        safeSet('stat-finished', finished);
+        safeSet('stat-hours', hours + 'h');
 
     } catch (e) { 
-        console.error("Error crítico al cargar perfil:", e); 
+        console.error("Error al cargar el perfil completo:", e); 
     }
 }
 

@@ -72,28 +72,39 @@ window.iniciarApp = async function() {
 
         try {
             // 2. Buscamos en la tabla afiliados usando el DNI (username) para obtener el nombre real
+            // Usamos $iEq para que no importe si el DNI tiene la letra en mayúscula o minúscula
             const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$iEq]=${user.username}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const jsonAfi = await resAfi.json();
             
             if (jsonAfi.data && jsonAfi.data.length > 0) {
-                const afi = jsonAfi.data[0];
-                const nombreReal = `${afi.nombre} ${afi.apellidos}`;
-                localStorage.setItem('user_fullname', nombreReal); // Guardamos para diplomas y dudas
-                
-                let initials = afi.nombre.charAt(0) + (afi.apellidos ? afi.apellidos.charAt(0) : "");
-                
-                // Actualizamos la UI con el nombre real e iniciales correctas
-                safeText('dropdown-username', nombreReal);
-                safeText('user-initials', initials.toUpperCase());
-                safeText('profile-name-display', nombreReal);
-                safeText('profile-avatar-big', initials.toUpperCase());
+                // PARCHE: Compatibilidad total con Strapi v4 (attributes) y Strapi v5 (flat)
+                const item = jsonAfi.data[0];
+                const afi = item.attributes ? item.attributes : item;
+
+                // Extraemos nombre y apellidos (usamos || "" por seguridad si algún campo es nulo)
+                const nombre = afi.nombre || "";
+                const apellidos = afi.apellidos || "";
+                const nombreReal = `${nombre} ${apellidos}`.trim();
+
+                if (nombreReal) {
+                    localStorage.setItem('user_fullname', nombreReal); // Guardamos para diplomas y dudas
+                    
+                    // Generar iniciales correctamente
+                    let initials = nombre.charAt(0) + (apellidos ? apellidos.charAt(0) : "");
+                    
+                    // Actualizamos la UI con el nombre real e iniciales correctas
+                    safeText('dropdown-username', nombreReal);
+                    safeText('user-initials', initials.toUpperCase());
+                    safeText('profile-name-display', nombreReal);
+                    safeText('profile-avatar-big', initials.toUpperCase());
+                }
             }
         } catch (e) { 
             console.error("Error recuperando nombre real:", e); 
         }
-    }
+            }
 
     setupDirectClicks();
     checkRealNotifications();

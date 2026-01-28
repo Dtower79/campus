@@ -822,19 +822,30 @@ async function loadGrades() {
                 
                 if (isDone) {
                     const hoy = new Date();
-                    let fechaInscripcion = mat.createdAt ? new Date(mat.createdAt) : new Date();
                     
-                    const fechaDesbloqueo = new Date(fechaInscripcion);
+                    // 1. Obtenir dates clau (Matrícula i Inici de curs)
+                    const tMatricula = mat.createdAt ? new Date(mat.createdAt).getTime() : hoy.getTime();
+                    const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
+                    const tInicio = new Date(rawInicio).getTime();
+
+                    // 2. La permanència comença a comptar des de la data més TARDANA (Inici o Matrícula)
+                    let dataBasePermanencia = new Date(Math.max(tMatricula, tInicio));
+
+                    // 3. Calculem els 14 dies de rigor
+                    let fechaDesbloqueo = new Date(dataBasePermanencia);
                     fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14); 
 
-                    const rawFin = curs.fecha_fin || curs.data_fi;
+                    // 4. REGLA MESTRA: Si el curs finalitza oficialment, el diploma s'allibera aquell dia
+                    // encara que no s'hagin complert els 14 de l'alumne.
+                    const rawFin = curs.data_fi || curs.fecha_fin;
                     if (rawFin) {
                         const fechaFinCurso = new Date(rawFin);
                         if (!isNaN(fechaFinCurso.getTime()) && fechaFinCurso < fechaDesbloqueo) {
-                            fechaDesbloqueo.setTime(fechaFinCurso.getTime());
+                            fechaDesbloqueo = fechaFinCurso;
                         }
                     }
 
+                    // 5. Verificació final per mostrar o bloquejar el botó
                     if (hoy < fechaDesbloqueo) {
                         const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
                         btnCert = `<small style="color:#d97706; font-weight:bold; cursor:help;" title="Disponible el ${fechaStr}">Disponible el ${fechaStr}</small>`;

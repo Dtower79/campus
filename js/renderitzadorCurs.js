@@ -146,7 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true`;
+        // Dins de la funció cargarDatos():
+        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos][populate]=true`;
         
         // Cambiamos 'res' por 'respuestaMat' para evitar el error de duplicado
         const respuestaMat = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });

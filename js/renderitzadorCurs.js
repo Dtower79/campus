@@ -422,7 +422,20 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { container.style.opacity = '1'; }, 50);
 
         if (state.currentView === 'intro') { 
-            container.innerHTML = `<h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2><div class="module-content-text" style="margin-top:20px;">${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}</div>`; 
+            // 1. Cridem a la funció que ja sap pintar vídeos, però li passem l'objecte "curso" sencer
+            const videoIntroHtml = renderVideoPlayer(state.curso); 
+
+            container.innerHTML = `
+                <h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2>
+                
+                <!-- 2. Pintem els vídeos abans o després de la descripció segons prefereixis -->
+                ${videoIntroHtml} 
+
+                <div class="module-content-text" style="margin-top:20px;">
+                    ${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}
+                </div>
+            `; 
+            
             renderSidebarTools(gridRight, { titol: 'Programa' }); 
             return; 
         }

@@ -342,7 +342,7 @@ window.openTeacherInbox = function(element) {
 };
 
 // --- MENSAJERÍA / CHAT ---
-window.abrirPanelMensajes = async function(modoForzado) {
+window.abrirPanelMensajes = async function(modoForzado, filtroHistorial = false) {
     const modal = document.getElementById('custom-modal');
     const titleEl = document.getElementById('modal-title');
     const msgEl = document.getElementById('modal-msg');
@@ -353,22 +353,34 @@ window.abrirPanelMensajes = async function(modoForzado) {
     const esProfe = user.es_professor === true;
     let modoActual = modoForzado ? modoForzado : (esProfe ? 'profesor' : 'alumno');
 
+    // UI de la Capçalera amb botons de control per al professor
     if (esProfe) {
-        titleEl.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                                <span>${modoActual === 'profesor' ? '👨‍🏫 Bústia Professor' : '💬 Els meus Dubtes'}</span>
-                                <button class="btn-small" onclick="abrirPanelMensajes('${modoActual === 'profesor' ? 'alumno' : 'profesor'}')" style="font-size:0.75rem; padding:4px 8px;">
-                                    ${modoActual === 'profesor' ? 'Veure com Alumne' : 'Veure com Professor'}
-                                </button>
-                             </div>`;
+        let botonesExtra = '';
+        if (modoActual === 'profesor') {
+            botonesExtra = `
+                <button class="btn-small" onclick="abrirPanelMensajes('profesor', ${!filtroHistorial})" style="font-size:0.7rem; padding:4px 8px; background:${filtroHistorial ? 'var(--brand-blue)' : '#666'}">
+                    ${filtroHistorial ? 'Veure Pendents' : 'Veure Historial'}
+                </button>
+            `;
+        }
+
+        titleEl.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:10px;">
+                <span style="font-size:1.1rem;">${modoActual === 'profesor' ? (filtroHistorial ? '📚 Historial' : '👨‍🏫 Bústia Professor') : '💬 Els meus Dubtes'}</span>
+                <div style="display:flex; gap:5px;">
+                    ${botonesExtra}
+                    <button class="btn-small" onclick="abrirPanelMensajes('${modoActual === 'profesor' ? 'alumno' : 'profesor'}')" style="font-size:0.7rem; padding:4px 8px; opacity:0.8;">
+                        ${modoActual === 'profesor' ? 'Vista Alumne' : 'Vista Profe'}
+                    </button>
+                </div>
+            </div>`;
     } else {
         titleEl.innerText = "💬 Els meus Dubtes";
         titleEl.style.color = "var(--brand-blue)";
     }
 
     btnC.innerText = "Tancar";
-    btnC.disabled = false;
     btnC.onclick = () => modal.style.display = 'none';
-    
     msgEl.innerHTML = '<div class="loader"></div>';
     modal.style.display = 'flex';
     
@@ -378,41 +390,23 @@ window.abrirPanelMensajes = async function(modoForzado) {
         let endpoint = '';
         const ts = new Date().getTime();
         
-        // PARCHE: Aseguramos populate completo para que no se pierda el usuario
         if (modoActual === 'profesor') {
-            endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=*&_t=${ts}`;
+            // Si historial és true, busquem els 'respost', si no, els 'pendent'
+            const estatCerca = filtroHistorial ? 'respost' : 'pendent';
+            endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=${estatCerca}&sort=updatedAt:desc&populate=*&_t=${ts}`;
         } else {
-            // Usamos el ID del usuario actual de forma explícita en la relación
             endpoint = `${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:asc&populate=*&_t=${ts}`;
         }
 
-        const respuestaMensajes = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
-        const jsonM = await respuestaMensajes.json();
+        const respuestaAPI = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
+        const jsonM = await respuestaAPI.json();
         
         if(!jsonM.data || jsonM.data.length === 0) {
-            msgEl.innerHTML = `
-                <div style="text-align:center; padding:40px 20px; color:#999;">
-                    <div style="background:#f5f5f5; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px auto;">
-                        <i class="fa-regular fa-comments" style="font-size:2.5rem; color:#ccc;"></i>
-                    </div>
-                    <h4>No hi ha missatges ${modoActual === 'profesor' ? 'pendents' : ''}</h4>
-                </div>`;
+            msgEl.innerHTML = `<div style="text-align:center; padding:40px 20px; color:#999;"><h4>No hi ha missatges ${filtroHistorial ? 'a l\'historial' : 'pendents'}</h4></div>`;
         } else {
             let html = '<div class="msg-list-container" id="chat-container">';
             
-            // PARCHE: Filtramos por sesionLeidas SOLO en modo profesor para que no desaparezcan del alumno
-            const mensajesFiltrados = jsonM.data.filter(m => {
-                const idM = m.documentId || m.id;
-                if (modoActual === 'profesor') return !window.sesionLeidas.has(idM);
-                return true; 
-            });
-
-            if (mensajesFiltrados.length === 0) {
-                 msgEl.innerHTML = '<div style="text-align:center; padding:20px;">Tot al dia! 🎉</div>';
-                 return;
-            }
-
-            mensajesFiltrados.forEach(m => {
+            jsonM.data.forEach(m => {
                 const dataM = m.attributes ? m.attributes : m;
                 const msgId = m.documentId || m.id;
                 const dateUser = new Date(dataM.createdAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
@@ -425,7 +419,7 @@ window.abrirPanelMensajes = async function(modoForzado) {
                     const temaEnc = encodeURIComponent(dataM.tema || 'Dubte').replace(/'/g, "%27");
 
                     html += `
-                        <div class="msg-card" id="msg-card-${msgId}">
+                        <div class="msg-card" id="msg-card-${msgId}" style="border-left: 4px solid ${filtroHistorial ? '#10b981' : '#f59e0b'}">
                             <div class="msg-course-badge">${headerBadge}</div>
                             <div class="msg-content">
                                 <div class="chat-bubble bubble-student">
@@ -433,24 +427,31 @@ window.abrirPanelMensajes = async function(modoForzado) {
                                     ${dataM.missatge}
                                     <span class="msg-date-small">${dateUser}</span>
                                 </div>
-                                <div class="reply-area">
-                                    <textarea id="reply-${msgId}" class="modal-textarea" placeholder="Escriu la resposta..." style="height:80px;"></textarea>
-                                    <button class="btn-primary" style="margin-top:5px; padding:5px 15px; font-size:0.85rem;" 
-                                        onclick="window.enviarRespostaProfessor(this, '${msgId}', '${alumnoId}', '${temaEnc}')">
-                                        Enviar Resposta
-                                    </button>
-                                </div>
+                                
+                                ${filtroHistorial ? `
+                                    <div class="chat-bubble bubble-teacher" style="margin-top:10px; background:#e8f5e9;">
+                                        <strong style="color:#2e7d32">Tu has respost:</strong><br>
+                                        ${dataM.resposta_professor}
+                                        <span class="msg-date-small">${dateProfe}</span>
+                                    </div>
+                                ` : `
+                                    <div class="reply-area">
+                                        <textarea id="reply-${msgId}" class="modal-textarea" placeholder="Escriu la resposta..." style="height:80px;"></textarea>
+                                        <button class="btn-primary" style="margin-top:5px; padding:5px 15px; font-size:0.85rem;" 
+                                            onclick="window.enviarRespostaProfessor(this, '${msgId}', '${alumnoId}', '${temaEnc}')">
+                                            Enviar Resposta
+                                        </button>
+                                    </div>
+                                `}
                             </div>
                         </div>`;
                 } else {
+                    // Vista alumne (igual que abans)
                     html += `
                         <div class="msg-card">
                             <div class="msg-course-badge">${headerBadge}</div>
                             <div class="msg-content">
-                                <div class="chat-bubble bubble-teacher">
-                                    ${dataM.missatge}
-                                    <span class="msg-date-small">${dateUser}</span>
-                                </div>
+                                <div class="chat-bubble bubble-teacher">${dataM.missatge}<span class="msg-date-small">${dateUser}</span></div>
                                 ${dataM.resposta_professor ? `
                                     <div class="chat-bubble bubble-student">
                                         <strong style="color:var(--brand-blue)">👨‍🏫 Professor:</strong><br>
@@ -467,7 +468,7 @@ window.abrirPanelMensajes = async function(modoForzado) {
             msgEl.innerHTML = html;
             requestAnimationFrame(() => {
                 const c = document.getElementById('chat-container');
-                if(c) { c.scrollTop = c.scrollHeight; }
+                if(c) { c.scrollTop = 0; } // A l'historial millor començar per dalt
             });
         }
     } catch(e) { 

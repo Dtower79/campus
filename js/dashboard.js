@@ -64,47 +64,48 @@ window.iniciarApp = async function() {
     if(user) {
         const safeText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
 
-        // 1. Datos inmediatos
+        // 1. Cargamos datos básicos inmediatos (evita ver placeholders o puntos)
         safeText('dropdown-email', user.email);
         safeText('profile-dni-display', user.username);
         safeText('dropdown-username', user.username);
         safeText('user-initials', user.username.substring(0, 2).toUpperCase());
 
         try {
-            const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$iEq]=${user.username}`, {
+            // 2. Buscamos en la tabla afiliados usando el DNI (username) para obtener el nombre real
+            const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const jsonAfi = await resAfi.json();
             
             if (jsonAfi.data && jsonAfi.data.length > 0) {
-                const item = jsonAfi.data[0];
-                const afi = item.attributes ? item.attributes : item;
-                const nombreReal = `${afi.nombre || ""} ${afi.apellidos || ""}`.trim();
+                const afi = jsonAfi.data[0];
+                const nombreReal = `${afi.nombre} ${afi.apellidos}`;
+                localStorage.setItem('user_fullname', nombreReal); // Guardamos para diplomas y dudas
                 
-                if (nombreReal) {
-                    localStorage.setItem('user_fullname', nombreReal);
-                    let initials = (afi.nombre ? afi.nombre[0] : "") + (afi.apellidos ? afi.apellidos[0] : "");
-                    
-                    safeText('dropdown-username', nombreReal);
-                    safeText('user-initials', initials.toUpperCase());
-                    safeText('profile-name-display', nombreReal);
-                    safeText('profile-avatar-big', initials.toUpperCase());
-                }
+                let initials = afi.nombre.charAt(0) + (afi.apellidos ? afi.apellidos.charAt(0) : "");
+                
+                // Actualizamos la UI con el nombre real e iniciales correctas
+                safeText('dropdown-username', nombreReal);
+                safeText('user-initials', initials.toUpperCase());
+                safeText('profile-name-display', nombreReal);
+                safeText('profile-avatar-big', initials.toUpperCase());
             }
-        } catch (e) { console.error("Error recuperando nombre real:", e); }
+        } catch (e) { 
+            console.error("Error recuperando nombre real:", e); 
+        }
     }
 
     setupDirectClicks();
     checkRealNotifications();
 
-    // 2. Control de redirección por Slug (SIN RE-DECLARAR CONSTANTES)
+    // 3. Control de redirección por Slug
     const urlParams = new URLSearchParams(window.location.search);
     const slug = urlParams.get('slug');
 
     if (!slug) {
         window.showView('home'); 
     } else {
-        // IMPORTANTE: Aquí NO ponemos "const token" ni "const user" porque ya los tenemos arriba
+        // Verificamos acceso al curso específico si hay un slug en la URL
         fetch(`${STRAPI_URL}/api/cursos?filters[slug][$eq]=${slug}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
@@ -112,23 +113,20 @@ window.iniciarApp = async function() {
         .then(json => {
             if (!json.data || json.data.length === 0) throw new Error("Curs no trobat");
             
-            // Cambiamos el nombre a 'cursInfo' para evitar CUALQUIER colisión con 'curs' de otros sitios
-            const cursInfo = json.data[0]; 
+            const curs = json.data[0];
             const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0); // Limpieza de horas para evitar el retraso de 1h
-
-            const rawInicio = cursInfo.data_inici || cursInfo.fecha_inicio || cursInfo.publishedAt;
+            const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
             const fechaInicio = new Date(rawInicio);
-            fechaInicio.setHours(0, 0, 0, 0);
-
             const esFuturo = fechaInicio > hoy;
-            const esProfe = user && user.es_professor === true;
+            const esProfe = user.es_professor === true;
 
             if (esFuturo && !esProfe) {
+                // SI ES FUTURO Y NO ES PROFE: Redirigimos al catálogo con aviso
                 const dateStr = fechaInicio.toLocaleDateString('ca-ES');
                 window.location.href = 'index.html'; 
                 alert(`Aquest curs encara no ha començat. Data d'inici: ${dateStr}`);
             } else {
+                // SI TODO ES CORRECTO: Mostramos la vista de examen/curso
                 document.getElementById('dashboard-view').style.display = 'none';
                 document.getElementById('exam-view').style.display = 'flex';
             }
@@ -612,14 +610,9 @@ async function renderCoursesLogic(viewMode) {
                 if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url;
             }
 
-            hoy = new Date();
+            const hoy = new Date();
             const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
             const fechaInicio = new Date(rawInicio);
-            hoy.setHours(0, 0, 0, 0); // Ponemos "hoy" al principio del día
-
-            rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
-            fechaInicio = new Date(rawInicio);
-            fechaInicio.setHours(0, 0, 0, 0); // Ponemos la fecha del curso al principio del día
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const esProfe = user.es_professor === true;

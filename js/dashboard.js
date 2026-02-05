@@ -612,13 +612,13 @@ async function renderCoursesLogic(viewMode) {
                 if(img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url;
             }
 
-            const hoy = new Date();
+            hoy = new Date();
             const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
             const fechaInicio = new Date(rawInicio);
             hoy.setHours(0, 0, 0, 0); // Ponemos "hoy" al principio del día
 
-            const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
-            const fechaInicio = new Date(rawInicio);
+            rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
+            fechaInicio = new Date(rawInicio);
             fechaInicio.setHours(0, 0, 0, 0); // Ponemos la fecha del curso al principio del día
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });

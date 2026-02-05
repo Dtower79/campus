@@ -108,8 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // PARCHE SEGURIDAD: Comprobar si el curso es futuro
             const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0); // Reset horas
             const rawInicio = state.curso.data_inici || state.curso.fecha_inicio || state.curso.publishedAt;
             const fechaInicio = new Date(rawInicio);
+            fechaInicio.setHours(0, 0, 0, 0); // Reset horas
             if (fechaInicio > hoy && USER.es_professor !== true) {
                 alert(`Aquest curs encara no ha començat. Data d'inici: ${fechaInicio.toLocaleDateString('ca-ES')}`);
                 window.location.href = 'index.html';

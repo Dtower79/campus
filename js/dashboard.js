@@ -117,6 +117,13 @@ window.iniciarApp = async function() {
             const hoy = new Date();
             const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
             const fechaInicio = new Date(rawInicio);
+            const curs = json.data[0];
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0); // Reset horas
+
+            const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
+            const fechaInicio = new Date(rawInicio);
+            fechaInicio.setHours(0, 0, 0, 0); // Reset horas
             const esFuturo = fechaInicio > hoy;
             const esProfe = user.es_professor === true;
 
@@ -613,6 +620,12 @@ async function renderCoursesLogic(viewMode) {
             const hoy = new Date();
             const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
             const fechaInicio = new Date(rawInicio);
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0); // Ponemos "hoy" al principio del día
+
+            const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
+            const fechaInicio = new Date(rawInicio);
+            fechaInicio.setHours(0, 0, 0, 0); // Ponemos la fecha del curso al principio del día
             const esFuturo = fechaInicio > hoy;
             const dateStr = fechaInicio.toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const esProfe = user.es_professor === true;

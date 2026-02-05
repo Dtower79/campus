@@ -615,7 +615,6 @@ async function renderCoursesLogic(viewMode) {
             const hoy = new Date();
             const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
             const fechaInicio = new Date(rawInicio);
-            const hoy = new Date();
             hoy.setHours(0, 0, 0, 0); // Ponemos "hoy" al principio del día
 
             const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;

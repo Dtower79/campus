@@ -378,16 +378,18 @@ window.abrirPanelMensajes = async function(modoForzado) {
         let endpoint = '';
         const ts = new Date().getTime();
         
+        // PARCHE: Aseguramos populate completo para que no se pierda el usuario
         if (modoActual === 'profesor') {
-            endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=users_permissions_user&_t=${ts}`;
+            endpoint = `${API_ROUTES.messages}?filters[estat][$eq]=pendent&sort=createdAt:asc&populate=*&_t=${ts}`;
         } else {
-            endpoint = `${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:asc&_t=${ts}`;
+            // Usamos el ID del usuario actual de forma explícita en la relación
+            endpoint = `${API_ROUTES.messages}?filters[users_permissions_user][id][$eq]=${user.id}&sort=createdAt:asc&populate=*&_t=${ts}`;
         }
 
-        const res = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
-        const json = await res.json();
+        const respuestaMensajes = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${token}` } });
+        const jsonM = await respuestaMensajes.json();
         
-        if(!json.data || json.data.length === 0) {
+        if(!jsonM.data || jsonM.data.length === 0) {
             msgEl.innerHTML = `
                 <div style="text-align:center; padding:40px 20px; color:#999;">
                     <div style="background:#f5f5f5; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px auto;">
@@ -397,7 +399,13 @@ window.abrirPanelMensajes = async function(modoForzado) {
                 </div>`;
         } else {
             let html = '<div class="msg-list-container" id="chat-container">';
-            const mensajesFiltrados = json.data.filter(m => !window.sesionLeidas.has(m.documentId || m.id));
+            
+            // PARCHE: Filtramos por sesionLeidas SOLO en modo profesor para que no desaparezcan del alumno
+            const mensajesFiltrados = jsonM.data.filter(m => {
+                const idM = m.documentId || m.id;
+                if (modoActual === 'profesor') return !window.sesionLeidas.has(idM);
+                return true; 
+            });
 
             if (mensajesFiltrados.length === 0) {
                  msgEl.innerHTML = '<div style="text-align:center; padding:20px;">Tot al dia! 🎉</div>';
@@ -405,15 +413,16 @@ window.abrirPanelMensajes = async function(modoForzado) {
             }
 
             mensajesFiltrados.forEach(m => {
-                const dateUser = new Date(m.createdAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
-                const dateProfe = new Date(m.updatedAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
-                const headerBadge = `<strong>${m.curs}</strong> | ${m.tema}`;
+                const dataM = m.attributes ? m.attributes : m;
+                const msgId = m.documentId || m.id;
+                const dateUser = new Date(dataM.createdAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+                const dateProfe = new Date(dataM.updatedAt).toLocaleDateString('ca-ES', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+                const headerBadge = `<strong>${dataM.curs}</strong> | ${dataM.tema}`;
                 
                 if (modoActual === 'profesor') {
-                    const alumnoNombre = m.alumne_nom || 'Alumne';
-                    const alumnoId = m.users_permissions_user?.id || m.users_permissions_user?.documentId;
-                    const msgId = m.documentId || m.id;
-                    const temaEnc = encodeURIComponent(m.tema || 'Dubte').replace(/'/g, "%27");
+                    const alumnoNombre = dataM.alumne_nom || 'Alumne';
+                    const alumnoId = dataM.users_permissions_user?.id || dataM.users_permissions_user?.data?.id;
+                    const temaEnc = encodeURIComponent(dataM.tema || 'Dubte').replace(/'/g, "%27");
 
                     html += `
                         <div class="msg-card" id="msg-card-${msgId}">
@@ -421,12 +430,11 @@ window.abrirPanelMensajes = async function(modoForzado) {
                             <div class="msg-content">
                                 <div class="chat-bubble bubble-student">
                                     <strong>👤 ${alumnoNombre}</strong><br>
-                                    ${m.missatge}
+                                    ${dataM.missatge}
                                     <span class="msg-date-small">${dateUser}</span>
                                 </div>
                                 <div class="reply-area">
                                     <textarea id="reply-${msgId}" class="modal-textarea" placeholder="Escriu la resposta..." style="height:80px;"></textarea>
-                                    
                                     <button class="btn-primary" style="margin-top:5px; padding:5px 15px; font-size:0.85rem;" 
                                         onclick="window.enviarRespostaProfessor(this, '${msgId}', '${alumnoId}', '${temaEnc}')">
                                         Enviar Resposta
@@ -440,13 +448,13 @@ window.abrirPanelMensajes = async function(modoForzado) {
                             <div class="msg-course-badge">${headerBadge}</div>
                             <div class="msg-content">
                                 <div class="chat-bubble bubble-teacher">
-                                    ${m.missatge}
+                                    ${dataM.missatge}
                                     <span class="msg-date-small">${dateUser}</span>
                                 </div>
-                                ${m.resposta_professor ? `
+                                ${dataM.resposta_professor ? `
                                     <div class="chat-bubble bubble-student">
                                         <strong style="color:var(--brand-blue)">👨‍🏫 Professor:</strong><br>
-                                        ${m.resposta_professor}
+                                        ${dataM.resposta_professor}
                                         <span class="msg-date-small" style="margin-top:5px;">${dateProfe}</span>
                                     </div>` : 
                                     '<small style="text-align:right; color:#999; font-size:0.75rem;">Esperant resposta...</small>'
@@ -459,16 +467,16 @@ window.abrirPanelMensajes = async function(modoForzado) {
             msgEl.innerHTML = html;
             requestAnimationFrame(() => {
                 const c = document.getElementById('chat-container');
-                if(c) { c.scrollTop = c.scrollHeight; setTimeout(() => c.scrollTop = c.scrollHeight, 150); }
+                if(c) { c.scrollTop = c.scrollHeight; }
             });
         }
-    } catch(e) { msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>'; }
+    } catch(e) { 
+        console.error(e);
+        msgEl.innerHTML = '<p style="color:red; text-align:center;">Error carregant missatges.</p>'; 
+    }
 };
 
 window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, encodedTema) {
-    console.log("Intentant enviar resposta...", msgId);
-    
-    // Buscar el textarea justo antes del botón
     const txt = btnElement.previousElementSibling;
     const respuesta = txt ? txt.value.trim() : '';
     
@@ -479,19 +487,26 @@ window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, en
     }
     
     const token = localStorage.getItem('jwt');
-    
-    // UI Feedback
     btnElement.innerText = "Enviant..."; 
     btnElement.disabled = true;
 
-    window.sesionLeidas.add(msgId);
-
     try {
-        await fetch(`${API_ROUTES.messages}/${msgId}`, {
+        // PARCHE: Enviamos de nuevo el studentId para que Strapi v5 no rompa la relación (link persistence)
+        const payload = { 
+            data: { 
+                resposta_professor: respuesta, 
+                estat: 'respost',
+                users_permissions_user: studentId // Re-vinculamos al alumno
+            } 
+        };
+
+        const respuestaPut = await fetch(`${API_ROUTES.messages}/${msgId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ data: { resposta_professor: respuesta, estat: 'respost' } })
+            body: JSON.stringify(payload)
         });
+
+        if (!respuestaPut.ok) throw new Error("Error en el servidor al actualizar mensaje");
         
         const card = document.getElementById(`msg-card-${msgId}`);
         if(card) card.remove();
@@ -512,13 +527,15 @@ window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, en
                 })
             });
         }
-        checkRealNotifications();
+        
+        // Actualizamos las bolitas rojas de notificaciones
+        if (window.checkRealNotifications) checkRealNotifications();
+        
     } catch(e) {
         console.error(e);
         alert("Error al enviar la resposta.");
         btnElement.innerText = "Enviar Resposta"; 
         btnElement.disabled = false;
-        window.sesionLeidas.delete(msgId);
     }
 };
 

@@ -913,34 +913,54 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (finalData.aprobado) {
             const hoy = new Date();
-            // FIX: Use let to avoid "Assignment to constant" error
-            let fechaInscripcion = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt) : new Date();
-            if (isNaN(fechaInscripcion.getTime())) fechaInscripcion = new Date(); 
-            
-            let fechaDesbloqueo = new Date(fechaInscripcion);
+
+            // 1. Obtenir dates clau (Matrícula i Inici de curs) des de l'estat global
+            const tMatricula = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt).getTime() : hoy.getTime();
+            const rawInicio = state.curso.data_inici || state.curso.fecha_inicio || state.curso.publishedAt;
+            const tInicio = new Date(rawInicio).getTime();
+
+            // 2. Calculem els 14 dies des de la data més TARDANA (Inici o Matrícula)
+            let fechaDesbloqueo = new Date(Math.max(tMatricula, tInicio));
             fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14);
 
-            const rawFin = state.curso.fecha_fin || state.curso.data_fi;
+            // 3. REGLA MESTRA: El final de curs allibera el títol automàticament
+            const rawFin = state.curso.data_fi || state.curso.fecha_fin;
             if (rawFin) {
                 const fechaFinCurso = new Date(rawFin);
                 if (!isNaN(fechaFinCurso.getTime()) && fechaFinCurso < fechaDesbloqueo) {
-                    fechaDesbloqueo.setTime(fechaFinCurso.getTime());
+                    fechaDesbloqueo = fechaFinCurso;
                 }
             }
-            
+
             const estaBloqueado = hoy < fechaDesbloqueo;
             let botonHtml = '';
-            
+
             if (estaBloqueado) {
+                // SI ESTÀ BLOQUEJAT: Mostrem avís de temps de permanència
                 const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
-                botonHtml = `<div class="alert-info" style="margin-top:15px; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:15px; border-radius:6px; font-size:0.9rem;"><i class="fa-solid fa-clock"></i> <strong>Certificat en procés d'emissió.</strong><br>Estarà disponible per descarregar a partir del dia <strong>${fechaStr}</strong>.</div>`;
+                botonHtml = `
+                    <div class="alert-info" style="margin-top:15px; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:15px; border-radius:6px; font-size:0.9rem; text-align:left;">
+                        <i class="fa-solid fa-clock"></i> <strong>Certificat en procés d'emissió.</strong><br>
+                        Seguint la normativa de permanència mínima, el teu diploma estarà disponible el dia <strong>${fechaStr}</strong>.
+                    </div>`;
             } else {
+                // SI TOT ÉS CORRECTE: Mostrem el botó vermell de descàrrega
                 botonHtml = `<button class="btn-primary" onclick="window.imprimirDiploma('${finalData.nota}')"><i class="fa-solid fa-download"></i> Descarregar Diploma</button>`;
             }
 
+            // Botó de revisió (sempre visible)
             let revisarHtml = `<button class="btn-secondary" style="margin-top:10px;" onclick="revisarExamenFinal()"><i class="fa-solid fa-eye"></i> Revisar Respostes</button>`;
-            
-            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid green; text-align:center;"><h1 style="color:green;">🎉 ENHORABONA!</h1><p>Has completat el curs satisfactoriament.</p><div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div><div class="btn-centered-container" style="flex-direction:column; gap:10px;">${botonHtml}${revisarHtml}</div></div>`;
+
+            container.innerHTML = `
+                <div class="dashboard-card" style="border-top:5px solid green; text-align:center;">
+                    <h1 style="color:green;">🎉 ENHORABONA!</h1>
+                    <p>Has superat l'avaluació final amb èxit.</p>
+                    <div style="font-size:3.5rem; font-weight:bold; margin:20px 0; color:var(--brand-blue);">${finalData.nota}</div>
+                    <div class="btn-centered-container" style="flex-direction:column; gap:10px; align-items:center;">
+                        ${botonHtml}
+                        ${revisarHtml}
+                    </div>
+                </div>`;
             return;
         }
         

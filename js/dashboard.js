@@ -840,7 +840,7 @@ async function loadGrades() {
                 
                 if (isDone) {
                     const hoy = new Date();
-                    
+                    hoy.setHours(0, 0, 0, 0);
                     // 1. Obtenir dates clau (Matrícula i Inici de curs)
                     const tMatricula = mat.createdAt ? new Date(mat.createdAt).getTime() : hoy.getTime();
                     const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
@@ -852,7 +852,8 @@ async function loadGrades() {
                     // 3. Calculem els 14 dies de rigor
                     let fechaDesbloqueo = new Date(dataBasePermanencia);
                     fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14); 
-
+                    fechaDesbloqueo.setHours(0, 0, 0, 0);
+                    
                     // 4. REGLA MESTRA: Si el curs finalitza oficialment, el diploma s'allibera aquell dia
                     // encara que no s'hagin complert els 14 de l'alumne.
                     const rawFin = curs.data_fi || curs.fecha_fin;

@@ -915,6 +915,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (finalData.aprobado) {
             const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
 
             // 1. Obtenir dates clau (Matrícula i Inici de curs) des de l'estat global
             const tMatricula = state.matriculaCreatedAt ? new Date(state.matriculaCreatedAt).getTime() : hoy.getTime();
@@ -924,7 +925,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // 2. Calculem els 14 dies des de la data més TARDANA (Inici o Matrícula)
             let fechaDesbloqueo = new Date(Math.max(tMatricula, tInicio));
             fechaDesbloqueo.setDate(fechaDesbloqueo.getDate() + 14);
-
+            fechaDesbloqueo.setHours(0, 0, 0, 0);
+            
             // 3. REGLA MESTRA: El final de curs allibera el títol automàticament
             const rawFin = state.curso.data_fi || state.curso.fecha_fin;
             if (rawFin) {

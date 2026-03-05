@@ -153,20 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarDatos() {
         // QUERY PATCH PARA STRAPI V5 (Trae es_extra de los módulos)
-        const query = [
-            `filters[users_permissions_user][id][$eq]=${USER.id}`,
-            `filters[curs][slug][$eq]=${SLUG}`,
-            `populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true`,
-            `populate[curs][populate][moduls][populate][material_pdf]=true`,
-            `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
-            `populate[curs][populate][moduls][populate][videos][populate]=true`,
-            `populate[curs][populate][examen_final][populate][opcions]=true`,
-            `populate[curs][populate][imatge]=true`,
-            `populate[curs][populate][videos][populate]=true`,
-            `populate[curs][populate][moduls][fields][0]=es_extra`, // INDISPENSABLE
-            `populate[curs][populate][moduls][fields][1]=titol`,
-            `populate[curs][populate][moduls][fields][2]=ordre`
-        ].join('&');
+        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos][populate]=true&populate[curs][populate][moduls][fields][0]=es_extra&populate[curs][populate][moduls][fields][1]=titol&populate[curs][populate][moduls][fields][2]=resum&populate[curs][populate][moduls][fields][3]=ordre`;
         
         const respuestaMat = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const jsonMat = await respuestaMat.json();

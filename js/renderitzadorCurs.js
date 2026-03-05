@@ -303,17 +303,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function puedeHacerExamenFinal() {
-        if (state.godMode) return true;
+        if (state.godMode) return true; // El professor sempre pot entrar
         if (state.progreso && state.progreso.examen_final && state.progreso.examen_final.aprobado) return true;
         if (!state.progreso || !state.progreso.modulos) return false;
         
         const modulosCurso = state.curso.moduls || [];
+
+        // REVISAR TOTS ELS MÒDULS
         return modulosCurso.every((modObj, idx) => {
+            // --- NOVA LÒGICA PER A MÒDULS OPCIONALS ---
+            // Si el mòdul és extra, NO és obligatori per fer l'examen final.
+            // Saltem aquest mòdul i mirem el següent.
+            if (modObj.es_extra === true) {
+                return true; 
+            }
+            // ------------------------------------------
+
             const m = state.progreso.modulos[idx];
             if (!m) return false;
+
             const tieneFlash = modObj && modObj.targetes_memoria && modObj.targetes_memoria.length > 0;
             const flashOk = tieneFlash ? (m.flashcards_done === true) : true;
             const testOk = (m.aprobado === true);
+
+            // Per als mòduls normals (no extres), s'ha d'haver aprovat test i flashcards
             return testOk && flashOk;
         });
     }

@@ -1,10 +1,29 @@
 /* ==========================================================================
-   RENDERITZADORCURS.JS (v57.10 - FIX CONST ERROR & CLEAN GRID UI)
+   RENDERITZADORCURS.JS (v57.15 - EXTRA CONTENT & SYNTAX PATCH)
    ========================================================================== */
 
-console.log("🚀 Carregant Renderitzador v57.10...");
+console.log("🚀 Carregant Renderitzador v57.15...");
+
+// 1. Definimos el estado global FUERA para que la consola lo vea
+window.state = {
+    matriculaId: null,
+    matriculaCreatedAt: null,
+    curso: null,
+    progreso: {},
+    currentModuleIndex: -1,
+    currentView: 'intro',   
+    respuestasTemp: {},
+    testStartTime: 0,
+    testEnCurso: false,
+    godMode: false,
+    preguntasExamenFinal: [],
+    preguntasSesionActual: [],
+    timerInterval: null
+};
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Alias local para no romper el código existente que usa la palabra 'state'
+    let state = window.state;
 
     function parseStrapiRichText(content) {
         if (!content) return '';
@@ -44,22 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const USER = JSON.parse(localStorage.getItem('user'));
     const TOKEN = localStorage.getItem('jwt');
     if (!USER || !TOKEN) { window.location.href = 'index.html'; return; }
-
-    let state = {
-        matriculaId: null,
-        matriculaCreatedAt: null,
-        curso: null,
-        progreso: {},
-        currentModuleIndex: -1,
-        currentView: 'intro',   
-        respuestasTemp: {},
-        testStartTime: 0,
-        testEnCurso: false,
-        godMode: false,
-        preguntasExamenFinal: [],
-        preguntasSesionActual: [],
-        timerInterval: null
-    };
 
     const elems = {
         loginOverlay: document.getElementById('login-overlay'),
@@ -106,12 +109,13 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             await cargarDatos();
 
-            // PARCHE SEGURIDAD: Comprobar si el curso es futuro
+            // SEGURIDAD: Reset de horas para evitar retrasos UTC de 1h
             const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0); // Reset horas
+            hoy.setHours(0, 0, 0, 0); 
             const rawInicio = state.curso.data_inici || state.curso.fecha_inicio || state.curso.publishedAt;
             const fechaInicio = new Date(rawInicio);
-            fechaInicio.setHours(0, 0, 0, 0); // Reset horas
+            fechaInicio.setHours(0, 0, 0, 0); 
+
             if (fechaInicio > hoy && USER.es_professor !== true) {
                 alert(`Aquest curs encara no ha començat. Data d'inici: ${fechaInicio.toLocaleDateString('ca-ES')}`);
                 window.location.href = 'index.html';
@@ -148,10 +152,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        // Dins de la funció cargarDatos():
-        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos][populate]=true&populate[curs][populate][moduls][fields]=*`;
+        // QUERY PATCH PARA STRAPI V5 (Trae es_extra de los módulos)
+        const query = [
+            `filters[users_permissions_user][id][$eq]=${USER.id}`,
+            `filters[curs][slug][$eq]=${SLUG}`,
+            `populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true`,
+            `populate[curs][populate][moduls][populate][material_pdf]=true`,
+            `populate[curs][populate][moduls][populate][targetes_memoria]=true`,
+            `populate[curs][populate][moduls][populate][videos][populate]=true`,
+            `populate[curs][populate][examen_final][populate][opcions]=true`,
+            `populate[curs][populate][imatge]=true`,
+            `populate[curs][populate][videos][populate]=true`,
+            `populate[curs][populate][moduls][fields][0]=es_extra`, // INDISPENSABLE
+            `populate[curs][populate][moduls][fields][1]=titol`,
+            `populate[curs][populate][moduls][fields][2]=ordre`
+        ].join('&');
         
-        // Cambiamos 'res' por 'respuestaMat' para evitar el error de duplicado
         const respuestaMat = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const jsonMat = await respuestaMat.json();
 
@@ -161,11 +177,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         const mat = jsonMat.data[0];
+        const dataM = mat.attributes ? mat.attributes : mat; // Soporte Strapi v4/v5
+
         state.matriculaId = mat.documentId || mat.id;
-        state.matriculaCreatedAt = mat.createdAt;
-        state.curso = mat.curs;
+        state.matriculaCreatedAt = dataM.createdAt;
+        state.curso = dataM.curs;
         if (!state.curso.moduls) state.curso.moduls = [];
-        state.progreso = mat.progres_detallat || {};
+        state.progreso = dataM.progres_detallat || {};
         localStorage.setItem(`sicap_last_matricula_${SLUG}`, String(state.matriculaId));
     }
 
@@ -275,49 +293,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function estaBloqueado(indexModulo) {
-        if (state.godMode) return false; // El professor ho veu tot
-        if (indexModulo === 0) return false; // El primer mòdul sempre obert
-
-        const modulos = state.curso.moduls || [];
-        const moduloActual = modulos[indexModulo];
-
+        if (state.godMode) return false;
+        const mod = state.curso.moduls[indexModulo];
+        
         // --- NOVA LÒGICA PER A CONTINGUT EXTRA ---
-        // Si el mòdul té la marca "es_extra", no el bloquegem mai
-        if (moduloActual && moduloActual.es_extra === true) {
-            return false;
-        }
-        // -----------------------------------------
-
-        // Lògica estàndard: comprovar si el mòdul anterior està aprovat
+        if (mod && mod.es_extra === true) return false;
+        
+        if (indexModulo === 0) return false;
         const prevIdx = indexModulo - 1;
-        if (!state.progreso.modulos || !state.progreso.modulos[prevIdx]) return true;
+        const prevProg = state.progreso.modulos[prevIdx];
+        if (!prevProg) return true;
         
-        const prevProgreso = state.progreso.modulos[prevIdx];
-        const prevModuloData = modulos[prevIdx];
-        
-        const testOk = prevProgreso.aprobado === true;
-        const tieneFlashcards = prevModuloData && prevModuloData.targetes_memoria && prevModuloData.targetes_memoria.length > 0;
-        const flashcardsOk = tieneFlashcards ? (prevProgreso.flashcards_done === true) : true;
-        
-        return !(testOk && flashcardsOk);
+        return !(prevProg.aprobado === true && (state.curso.moduls[prevIdx].targetes_memoria?.length > 0 ? prevProg.flashcards_done : true));
     }
 
     function puedeHacerExamenFinal() {
-        if (state.godMode) return true; // El professor sempre pot entrar
+        if (state.godMode) return true;
         if (state.progreso && state.progreso.examen_final && state.progreso.examen_final.aprobado) return true;
         if (!state.progreso || !state.progreso.modulos) return false;
         
         const modulosCurso = state.curso.moduls || [];
 
-        // REVISAR TOTS ELS MÒDULS
         return modulosCurso.every((modObj, idx) => {
-            // --- NOVA LÒGICA PER A MÒDULS OPCIONALS ---
-            // Si el mòdul és extra, NO és obligatori per fer l'examen final.
-            // Saltem aquest mòdul i mirem el següent.
-            if (modObj.es_extra === true) {
-                return true; 
-            }
-            // ------------------------------------------
+            // Ignoramos los módulos extra para el bloqueo del examen final
+            if (modObj.es_extra === true) return true; 
 
             const m = state.progreso.modulos[idx];
             if (!m) return false;
@@ -326,7 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const flashOk = tieneFlash ? (m.flashcards_done === true) : true;
             const testOk = (m.aprobado === true);
 
-            // Per als mòduls normals (no extres), s'ha d'haver aprovat test i flashcards
             return testOk && flashOk;
         });
     }

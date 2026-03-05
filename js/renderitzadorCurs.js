@@ -275,16 +275,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function estaBloqueado(indexModulo) {
-        if (state.godMode) return false;
-        if (indexModulo === 0) return false; 
+        if (state.godMode) return false; // El professor ho veu tot
+        if (indexModulo === 0) return false; // El primer mòdul sempre obert
+
+        const modulos = state.curso.moduls || [];
+        const moduloActual = modulos[indexModulo];
+
+        // --- NOVA LÒGICA PER A CONTINGUT EXTRA ---
+        // Si el mòdul té la marca "es_extra", no el bloquegem mai
+        if (moduloActual && moduloActual.es_extra === true) {
+            return false;
+        }
+        // -----------------------------------------
+
+        // Lògica estàndard: comprovar si el mòdul anterior està aprovat
         const prevIdx = indexModulo - 1;
         if (!state.progreso.modulos || !state.progreso.modulos[prevIdx]) return true;
+        
         const prevProgreso = state.progreso.modulos[prevIdx];
-        const testOk = prevProgreso.aprobado === true;
-        const modulos = state.curso.moduls || [];
         const prevModuloData = modulos[prevIdx];
+        
+        const testOk = prevProgreso.aprobado === true;
         const tieneFlashcards = prevModuloData && prevModuloData.targetes_memoria && prevModuloData.targetes_memoria.length > 0;
         const flashcardsOk = tieneFlashcards ? (prevProgreso.flashcards_done === true) : true;
+        
         return !(testOk && flashcardsOk);
     }
 

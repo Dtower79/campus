@@ -1,70 +1,110 @@
 /* ==========================================================================
-   AUTH.JS (v50.0 - FINAL STABLE & PROFESSIONAL MODALS)
+   AUTH.JS (v51.0 - FINAL STABLE & CSP FIX)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Detección de Parámetros URL
+    // 1. Detecció de Paràmetres URL i Token
     const urlParams = new URLSearchParams(window.location.search);
     const resetCode = urlParams.get('code');
     const slugDestino = urlParams.get('slug');
+    const token = localStorage.getItem('jwt');
 
     const views = {
         login: document.getElementById('login-view'),
         register: document.getElementById('register-view'),
         forgot: document.getElementById('forgot-view'),
-        reset: document.getElementById('reset-view')
+        reset: document.getElementById('reset-view'),
+        app: document.getElementById('app-container'),
+        overlay: document.getElementById('login-overlay'),
+        dashboard: document.getElementById('dashboard-view'),
+        exam: document.getElementById('exam-view')
     };
 
     function switchView(viewName) {
-        Object.values(views).forEach(el => el.style.display = 'none');
+        const authViews = [views.login, views.register, views.forgot, views.reset];
+        authViews.forEach(v => { if(v) v.style.display = 'none'; });
         if(views[viewName]) views[viewName].style.display = 'block';
-        document.getElementById('login-error-msg').style.display = 'none';
     }
 
+    // --- LÒGICA D'ARRANQUE (ORDRE DE PRIORITAT) ---
+
+    // A. MODO RECUPERACIÓ (Prioritat 1)
     if (resetCode) {
+        console.log("🔑 Modo recuperació detectat.");
+        if(views.app) views.app.style.display = 'none';
+        if(views.overlay) views.overlay.style.display = 'flex';
         switchView('reset');
-        document.getElementById('reset-code').value = resetCode;
+        const codeInput = document.getElementById('reset-code');
+        if(codeInput) codeInput.value = resetCode;
+        return; // Aturem aquí per no carregar la resta de l'app
+    }
+
+    // B. USUARI LOGUEJAT (Prioritat 2)
+    if (token) {
+        if(views.overlay) views.overlay.style.display = 'none';
+        if(views.app) views.app.style.display = 'block';
+
+        // Lògica de redirecció directa a curs (SLUG) que abans estava a l'HTML
+        if (slugDestino) {
+            if(views.dashboard) views.dashboard.style.display = 'none';
+            if(views.exam) views.exam.style.display = 'flex';
+        }
     } 
-    else if (slugDestino && !localStorage.getItem('jwt')) {
-        const loginHeader = document.querySelector('.login-header');
-        if(loginHeader && !document.querySelector('.alert-info-lock')) {
-            const aviso = document.createElement('div');
-            aviso.className = 'alert-info alert-info-lock';
-            aviso.style.marginTop = '15px'; aviso.style.fontSize = '0.9rem'; aviso.style.backgroundColor = '#e3f2fd'; aviso.style.color = '#0d47a1'; aviso.style.border = '1px solid #bbdefb';
-            aviso.innerHTML = '<i class="fa-solid fa-lock"></i> <strong>Contingut Protegit:</strong><br>Inicia la sessió per accedir directament al curs.';
-            loginHeader.appendChild(aviso);
+    // C. PANTALLA DE LOGIN (Prioritat 3)
+    else {
+        if(views.app) views.app.style.display = 'none';
+        if(views.overlay) views.overlay.style.display = 'flex';
+        switchView('login');
+
+        // Avís de contingut protegit si venia per un slug sense login
+        if (slugDestino) {
+            const loginHeader = document.querySelector('.login-header');
+            if(loginHeader && !document.querySelector('.alert-info-lock')) {
+                const aviso = document.createElement('div');
+                aviso.className = 'alert-info alert-info-lock';
+                aviso.style.marginTop = '15px'; aviso.style.fontSize = '0.9rem'; 
+                aviso.style.backgroundColor = '#e3f2fd'; aviso.style.color = '#0d47a1'; aviso.style.border = '1px solid #bbdefb';
+                aviso.innerHTML = '<i class="fa-solid fa-lock"></i> <strong>Contingut Protegit:</strong><br>Inicia la sessió per accedir directament al curs.';
+                loginHeader.appendChild(aviso);
+            }
         }
     }
 
+    // --- ESCULTORS D'ESDEVENIMENTS (BOTONS) ---
     document.getElementById('btn-show-register')?.addEventListener('click', (e) => { e.preventDefault(); switchView('register'); });
     document.getElementById('btn-forgot-pass')?.addEventListener('click', (e) => { e.preventDefault(); switchView('forgot'); });
     document.querySelectorAll('.btn-back-login').forEach(btn => {
         btn.addEventListener('click', (e) => { e.preventDefault(); switchView('login'); });
     });
 
-    // --- HELPER MODAL MEJORADO (Admite callback) ---
-    function lanzarModal(titulo, mensaje, esError = true, callback = null) {
+    // --- HELPER MODAL MEJORADO ---
+    window.lanzarModal = function(titulo, mensaje, esError = true, callback = null) {
         const modal = document.getElementById('custom-modal');
-        document.getElementById('modal-title').innerText = titulo; 
-        document.getElementById('modal-title').style.color = esError ? "var(--brand-red)" : "var(--brand-blue)"; 
-        document.getElementById('modal-msg').innerHTML = mensaje; 
-        document.getElementById('modal-btn-cancel').style.display = 'none'; 
+        const titleEl = document.getElementById('modal-title');
+        const msgEl = document.getElementById('modal-msg');
+        const btnConf = document.getElementById('modal-btn-confirm');
         
-        const btn = document.getElementById('modal-btn-confirm');
-        btn.innerText = "Entesos"; 
-        btn.style.background = esError ? "var(--brand-red)" : "var(--brand-blue)";
+        if(titleEl) {
+            titleEl.innerText = titulo;
+            titleEl.style.color = esError ? "var(--brand-red)" : "var(--brand-blue)";
+        }
+        if(msgEl) msgEl.innerHTML = mensaje;
         
-        // Clonamos para limpiar eventos anteriores
-        const newBtn = btn.cloneNode(true); 
-        btn.parentNode.replaceChild(newBtn, btn);
+        const btnCancel = document.getElementById('modal-btn-cancel');
+        if(btnCancel) btnCancel.style.display = 'none';
         
-        newBtn.onclick = () => {
-            modal.style.display = 'none';
-            if (callback) callback(); // Ejecutar acción al cerrar (ej: redirigir)
-        };
-        
+        if(btnConf) {
+            btnConf.innerText = "Entesos";
+            btnConf.style.background = esError ? "var(--brand-red)" : "var(--brand-blue)";
+            const newBtn = btnConf.cloneNode(true);
+            btnConf.parentNode.replaceChild(newBtn, btnConf);
+            newBtn.onclick = () => {
+                modal.style.display = 'none';
+                if (callback) callback();
+            };
+        }
         modal.style.display = 'flex';
-    }
+    };
 
     // 1. LOGIN
     const loginForm = document.getElementById('login-form');
@@ -109,12 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const passConf = document.getElementById('reg-pass-conf').value;
             const btnSubmit = registerForm.querySelector('button[type="submit"]');
 
-            // VALIDACIÓN QUIRÚRGICA: Mínimo 6 caracteres
-            if (pass.length < 6) {
-                return lanzarModal("Contrasenya massa curta", "La contrasenya ha de tenir almenys 6 caràcters.");
-            }
-
-            if(pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
+            if (pass.length < 6) return lanzarModal("Contrasenya massa curta", "La contrasenya ha de tenir almenys 6 caràcters.");
+            if (pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
             
             btnSubmit.innerText = "Verificant..."; btnSubmit.disabled = true;
 
@@ -131,58 +167,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const afiliado = jsonAfi.data[0];
                 const emailAfiliado = afiliado.email; 
 
-                if (!emailAfiliado) {
-                    lanzarModal("Error de Dades", "Ets afiliat però no tenim el teu email registrat. Contacta amb secretaria.");
-                    btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
-                    return;
-                }
-
                 const regRes = await fetch(API_ROUTES.register, {
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        username: dni,      // El DNI es el identificador único
-                        email: emailAfiliado, 
-                        password: pass      // Eliminamos 'nombre' y 'apellidos' de aquí
-                    })
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: dni, email: emailAfiliado, password: pass })
                 });
                 const regData = await regRes.json();
 
                 if(regRes.ok) {
-                    try {
-                        if (regData.jwt) {
-                            await fetch(API_ROUTES.notifications, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${regData.jwt}` },
-                                body: JSON.stringify({
-                                    data: {
-                                        titol: "Benvingut al Campus! 👋",
-                                        missatge: "Compte activat correctament.",
-                                        llegida: false,
-                                        users_permissions_user: regData.user.id
-                                    }
-                                })
-                            });
-                        }
-                    } catch(err) {}
-
-                    // ÉXITO REGISTRO -> Modal profesional
-                    lanzarModal(
-                        "Compte Creat!", 
-                        `Hem trobat el teu email d'afiliat: <strong>${emailAfiliado}</strong>.<br>Ja pots iniciar sessió.`, 
-                        false,
-                        () => window.location.reload()
-                    );
+                    lanzarModal("Compte Creat!", `Email trobat: <strong>${emailAfiliado}</strong>.<br>Ja pots iniciar sessió.`, false, () => window.location.reload());
                 } else {
-                    let errorMsg = regData.error?.message || "Error al crear compte.";
-                    if(errorMsg.includes('username')) errorMsg = "Aquest DNI ja està registrat.";
-                    if(errorMsg.includes('email')) errorMsg = "El teu email d'afiliat ja està en ús per un altre usuari.";
-                    
-                    lanzarModal("Error", errorMsg);
+                    lanzarModal("Error", regData.error?.message || "Error al crear compte.");
                     btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
                 }
             } catch(e) { 
-                console.error(e);
                 lanzarModal("Error", "Error de connexió."); 
                 btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
             }
@@ -196,26 +193,14 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const inputDni = document.getElementById('forgot-dni');
             const btnSubmit = forgotForm.querySelector('button');
-            
-            let dniLimpio = inputDni.value.trim().toUpperCase().replace(/[- \/\.]/g, '');
-            const dniRegex = /^\d{8}[A-Z]$/;
-
-            if (!dniRegex.test(dniLimpio)) {
-                lanzarModal("Format Incorrecte", "El DNI ha de tenir 8 números i una lletra (Ex: 12345678Z).");
-                return;
-            }
+            const dniLimpio = inputDni.value.trim().toUpperCase().replace(/[- \/\.]/g, '');
 
             btnSubmit.innerText = "Cercant..."; btnSubmit.disabled = true;
 
             try {
                 const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dniLimpio}`);
                 const jsonAfi = await resAfi.json();
-
-                let emailDestino = "";
-                if(jsonAfi.data && jsonAfi.data.length > 0) {
-                    const afi = jsonAfi.data[0];
-                    emailDestino = afi.email || afi.Email; 
-                }
+                let emailDestino = (jsonAfi.data && jsonAfi.data[0]) ? jsonAfi.data[0].email : "";
 
                 if (!emailDestino) {
                     lanzarModal("Informació", "Si el DNI és correcte i té un email associat, rebràs un correu en breus moments.");
@@ -224,25 +209,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 await fetch(API_ROUTES.forgotPassword, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: emailDestino })
                 });
                 
                 const maskedEmail = emailDestino.replace(/(.{2})(.*)(@.*)/, "$1***$3");
-                lanzarModal("Correu Enviat", `Hem enviat un enllaç de recuperació a: <strong>${maskedEmail}</strong>.<br>Revisa la carpeta Spam.`, false);
-                switchView('login');
-
+                lanzarModal("Correu Enviat", `Enllaç enviat a: <strong>${maskedEmail}</strong>.`, false, () => switchView('login'));
             } catch (error) {
-                console.error(error);
-                lanzarModal("Error", "No s'ha pogut processar la sol·licitud.");
+                lanzarModal("Error", "No s'ha pogut processar.");
             } finally {
                 btnSubmit.innerText = "Enviar Enllaç"; btnSubmit.disabled = false;
             }
         });
     }
 
-    // 4. RESET PASSWORD (AQUÍ ESTÁ LA MAGIA)
+    // 4. RESET PASSWORD
     const resetForm = document.getElementById('reset-form');
     if (resetForm) {
         resetForm.addEventListener('submit', async (e) => {
@@ -252,43 +233,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const passConf = document.getElementById('reset-pass-conf').value;
             const btnSubmit = resetForm.querySelector('button');
 
-            // VALIDACIÓN QUIRÚRGICA: Mínimo 6 caracteres
-            if (pass.length < 6) {
-                return lanzarModal("Contrasenya massa curta", "La contrasenya ha de tenir almenys 6 caràcters.");
-            }
-
+            if (pass.length < 6) return lanzarModal("Contrasenya massa curta", "Mínim 6 caràcters.");
             if (pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
 
             btnSubmit.innerText = "Canviant..."; btnSubmit.disabled = true;
 
             try {
                 const res = await fetch(API_ROUTES.resetPassword, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        code: code,
-                        password: pass,
-                        passwordConfirmation: passConf
-                    })
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, password: pass, passwordConfirmation: passConf })
                 });
 
                 if (res.ok) {
                     const data = await res.json();
                     localStorage.setItem('jwt', data.jwt);
                     localStorage.setItem('user', JSON.stringify(data.user));
-                    
-                    // MODAL BONITO
-                    lanzarModal(
-                        "Contrasenya Canviada", 
-                        "La teva contrasenya s'ha actualitzat correctament. Iniciant sessió...", 
-                        false, // Color azul
-                        () => {
-                            // Redirigir limpio al Dashboard
-                            window.location.href = window.location.pathname.split('?')[0];
-                        }
-                    );
+                    lanzarModal("Contrasenya Canviada", "Actualitzat amb èxit. Iniciant sessió...", false, () => {
+                        window.location.href = window.location.pathname; // Neteja la URL
+                    });
                 } else {
-                    lanzarModal("Error", "L'enllaç ha caducat o ya s'ha utilitzat.");
+                    lanzarModal("Error", "L'enllaç ha caducat.");
                 }
             } catch (error) {
                 lanzarModal("Error", "Error de connexió.");
@@ -301,13 +265,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function togglePasswordVisibility(inputId, iconElement) {
     const input = document.getElementById(inputId);
+    if (!input) return;
     if (input.type === "password") {
         input.type = "text";
         iconElement.classList.replace("fa-eye", "fa-eye-slash");
-        iconElement.style.color = "var(--brand-blue)"; // Blau quan es veu
+        iconElement.style.color = "var(--brand-blue)";
     } else {
         input.type = "password";
         iconElement.classList.replace("fa-eye-slash", "fa-eye");
-        iconElement.style.color = "#999"; // Gris quan està ocult
+        iconElement.style.color = "#999";
     }
 }

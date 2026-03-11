@@ -5,6 +5,7 @@
 console.log("🚀 Carregant Dashboard v56.8...");
 
 document.addEventListener('DOMContentLoaded', async () => {
+    if (window.location.search.includes('code=')) return; 
     const token = localStorage.getItem('jwt');
     const loginOverlay = document.getElementById('login-overlay');
     const appContainer = document.getElementById('app-container');
@@ -1010,3 +1011,23 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     btnC.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
 };
+
+// Gestió del Tema (Fosc/Clar) corregit per a fitxer extern
+document.addEventListener('DOMContentLoaded', () => {
+    const themeBtn = document.getElementById('theme-toggle');
+    if (!themeBtn) return;
+
+    const icon = themeBtn.querySelector('i');
+    const current = localStorage.getItem('theme') || 'light';
+    
+    // Inicialitzar icona
+    if (icon) icon.className = current === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+
+    themeBtn.addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const next = isDark ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        if (icon) icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+    });
+});

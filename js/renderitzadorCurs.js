@@ -24,7 +24,7 @@ window.state = {
 document.addEventListener('DOMContentLoaded', () => {
     // Alias local para no romper el código existente que usa la palabra 'state'
     let state = window.state;
-    if (window.location.search.includes('code=')) return;
+
     function parseStrapiRichText(content) {
         if (!content) return '';
         if (typeof content === 'string') return content;

@@ -1,40 +1,16 @@
 /* ==========================================================================
-   DASHBOARD.JS (v57.2 - THEME LOGIC & RESET PATCH)
+   DASHBOARD.JS (v56.8 - SIGNATURE POSITION FIX)
    ========================================================================== */
 
-// 1. LÓGICA DE TEMA (MODO NOCHE) - Se ejecuta fuera del DOMContentLoaded para mayor rapidez
-(function() {
-    const currentTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', currentTheme);
-
-    window.addEventListener('load', () => {
-        const themeBtn = document.getElementById('theme-toggle');
-        if (themeBtn) {
-            const icon = themeBtn.querySelector('i');
-            if (icon) icon.className = currentTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-
-            themeBtn.onclick = () => {
-                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                const nextTheme = isDark ? 'light' : 'dark';
-                document.documentElement.setAttribute('data-theme', nextTheme);
-                localStorage.setItem('theme', nextTheme);
-                if (icon) icon.className = nextTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-            };
-        }
-    });
-})();
+console.log("🚀 Carregant Dashboard v56.8...");
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // PARCHE SEGURIDAD: Si hay un código de reset en la URL, detenemos el dashboard
-    // Esto evita los errores 401 (Unauthorized) que ves en tu consola.
-    if (window.location.search.includes('code=')) return;
-
     const token = localStorage.getItem('jwt');
     const loginOverlay = document.getElementById('login-overlay');
     const appContainer = document.getElementById('app-container');
+    const loginView = document.getElementById('login-view');
 
     if (!token) return; 
-    // ... resto de tu código de validación de usuario ...
 
     if(loginView) loginView.style.display = 'none';
     const loginCard = document.querySelector('.login-card');
@@ -45,17 +21,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(loginCard) loginCard.appendChild(spinner);
 
     try {
-        const respostaUser = await fetch(`${STRAPI_URL}/api/users/me?populate=*`, {
+        const res = await fetch(`${STRAPI_URL}/api/users/me?populate=*`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (respostaUser.ok) {
-            const freshUser = await respostaUser.json();
+        if (res.ok) {
+            const freshUser = await res.json();
             localStorage.setItem('user', JSON.stringify(freshUser));
 
             if(spinner) spinner.remove();
-            if(loginOverlay) loginOverlay.style.display = 'none';
-            if(appContainer) appContainer.style.display = 'block';
+            loginOverlay.style.display = 'none';
+            appContainer.style.display = 'block';
             
             console.log("✅ Usuari validat");
             if (!window.appIniciada) window.iniciarApp();
@@ -76,7 +52,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         scrollBtn.onclick = () => window.scrollTo({top:0, behavior:'smooth'});
     }
 });
-
 
 window.appIniciada = false;
 window.sesionLeidas = new Set(); 
@@ -1035,23 +1010,3 @@ window.mostrarModalConfirmacion = function(titulo, msg, callback) {
     btnC.onclick = () => m.style.display = 'none';
     m.style.display = 'flex';
 };
-
-// Gestió del Tema (Fosc/Clar) corregit per a fitxer extern
-document.addEventListener('DOMContentLoaded', () => {
-    const themeBtn = document.getElementById('theme-toggle');
-    if (!themeBtn) return;
-
-    const icon = themeBtn.querySelector('i');
-    const current = localStorage.getItem('theme') || 'light';
-    
-    // Inicialitzar icona
-    if (icon) icon.className = current === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-
-    themeBtn.addEventListener('click', () => {
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const next = isDark ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
-        localStorage.setItem('theme', next);
-        if (icon) icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-    });
-});

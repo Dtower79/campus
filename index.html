@@ -22,60 +22,6 @@
         .cookie-table th { background-color: #f2f2f2; color: #333; font-weight: bold; }
         [data-theme="dark"] .cookie-table th { background-color: #333; color: #fff; border-color: #444; }
         [data-theme="dark"] .cookie-table td { border-color: #444; }
-
-        /* AJUSTE PARA CAMPOS DE CONTRASEÑA */
-        .password-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-            background: white; 
-            border: 1px solid #ccc;
-            border-radius: 4px; 
-            margin-bottom: 4px !important;
-            height: 46px; 
-            box-sizing: border-box;
-            padding: 0;
-            overflow: hidden;
-        }
-        .password-wrapper input {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 45px 0 35px !important;
-            color: #333 !important; 
-            font-size: 1rem;
-            height: 100%;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .left-icon {
-            position: absolute;
-            left: 12px;
-            color: #999;
-            font-size: 0.9rem;
-            pointer-events: none;
-            z-index: 2;
-        }
-        .toggle-password {
-            position: absolute;
-            right: 12px;
-            cursor: pointer;
-            color: #999;
-            font-size: 1rem;
-            transition: color 0.2s;
-            z-index: 5;
-        }
-        .input-help {
-            display: block;
-            font-size: 0.75rem;
-            color: #666;
-            text-align: left;
-            margin-top: 2px;
-            margin-bottom: 15px;
-            padding-left: 5px;
-        }
-        [data-theme="dark"] .password-wrapper { background: #0f172a; border-color: #334155; }
-        [data-theme="dark"] .password-wrapper input { color: white !important; }
     </style>
 </head>
 <body>
@@ -97,7 +43,7 @@
                     <div class="input-group">
                         <input type="text" id="login-dni" placeholder="DNI / NIF" required autocomplete="username" maxlength="9" style="text-transform:uppercase;">
                     </div>
-                    <!-- CAMBIO: Login Password con Ojo -->
+                    <!-- CAMBIO QUIRÚRGICO: Login Password -->
                     <div class="input-group password-wrapper">
                         <i class="fa-solid fa-lock left-icon"></i>
                         <input type="password" id="login-pass" placeholder="Contrasenya" required autocomplete="current-password" minlength="6">
@@ -124,7 +70,7 @@
                     <div class="input-group">
                         <input type="text" id="reg-dni" placeholder="El teu DNI" required autocomplete="username" maxlength="9" style="text-transform:uppercase;">
                     </div>
-                    <!-- CAMBIO: Registro Password 1 con Ojo -->
+                    <!-- CAMBIO QUIRÚRGICO: Register Pass 1 -->
                     <div class="input-group password-wrapper">
                         <i class="fa-solid fa-lock left-icon"></i>
                         <input type="password" id="reg-pass" placeholder="Crea una contrasenya" required autocomplete="new-password" minlength="6">
@@ -132,7 +78,7 @@
                     </div>
                     <small class="input-help">* Mínim 6 caràcters.</small>
 
-                    <!-- CAMBIO: Registro Password 2 con Ojo -->
+                    <!-- CAMBIO QUIRÚRGICO: Register Pass 2 -->
                     <div class="input-group password-wrapper">
                         <i class="fa-solid fa-lock left-icon"></i>
                         <input type="password" id="reg-pass-conf" placeholder="Repeteix la contrasenya" required autocomplete="new-password" minlength="6">
@@ -166,7 +112,7 @@
                 <form id="reset-form">
                     <input type="hidden" id="reset-code">
                     
-                    <!-- CAMBIO: Reset Password 1 con Ojo -->
+                    <!-- CAMBIO QUIRÚRGICO: Reset Pass 1 -->
                     <div class="input-group password-wrapper">
                         <i class="fa-solid fa-lock left-icon"></i>
                         <input type="password" id="reset-pass" placeholder="Nova contrasenya" required minlength="6">
@@ -174,7 +120,7 @@
                     </div>
                     <small class="input-help">* Mínim 6 caràcters.</small>
 
-                    <!-- CAMBIO: Reset Password 2 con Ojo -->
+                    <!-- CAMBIO QUIRÚRGICO: Reset Pass 2 -->
                     <div class="input-group password-wrapper">
                         <i class="fa-solid fa-lock left-icon"></i>
                         <input type="password" id="reset-pass-conf" placeholder="Repeteix la contrasenya" required minlength="6">
@@ -401,7 +347,7 @@
 
                 <h4>4. Propietat intel·lectual i industrial</h4>
                 <p>Aquest web i els seus continguts són propietat de SICAP o de tercers que l'han autoritzada per al seu ús.</p>
-                <p>En cas que algun contingut sigui titularitat d'un tercer, es farà figurar la font i el seu autor, siempre respectant els seus drets sobre la mateixa.</p>
+                <p>En cas que algun contingut sigui titularitat d'un tercer, es farà figurar la font i el seu autor, sempre respectant els seus drets sobre la mateixa.</p>
                 <p>Així mateix, aquest portal conté documents de caràcter legal, dels que no garantim que siguin reproduccions exactes i/o actualitzades.</p>
                 <p>L'accés a aquesta pàgina web no suposa adquisició de cap tipus a l'usuari sobre els continguts de la mateixa.</p>
                 <p>Es prohibeix la reproducció, distribució, comunicació pública, posada a disposició, transformació i transmissió dels continguts del portal, excepte autorització expressa del titular dels drets. No obstant, l'usuari podrà fer una còpia dels continguts en el seu sistema informàtic, sempre que sigui pel seu ús personal i sense fi comercial.</p>
@@ -416,7 +362,7 @@
                 SICAP podrà interrompre l'accés a la seva pàgina web, a fi de realitzar el seu manteniment, actualització, control o per qualsevol altra causa, i s'exonera de qualsevol responsabilitat que es pugui reclamar per aquesta causa. SICAP no garanteix l'absència de virus, cucs, o qualsevol element que pugui causar danys al sistema informàtic de l'usuari o tercers. Tampoc es responsabilitza dels danys o perjudicis que es puguin produir pel mal ús d'aquest web per part de l'usuari o tercers.</p>
                 
                 <p><strong>6.2 En els enllaços o links</strong><br>
-                SICAP pot contenir enllaços o links que permetin a l'usuari acceder a altres pàgines web. SICAP s'exonera de qualsevol responsabilitat sobre els continguts d'aquestes pàgines externes. No obstant, en cas que tingui coneixement de la il·licitud del seu contingut, o que aquestes lesionin bens o drets d'un tercer susceptibles d'indemnització, SICAP actuarà amb la diligència necessària a fi de suprimir l'enllaç corresponent.</p>
+                SICAP pot contenir enllaços o links que permetin a l'usuari accedir a altres pàgines web. SICAP s'exonera de qualsevol responsabilitat sobre els continguts d'aquestes pàgines externes. No obstant, en cas que tingui coneixement de la il·licitud del seu contingut, o que aquestes lesionin bens o drets d'un tercer susceptibles d'indemnització, SICAP actuarà amb la diligència necessària a fi de suprimir l'enllaç corresponent.</p>
                 
                 <p><strong>6.3 En el funcionament de la pàgina web</strong><br>
                 Així mateix, SICAP s'exonera de qualsevol responsabilitat que es pogués derivar pel funcionament d'aquest portal, pel dany o pèrdua que s'esdevingués per motiu de la connexió, per interferències, omissions, interrupcions, virus informàtics, així com també dels danys causats per terceres persones per intromissions il·legítimes o qualsevol altra causa aliena fora del control de SICAP.</p>
@@ -456,7 +402,7 @@
                 <h4>Finalitat i temps de conservació de les dades</h4>
                 <p>Si ens ha enviat el full d’afiliació o una sol·licitud per afiliar-se en qualsevol altra forma, tractem les seves dades amb la finalitat de gestió administrativa de les persones interessades en afiliar-se.</p>
                 <p>Si ja s’ha afiliat al sindicat, tractem la informació que ens faciliten les persones interessades amb la finalitat de gestió administrativa, fiscal i de defensa jurídica als afiliats del sindicat, així com per la gestió de les contrasenyes dels afiliats que tenen accés a l'espai reservat de la pàgina web del sindicat, en el seu cas.</p>
-                <p>Si és representant sindical, delegat o alliberat, tractem les seves dades with the finalitat de gestió de les persones afiliades que són representants sindicals, delegats i/o alliberats del sindicat.</p>
+                <p>Si és representant sindical, delegat o alliberat, tractem les seves dades amb la finalitat de gestió de les persones afiliades que són representants sindicals, delegats i/o alliberats del sindicat.</p>
                 <p>Les dades personals proporcionades es conservaran per aquesta entitat entre es presti els serveis, i posteriorment durant termini legal que sigui exigible, en seu defecte, durant 5 anys després d’haver finalitzat la seva relació amb el sindicat, o el temps que prevegi a cada moment la normativa en vigor per exigir qualsevol tipus de responsabilitat.</p>
                 <p>En cas que ens hagi donat el seu consentiment per poder rebre informació sobre les activitats, noticies i esdeveniments dels que aquest sindicat sigui part, o considerem que pugui ser del seu interés, tractarem les seves dades amb la finalitat de gestió administrativa per l’enviament d’aquest tipus d’informació vía correu postal, electrònic i sms. En aquest cas, conservarem les seves dades mentre no revoqui el seu consentiment, i posteriorment durant termini legal que sigui exigible, en seu defecte, durant el temps que prevegi a cada moment la normativa en vigor per exigir qualsevol tipus de responsabilitat, que previsiblement serà de 3 anys desde que va revocar el consentiment.</p>
 
@@ -476,7 +422,7 @@
                 <p>Les dades personals proporcionades en qualsevol dels dos supòsits anterios (d i e) conservarem les seves dades mentre no revoqui el seu consentiment, i posteriorment durant termini legal que sigui exigible, en seu defecte, durant el temps que prevegi a cada moment la normativa en vigor per exigir qualsevol tipus de responsabilitat, que previsiblement serà de 3 anys desde que va revocar el consentiment.</p>
 
                 <h4>Destinataris de la cessió o comunicació de dades</h4>
-                <p>Les dades que ens proporcionion per qualsevol via, en paper, mitjançant formularis, pàgina web o correu electrònic, no seran cedides a persones físiques ni jurídiques públiques o privades sense el seu consentiment, o bé si ho autoritza una llei o concórre alguna causa de legitimitat dels qeu preveu l’art. 6 RGPD. Així mateix, es cediràn les seves dades a l’entitat bancària pel cobrament de la quota sindical.</p>
+                <p>Les dades que ens proporcionin per qualsevol via, en paper, mitjançant formularis, pàgina web o correu electrònic, no seran cedides a persones físiques ni jurídiques públiques o privades sense el seu consentiment, o bé si ho autoritza una llei o concórre alguna causa de legitimitat dels qeu preveu l’art. 6 RGPD. Així mateix, es cediràn les seves dades a l’entitat bancària pel cobrament de la quota sindical.</p>
                 <p>Així mateix, les seves dades podran ser proporcionades a aquelles entitats que ens prestin serveis, com és la FEDERACIO DE PROFESSIONALS DE LA SEGURETAT PUBLICA DE CATALUNYA (FEPOL), amb CIF G66327768 i mateix domicili social que aquest sindicat, en virtut del conveni de col·laboració subscrit.</p>
                 <p>En cas d’utilitzar el whatsapp per relacionar-se amb nosaltres, o amb representants en el marc de les seves funcions, així com si es fa seguidor del nostre compte a les xarxes socials (facebook, twiter, instagram i youtube), li informem que es tracten d’entitats que tenen els seus servidors i/o proveïdors de serveis fora de l’Espai Econòmic Europeu, per tant, es produeix una transferència internacional de dades, si bé compleix amb els estàndards que garanteixen el cumplimiento de la normativa en protecció de dades vigent a la UE, atès que únicament transfereixen dades a països reconeguts com segurs per les Decisions d’adeqüació de la Comissió Europea, o bé perquè té subscrites clàusules contractuals tipus aprovades també per la Comissió Europea, la còpia dels quals por demanar-la a le esmentades entitats o bé ens ho pot demanar a nosaltres en qualsevol moment.</p>
 
@@ -502,7 +448,7 @@
             <h3 style="color:var(--brand-blue); border-bottom:1px solid #eee; padding-bottom:10px;">Política de Cookies</h3>
             <div class="legal-text-content">
                 <h4>Què són les cookies?</h4>
-                <p>Una cookie és un arxiu que es descarrega en el seu ordinador en accedir a determinades pàgines web. Les cookies tenen finalitats molt diverses, com per exemple, reconèixer-vos com a usuari, emmagatzemar i recuperar informació sobre els hàbits de navegació d'un usuari o del seu equipo, personalitzar la forma en què es mostra el contingut i, depenent de la informació que continguin i de la forma en què utilitzi el seu equipo, es poden utilitzar per reconèixer a l'usuari.</p>
+                <p>Una cookie és un arxiu que es descarrega en el seu ordinador en accedir a determinades pàgines web. Les cookies tenen finalitats molt diverses, com per exemple, reconèixer-vos com a usuari, emmagatzemar i recuperar informació sobre els hàbits de navegació d'un usuari o del seu equip, personalitzar la forma en què es mostra el contingut i, depenent de la informació que continguin i de la forma en què utilitzi el seu equip, es poden utilitzar per reconèixer a l'usuari.</p>
                 <p>Els usos concrets que fem es descriuen a continuació.</p>
 
                 <h4>Quins tipus de cookies utilitza aquesta pàgina web?</h4>
@@ -548,7 +494,7 @@
 
                 <h4>Configuració, revocació i eliminació de cookies</h4>
                 <p>Vostè pot permetre, bloquejar o eliminar les cookies mitjançant el següent panell de configuració: <button class="btn-small">PANELL DE CONFIGURACIÓ</button></p>
-                <p>També pot bloquejar-les mitjançant la configuració de les opcions del navegador en el seu ordenador:</p>
+                <p>També pot bloquejar-les mitjançant la configuració de les opcions del navegador en el seu ordinador:</p>
                 <ul>
                     <li><strong>Explorer:</strong> <a href="http://windows.microsoft.com/es-es/windows-vista/block-or-allow-cookies" target="_blank">Enllaç suport</a></li>
                     <li><strong>Edge:</strong> <a href="https://support.microsoft.com/es-es/help/4027947/microsoft-edge-delete-cookies" target="_blank">Enllaç suport</a></li>
@@ -582,9 +528,29 @@
     </button>
 
 
+    <script>
+        (function() { const savedTheme = localStorage.getItem('theme'); if(savedTheme) document.documentElement.setAttribute('data-theme', savedTheme); })();
+    </script>
     <script src="js/config.js"></script>
-    <script src="js/auth.js?v=51.2"></script>
-    <script src="js/dashboard.js?v=57.2"></script>
+
+    <!-- CAMBIA ESTA LÍNEA (Añade ?v=49.0) -->
+    <script src="js/auth.js?v=50.0"></script>
+
+    <script src="js/dashboard.js?v=41.0"></script>
     <script src="js/renderitzadorCurs.js?v=45.0"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('slug')) { document.getElementById('dashboard-view').style.display = 'none'; document.getElementById('exam-view').style.display = 'flex'; }
+            const themeBtn = document.getElementById('theme-toggle'); const icon = themeBtn.querySelector('i');
+            const current = localStorage.getItem('theme'); icon.className = current === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            themeBtn.addEventListener('click', () => {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                const next = isDark ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next); localStorage.setItem('theme', next);
+                icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            });
+        });
+    </script>
 </body>
 </html>

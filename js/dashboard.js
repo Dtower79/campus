@@ -1,11 +1,39 @@
 /* ==========================================================================
-   DASHBOARD.JS (v56.8 - SIGNATURE POSITION FIX)
+   DASHBOARD.JS (v57.1 - THEME & SECURITY PATCH)
    ========================================================================== */
 
-console.log("🚀 Carregant Dashboard v56.8...");
+// 1. LÓGICA DE TEMA (MODO NOCHE) - Se ejecuta de inmediato para evitar parpadeos
+(function initTheme() {
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
 
+    // Esperamos a que el DOM esté listo solo para vincular el botón
+    window.addEventListener('DOMContentLoaded', () => {
+        const themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn) {
+            const icon = themeBtn.querySelector('i');
+            // Inicializar icono
+            if (icon) icon.className = currentTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+
+            themeBtn.addEventListener('click', () => {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                const nextTheme = isDark ? 'light' : 'dark';
+                
+                document.documentElement.setAttribute('data-theme', nextTheme);
+                localStorage.setItem('theme', nextTheme);
+                
+                if (icon) icon.className = nextTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            });
+        }
+    });
+})();
+
+// 2. LÓGICA DE CARGA Y VALIDACIÓN DEL DASHBOARD
 document.addEventListener('DOMContentLoaded', async () => {
+    // PARCHE SEGURIDAD: Si estamos reseteando contraseña (code en URL), 
+    // abortamos la carga del dashboard para evitar errores 401 y conflictos visuales.
     if (window.location.search.includes('code=')) return; 
+
     const token = localStorage.getItem('jwt');
     const loginOverlay = document.getElementById('login-overlay');
     const appContainer = document.getElementById('app-container');
@@ -22,17 +50,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(loginCard) loginCard.appendChild(spinner);
 
     try {
-        const res = await fetch(`${STRAPI_URL}/api/users/me?populate=*`, {
+        const respostaUser = await fetch(`${STRAPI_URL}/api/users/me?populate=*`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (res.ok) {
-            const freshUser = await res.json();
+        if (respostaUser.ok) {
+            const freshUser = await respostaUser.json();
             localStorage.setItem('user', JSON.stringify(freshUser));
 
             if(spinner) spinner.remove();
-            loginOverlay.style.display = 'none';
-            appContainer.style.display = 'block';
+            if(loginOverlay) loginOverlay.style.display = 'none';
+            if(appContainer) appContainer.style.display = 'block';
             
             console.log("✅ Usuari validat");
             if (!window.appIniciada) window.iniciarApp();
@@ -53,6 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         scrollBtn.onclick = () => window.scrollTo({top:0, behavior:'smooth'});
     }
 });
+
 
 window.appIniciada = false;
 window.sesionLeidas = new Set(); 

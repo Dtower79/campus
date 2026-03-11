@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AUTH.JS (v51.0 - FINAL STABLE & CSP FIX)
+   AUTH.JS (v51.1 - MASTER VIEW CONTROL & PASSWORD RESET FIX)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,44 +26,54 @@ document.addEventListener('DOMContentLoaded', () => {
         if(views[viewName]) views[viewName].style.display = 'block';
     }
 
-    // --- LÒGICA D'ARRANQUE (ORDRE DE PRIORITAT) ---
+    // --- LÒGICA D'ARRANQUE (ORDRE DE PRIORITAT CRÍTIC) ---
 
-    // A. MODO RECUPERACIÓ (Prioritat 1)
+    // A. MODO RECUPERACIÓ (Prioritat Absoluta)
     if (resetCode) {
-        console.log("🔑 Modo recuperació detectat.");
+        console.log("🔑 Modo recuperació detectat. Aturant càrrega d'app.");
+        // Amaguem el dashboard i mostrem la card de login forçant el formulari de reset
         if(views.app) views.app.style.display = 'none';
         if(views.overlay) views.overlay.style.display = 'flex';
+        
         switchView('reset');
+        
         const codeInput = document.getElementById('reset-code');
         if(codeInput) codeInput.value = resetCode;
-        return; // Aturem aquí per no carregar la resta de l'app
+        
+        // Bloquegem qualsevol altra execució per evitar errors 401 del dashboard
+        return; 
     }
 
-    // B. USUARI LOGUEJAT (Prioritat 2)
+    // B. USUARI LOGUEJAT
     if (token) {
         if(views.overlay) views.overlay.style.display = 'none';
         if(views.app) views.app.style.display = 'block';
 
-        // Lògica de redirecció directa a curs (SLUG) que abans estava a l'HTML
+        // Lògica de redirecció directa a curs (SLUG)
         if (slugDestino) {
+            console.log("🎯 Redirecció directa a curs detectada:", slugDestino);
             if(views.dashboard) views.dashboard.style.display = 'none';
             if(views.exam) views.exam.style.display = 'flex';
         }
     } 
-    // C. PANTALLA DE LOGIN (Prioritat 3)
+    // C. PANTALLA DE LOGIN / REGISTRE
     else {
         if(views.app) views.app.style.display = 'none';
         if(views.overlay) views.overlay.style.display = 'flex';
         switchView('login');
 
-        // Avís de contingut protegit si venia per un slug sense login
+        // Avís de contingut protegit si l'usuari no està loguejat i vol entrar a un curs
         if (slugDestino) {
             const loginHeader = document.querySelector('.login-header');
+            // Evitem duplicar l'avís si ja existeix
             if(loginHeader && !document.querySelector('.alert-info-lock')) {
                 const aviso = document.createElement('div');
                 aviso.className = 'alert-info alert-info-lock';
-                aviso.style.marginTop = '15px'; aviso.style.fontSize = '0.9rem'; 
-                aviso.style.backgroundColor = '#e3f2fd'; aviso.style.color = '#0d47a1'; aviso.style.border = '1px solid #bbdefb';
+                aviso.style.marginTop = '15px'; 
+                aviso.style.fontSize = '0.9rem'; 
+                aviso.style.backgroundColor = '#e3f2fd'; 
+                aviso.style.color = '#0d47a1'; 
+                aviso.style.border = '1px solid #bbdefb';
                 aviso.innerHTML = '<i class="fa-solid fa-lock"></i> <strong>Contingut Protegit:</strong><br>Inicia la sessió per accedir directament al curs.';
                 loginHeader.appendChild(aviso);
             }
@@ -77,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', (e) => { e.preventDefault(); switchView('login'); });
     });
 
-    // --- HELPER MODAL MEJORADO ---
+    // --- HELPER MODAL GENÈRIC ---
     window.lanzarModal = function(titulo, mensaje, esError = true, callback = null) {
         const modal = document.getElementById('custom-modal');
         const titleEl = document.getElementById('modal-title');
@@ -96,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(btnConf) {
             btnConf.innerText = "Entesos";
             btnConf.style.background = esError ? "var(--brand-red)" : "var(--brand-blue)";
+            // Clonem per netejar events anteriors
             const newBtn = btnConf.cloneNode(true);
             btnConf.parentNode.replaceChild(newBtn, btnConf);
             newBtn.onclick = () => {
@@ -106,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.style.display = 'flex';
     };
 
-    // 1. LOGIN
+    // 1. LÒGICA DE LOGIN
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
@@ -139,12 +150,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. REGISTRO
+    // 2. LÒGICA DE REGISTRE
     const registerForm = document.getElementById('register-form');
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const dni = document.getElementById('reg-dni').value.trim().toUpperCase();
+            const dniInput = document.getElementById('reg-dni').value.trim().toUpperCase();
             const pass = document.getElementById('reg-pass').value;
             const passConf = document.getElementById('reg-pass-conf').value;
             const btnSubmit = registerForm.querySelector('button[type="submit"]');
@@ -155,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSubmit.innerText = "Verificant..."; btnSubmit.disabled = true;
 
             try {
-                const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dni}`);
+                const resAfi = await fetch(`${API_ROUTES.checkAffiliate}?filters[dni][$eq]=${dniInput}`);
                 const jsonAfi = await resAfi.json();
                 
                 if(!jsonAfi.data || jsonAfi.data.length === 0) {
@@ -169,14 +180,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const regRes = await fetch(API_ROUTES.register, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: dni, email: emailAfiliado, password: pass })
+                    body: JSON.stringify({ username: dniInput, email: emailAfiliado, password: pass })
                 });
                 const regData = await regRes.json();
 
                 if(regRes.ok) {
                     lanzarModal("Compte Creat!", `Email trobat: <strong>${emailAfiliado}</strong>.<br>Ja pots iniciar sessió.`, false, () => window.location.reload());
                 } else {
-                    lanzarModal("Error", regData.error?.message || "Error al crear compte.");
+                    let errorMsg = regData.error?.message || "Error al crear compte.";
+                    if(errorMsg.includes('username')) errorMsg = "Aquest DNI ja està registrat.";
+                    lanzarModal("Error", errorMsg);
                     btnSubmit.innerText = "Validar i Entrar"; btnSubmit.disabled = false;
                 }
             } catch(e) { 
@@ -186,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 3. RECUPERACIÓN
+    // 3. LÒGICA DE RECUPERACIÓ (FORGOT)
     const forgotForm = document.getElementById('forgot-form');
     if (forgotForm) {
         forgotForm.addEventListener('submit', async (e) => {
@@ -223,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. RESET PASSWORD
+    // 4. LÒGICA DE NOVA CONTRASENYA (RESET)
     const resetForm = document.getElementById('reset-form');
     if (resetForm) {
         resetForm.addEventListener('submit', async (e) => {
@@ -233,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const passConf = document.getElementById('reset-pass-conf').value;
             const btnSubmit = resetForm.querySelector('button');
 
-            if (pass.length < 6) return lanzarModal("Contrasenya massa curta", "Mínim 6 caràcters.");
+            if (pass.length < 6) return lanzarModal("Contrasenya massa curta", "La contrasenya ha de tenir almenys 6 caràcters.");
             if (pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
 
             btnSubmit.innerText = "Canviant..."; btnSubmit.disabled = true;
@@ -248,11 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const data = await res.json();
                     localStorage.setItem('jwt', data.jwt);
                     localStorage.setItem('user', JSON.stringify(data.user));
-                    lanzarModal("Contrasenya Canviada", "Actualitzat amb èxit. Iniciant sessió...", false, () => {
-                        window.location.href = window.location.pathname; // Neteja la URL
+                    lanzarModal("Contrasenya Canviada", "La teva contrasenya s'ha actualitzat correctament. Iniciant sessió...", false, () => {
+                        window.location.href = window.location.origin + window.location.pathname; // Neteja la URL del codi
                     });
                 } else {
-                    lanzarModal("Error", "L'enllaç ha caducat.");
+                    lanzarModal("Error", "L'enllaç ha caducat o ja s'ha utilitzat.");
                 }
             } catch (error) {
                 lanzarModal("Error", "Error de connexió.");
@@ -263,6 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// FUNCIÓ GLOBAL PER A L'ULL DE LA CONTRASENYA
 function togglePasswordVisibility(inputId, iconElement) {
     const input = document.getElementById(inputId);
     if (!input) return;

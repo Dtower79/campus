@@ -1,32 +1,30 @@
-/* js/ui-init.js - Lógica de UI y Tema */
+/* js/ui-init.js */
+
+// 1. Aplicar tema inmediatamente (lo que hacían las líneas 531-533)
+const savedTheme = localStorage.getItem('theme');
+if(savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Configuración del tema (Dark/Light)
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-        document.documentElement.setAttribute('data-theme', savedTheme);
-    }
-
-    // 2. Lógica del Router al cargar (Slugs)
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('slug')) {
-        const dashView = document.getElementById('dashboard-view');
-        const examView = document.getElementById('exam-view');
-        if (dashView) dashView.style.display = 'none';
-        if (examView) examView.style.display = 'flex';
+
+    // 2. Lógica de vista si hay slug
+    if (urlParams.get('slug')) { 
+        const dv = document.getElementById('dashboard-view');
+        const ev = document.getElementById('exam-view');
+        if(dv) dv.style.display = 'none'; 
+        if(ev) ev.style.display = 'flex'; 
     }
 
-    // 3. Inicialización del botón de cambio de tema
-    const themeBtn = document.getElementById('theme-toggle');
+    // 3. Lógica del botón de tema
+    const themeBtn = document.getElementById('theme-toggle'); 
     if (themeBtn) {
         const icon = themeBtn.querySelector('i');
-        const current = localStorage.getItem('theme');
-        icon.className = current === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-
+        icon.className = localStorage.getItem('theme') === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        
         themeBtn.addEventListener('click', () => {
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             const next = isDark ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', next);
+            document.documentElement.setAttribute('data-theme', next); 
             localStorage.setItem('theme', next);
             icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
         });

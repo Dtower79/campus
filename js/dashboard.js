@@ -5,6 +5,8 @@
 console.log("🚀 Carregant Dashboard v56.8...");
 
 document.addEventListener('DOMContentLoaded', async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('code')) return; // Si hay código de reset, DETENER la carga de la app
     const token = localStorage.getItem('jwt');
     const loginOverlay = document.getElementById('login-overlay');
     const appContainer = document.getElementById('app-container');

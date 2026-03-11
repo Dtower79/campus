@@ -549,42 +549,45 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     vertical-align: middle;
     border: 1px solid #bbdefb;
 }
-/* Contenidor de la contrasenya (Estil matching amb DNI) */
+/* Contenedor principal sin padding interior */
 .password-wrapper {
     position: relative;
     display: flex;
     align-items: center;
-    background: white; /* Mateix fons que el DNI */
-    border: 1px solid #ddd; /* Mateix color de vora */
-    border-radius: 4px; /* El radi estàndard dels teus inputs */
-    padding: 0 12px;
+    background: white; 
+    border: 1px solid #ccc; /* El color de tu borde estándar */
+    border-radius: 4px; 
     margin-bottom: 4px !important;
-    height: 46px; /* Altura estàndard per igualar el DNI */
+    height: 46px; 
     box-sizing: border-box;
+    padding: 0; /* <-- CLAVE: Quitamos el margen interior */
+    overflow: hidden; /* <-- CLAVE: Evita que el color azul se salga de las esquinas redondeadas */
 }
 
-/* Treure estils estranys de l'input intern */
+/* El input ahora ocupa el 100% de la caja y maneja sus propios espacios */
 .password-wrapper input {
-    background: white !important;
+    background: transparent; /* Si no hay autocompletado, es transparente (blanco) */
     border: none !important;
     box-shadow: none !important;
-    padding: 0 35px 0 30px !important; /* Espai per a icones esquerra i dreta */
-    color: #333 !important; /* Text fosc com al DNI */
+    padding: 0 45px 0 35px !important; /* Espacio para que el texto no pise los iconos */
+    color: #333 !important; 
     font-size: 1rem;
     height: 100%;
     width: 100%;
+    box-sizing: border-box;
 }
 
-/* Icona del cadenat (esquerra) */
+/* Icona del candado (izquierda) */
 .left-icon {
     position: absolute;
     left: 12px;
     color: #999;
     font-size: 0.9rem;
     pointer-events: none;
+    z-index: 2; /* Para que quede por encima del color azul del autocompletar */
 }
 
-/* Icona de l'ull (dreta) */
+/* Icona del ojo (derecha) */
 .toggle-password {
     position: absolute;
     right: 12px;
@@ -599,7 +602,7 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     color: var(--brand-blue);
 }
 
-/* Text d'ajuda inferior (Alineat a l'esquerra) */
+/* Text d'ajuda inferior */
 .input-help {
     display: block;
     font-size: 0.75rem;
@@ -610,12 +613,7 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     padding-left: 5px;
 }
 
-/* Ajust per al mode fosc (opcional, si el fas servir) */
-[data-theme="dark"] .password-wrapper {
+/* Ajustes Dark Mode (opcional) */[data-theme="dark"] .password-wrapper {
     background: #0f172a;
     border-color: #334155;
-}
-[data-theme="dark"] .password-wrapper input {
-    background: #0f172a !important;
-    color: white !important;
 }

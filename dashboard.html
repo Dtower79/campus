@@ -1,10 +1,10 @@
 /* ==========================================================================
-   DASHBOARD.JS (v58.0 - FINAL UNIFIED VERSION)
+   DASHBOARD.JS (v58.1 - FINAL MASTER VERSION - FIXED DEFINITIONS)
    ========================================================================== */
 
-console.log("🚀 Carregant Dashboard v58.0...");
+console.log("🚀 Carregant Dashboard v58.1...");
 
-// 1. LÓGICA DE TEMA (MODO NOCHE) - Inmediata
+// 1. LÓGICA DE TEMA (MODO NOCHE) - Execució immediata
 (function initTheme() {
     const currentTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
@@ -26,18 +26,21 @@ console.log("🚀 Carregant Dashboard v58.0...");
     });
 })();
 
-// 2. LÓGICA DE VALIDACIÓN Y ARRANQUE
+// 2. LÓGICA DE VALIDACIÓ D'USUARI I ARRANQUE
 document.addEventListener('DOMContentLoaded', async () => {
-    // PARCHE SEGURIDAD: Si estamos reseteando contraseña, abortamos dashboard
+    // PARCHE SEGURETAT: Si estem recuperant clau, no carreguem el dashboard
     if (window.location.search.includes('code=')) return; 
 
     const token = localStorage.getItem('jwt');
+    
+    // DEFINICIONS CRÍTIQUES (Evita l'error 'not defined')
     const loginOverlay = document.getElementById('login-overlay');
     const appContainer = document.getElementById('app-container');
-    const loginView = document.getElementById('login-view'); // <--- CORREGIDO
+    const loginView = document.getElementById('login-view'); 
 
     if (!token) return; 
 
+    // UI Feedback durant la validació
     if(loginView) loginView.style.display = 'none';
     const loginCard = document.querySelector('.login-card');
     let spinner = document.createElement('div');
@@ -59,10 +62,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(loginOverlay) loginOverlay.style.display = 'none';
             if(appContainer) appContainer.style.display = 'block';
             
-            console.log("✅ Usuari validat");
+            console.log("✅ Usuari validat correctament");
             if (!window.appIniciada) window.iniciarApp();
         } else {
-            throw new Error('Token caducado');
+            throw new Error('Token caducat');
         }
 
     } catch (error) {
@@ -90,14 +93,14 @@ window.iniciarApp = async function() {
     if(user) {
         const safeText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
 
-        // Datos inmediatos
+        // Dades base del login
         safeText('dropdown-email', user.email);
         safeText('profile-dni-display', user.username);
         safeText('dropdown-username', user.username);
         safeText('user-initials', user.username.substring(0, 2).toUpperCase());
 
         try {
-            // Recuperar nombre real desde Afiliados
+            // Creuem amb dades d'Afiliats per Nom Real
             const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$iEq]=${user.username}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -116,7 +119,7 @@ window.iniciarApp = async function() {
                 safeText('profile-name-display', nombreReal);
                 safeText('profile-avatar-big', initials.toUpperCase());
             }
-        } catch (e) { console.error("Error nombre real:", e); }
+        } catch (e) { console.error("Error recuperant nom real:", e); }
     }
 
     setupDirectClicks();
@@ -126,7 +129,7 @@ window.iniciarApp = async function() {
     const slug = urlParams.get('slug');
 
     if (!slug) {
-        window.showView('home'); // Landing por defecto: Catálogo
+        window.showView('home'); 
     } else {
         fetch(`${STRAPI_URL}/api/cursos?filters[slug][$eq]=${slug}`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -146,8 +149,9 @@ window.iniciarApp = async function() {
             const esProfe = user.es_professor === true;
 
             if (esFuturo && !esProfe) {
+                const dateStr = fechaInicio.toLocaleDateString('ca-ES');
                 window.location.href = 'index.html'; 
-                alert(`Aquest curs encara no ha començat. Data d'inici: ${fechaInicio.toLocaleDateString('ca-ES')}`);
+                alert(`Aquest curs encara no ha començat. Data d'inici: ${dateStr}`);
             } else {
                 document.getElementById('dashboard-view').style.display = 'none';
                 document.getElementById('exam-view').style.display = 'flex';
@@ -199,10 +203,14 @@ function setupDirectClicks() {
     if (btnUser && userDropdown) {
         btnUser.onclick = (e) => {
             e.stopPropagation();
-            const isVisible = userDropdown.style.display === 'flex';
-            userDropdown.style.display = isVisible ? 'none' : 'flex';
-            if (isVisible) userDropdown.classList.remove('show');
-            else userDropdown.classList.add('show');
+            const isVisible = userDropdown.style.display === 'flex' || userDropdown.classList.contains('show');
+            if (isVisible) {
+                userDropdown.style.display = 'none';
+                userDropdown.classList.remove('show');
+            } else {
+                userDropdown.style.display = 'flex';
+                userDropdown.classList.add('show');
+            }
         };
         document.addEventListener('click', () => {
             userDropdown.style.display = 'none';
@@ -285,7 +293,7 @@ window.abrirPanelNotificaciones = async function() {
              const pendientes = (jsonM.data || []).filter(m => !window.sesionLeidas.has(m.documentId || m.id));
              if(pendientes.length > 0) {
                  hasContent = true;
-                 html += `<div class="notif-item unread" onclick="openTeacherInbox(this)"><strong>👨‍🏫 Professor</strong><p>Tens ${pendientes.length} dubtes pendents.</p></div>`;
+                 html += `<div class="notif-item unread" onclick="openTeacherInbox(this)"><strong>👨‍🏫 Bústia Professor</strong><p>Tens ${pendientes.length} dubtes per respondre.</p></div>`;
              }
         }
 
@@ -300,7 +308,7 @@ window.abrirPanelNotificaciones = async function() {
                 html += `<div class="notif-item unread" onclick="marcarLeida('${idReal}', this)"><strong>${n.titol}</strong><p>${n.missatge}</p></div>`;
             });
         }
-        msg.innerHTML = hasContent ? html + '</div>' : '<p style="text-align:center; padding:20px;">No tens res nou.</p>';
+        msg.innerHTML = hasContent ? html + '</div>' : '<p style="text-align:center; padding:20px;">No hi ha notificacions noves.</p>';
     } catch(e) { msg.innerHTML = 'Error al carregar.'; }
 };
 
@@ -370,7 +378,7 @@ window.abrirPanelMensajes = async function(modoForzado, filtroHistorial = false)
             msgEl.innerHTML = html + '</div>';
             const c = document.getElementById('chat-container'); if(c) c.scrollTop = filtroHistorial ? 0 : c.scrollHeight;
         }
-    } catch(e) { msgEl.innerHTML = 'Error.'; }
+    } catch(e) { msgEl.innerHTML = 'Error al carregar missatges.'; }
 };
 
 window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, encodedTema) {
@@ -435,7 +443,7 @@ async function renderCoursesLogic(viewMode) {
 
         cursos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
         list.innerHTML = '';
-        if(cursos.length === 0) { list.innerHTML = '<p style="text-align:center; padding:20px;">Sense dades.</p>'; return; }
+        if(cursos.length === 0) { list.innerHTML = '<p style="text-align:center; padding:20px;">No hi ha cursos disponibles.</p>'; return; }
 
         cursos.forEach((rawCurs) => {
             const curs = rawCurs.attributes ? rawCurs.attributes : rawCurs;

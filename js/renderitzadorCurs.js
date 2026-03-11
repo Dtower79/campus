@@ -22,6 +22,7 @@ window.state = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (new URLSearchParams(window.location.search).has('code')) return;
     // Alias local para no romper el código existente que usa la palabra 'state'
     let state = window.state;
 

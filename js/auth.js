@@ -22,11 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (resetCode) {
-        // --- CAMBIO QUIRÚRGICO: Asegurar visibilidad del overlay y vista reset ---
-        document.getElementById('login-overlay').style.display = 'flex';
+        // Forzamos que el fondo oscuro del login sea visible
+        const overlay = document.getElementById('login-overlay');
+        if(overlay) overlay.style.display = 'flex'; 
+        
         switchView('reset');
         document.getElementById('reset-code').value = resetCode;
-    } 
+    }
     else if (slugDestino && !localStorage.getItem('jwt')) {
         const loginHeader = document.querySelector('.login-header');
         if(loginHeader && !document.querySelector('.alert-info-lock')) {

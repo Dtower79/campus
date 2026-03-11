@@ -3,13 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SICAP Campus | Formació Especialitzada</title>
-
-    <meta name="description" content="Campus Virtual de SICAP (Sindicat Català de Presons). Accedeix a la nostra oferta formativa especialitzada, gestiona els teus cursos i descarrega els teus certificats oficials.">
-
-    <meta property="og:title" content="SICAP Campus Virtual">
-    <meta property="og:description" content="Plataforma de formació per als afiliats del Sindicat Català de Presons.">
-    <meta property="og:image" content="https://sicap-campus.es/img/logo-sicap.png">
+    <title>SICAP Campus Virtual</title>
     
     <!-- FUENTES -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -49,9 +43,14 @@
                     <div class="input-group">
                         <input type="text" id="login-dni" placeholder="DNI / NIF" required autocomplete="username" maxlength="9" style="text-transform:uppercase;">
                     </div>
-                    <div class="input-group">
-                        <input type="password" id="login-pass" placeholder="Contrasenya" required autocomplete="current-password">
+                    <!-- CAMBIO QUIRÚRGICO: Login Password -->
+                    <div class="input-group password-wrapper">
+                        <i class="fa-solid fa-lock left-icon"></i>
+                        <input type="password" id="login-pass" placeholder="Contrasenya" required autocomplete="current-password" minlength="6">
+                        <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('login-pass', this)"></i>
                     </div>
+                    <small class="input-help">* Mínim 6 caràcters.</small>
+                    
                     <button type="submit" class="btn-login">Inicia la sessió</button>
                 </form>
                 <div class="login-footer"><a href="#" id="btn-forgot-pass">Heu oblidat la contrasenya?</a></div>
@@ -71,12 +70,22 @@
                     <div class="input-group">
                         <input type="text" id="reg-dni" placeholder="El teu DNI" required autocomplete="username" maxlength="9" style="text-transform:uppercase;">
                     </div>
-                    <div class="input-group">
-                        <input type="password" id="reg-pass" placeholder="Crea una contrasenya" required autocomplete="new-password">
+                    <!-- CAMBIO QUIRÚRGICO: Register Pass 1 -->
+                    <div class="input-group password-wrapper">
+                        <i class="fa-solid fa-lock left-icon"></i>
+                        <input type="password" id="reg-pass" placeholder="Crea una contrasenya" required autocomplete="new-password" minlength="6">
+                        <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('reg-pass', this)"></i>
                     </div>
-                    <div class="input-group">
-                        <input type="password" id="reg-pass-conf" placeholder="Repeteix la contrasenya" required autocomplete="new-password">
+                    <small class="input-help">* Mínim 6 caràcters.</small>
+
+                    <!-- CAMBIO QUIRÚRGICO: Register Pass 2 -->
+                    <div class="input-group password-wrapper">
+                        <i class="fa-solid fa-lock left-icon"></i>
+                        <input type="password" id="reg-pass-conf" placeholder="Repeteix la contrasenya" required autocomplete="new-password" minlength="6">
+                        <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('reg-pass-conf', this)"></i>
                     </div>
+                    <small class="input-help">* Mínim 6 caràcters.</small>
+
                     <button type="submit" class="btn-login" style="background-color: var(--brand-red) !important;">Validar i Activar</button>
                 </form>
                 <div style="margin-top: 20px;"><button class="btn-back-login btn-secondary" style="border:none !important; text-decoration:underline;">Tornar al Login</button></div>
@@ -102,8 +111,23 @@
                 <h3 style="color:var(--brand-blue); margin-bottom:15px;">Nova Contrasenya</h3>
                 <form id="reset-form">
                     <input type="hidden" id="reset-code">
-                    <div class="input-group"><input type="password" id="reset-pass" placeholder="Nova contrasenya" required></div>
-                    <div class="input-group"><input type="password" id="reset-pass-conf" placeholder="Repeteix la contrasenya" required></div>
+                    
+                    <!-- CAMBIO QUIRÚRGICO: Reset Pass 1 -->
+                    <div class="input-group password-wrapper">
+                        <i class="fa-solid fa-lock left-icon"></i>
+                        <input type="password" id="reset-pass" placeholder="Nova contrasenya" required minlength="6">
+                        <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('reset-pass', this)"></i>
+                    </div>
+                    <small class="input-help">* Mínim 6 caràcters.</small>
+
+                    <!-- CAMBIO QUIRÚRGICO: Reset Pass 2 -->
+                    <div class="input-group password-wrapper">
+                        <i class="fa-solid fa-lock left-icon"></i>
+                        <input type="password" id="reset-pass-conf" placeholder="Repeteix la contrasenya" required minlength="6">
+                        <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('reset-pass-conf', this)"></i>
+                    </div>
+                    <small class="input-help">* Mínim 6 caràcters.</small>
+
                     <button type="submit" class="btn-login" style="background-color: var(--brand-red) !important;">Guardar Canvis</button>
                 </form>
             </div>
@@ -318,7 +342,7 @@
 
                 <h4>3. Ús correcte de la pàgina web</h4>
                 <p>L'accés a aquest portal implica acceptar i conèixer les condicions i termes d'aquest Avís legal, i no pot utilitzar aquesta pàgina web o serveis prestats a través d'ells, per finalitats contràries a la llei o amb vulneració del que disposa la legislació vigent, aquest Avís legal, bons costums i ordre públic, o per qualsevol altra que pugui causar una lesió als drets de tercers.</p>
-                <p>L'usuari no podrà destruir, alterar, inutilitzar o, de qualsevol altra forma, fer malbé les dades, els programes o els documents electrònics i altres que es trobin en el web, així com a no obstaculitzar l'accés d'altres usuaris al servei d'accés ni introduir-hi programes, aplicacions informàtiques, virus, o qualsevol altre dispositiu anàleg que puguin causar qualsevol tipus d'alteració en els sistemes informàtics de SICAP o de tercers.</p>
+                <p>L'usuari no podrà destruir, alterar, inutilitzar o, de qualseval altra forma, fer malbé les dades, els programes o els documents electrònics i altres que es trobin en el web, així com a no obstaculitzar l'accés d'altres usuaris al servei d'accés ni introduir-hi programes, aplicacions informàtiques, virus, o qualsevol altre dispositiu anàleg que puguin causar qualsevol tipus d'alteració en els sistemes informàtics de SICAP o de tercers.</p>
                 <p>L'usuari no podrà fer mal ús de les informacions, missatges, gràfics, arxius ni de qualsevol classe de material accessible a través d'aquesta web.</p>
 
                 <h4>4. Propietat intel·lectual i industrial</h4>
@@ -400,7 +424,7 @@
                 <h4>Destinataris de la cessió o comunicació de dades</h4>
                 <p>Les dades que ens proporcionin per qualsevol via, en paper, mitjançant formularis, pàgina web o correu electrònic, no seran cedides a persones físiques ni jurídiques públiques o privades sense el seu consentiment, o bé si ho autoritza una llei o concórre alguna causa de legitimitat dels qeu preveu l’art. 6 RGPD. Així mateix, es cediràn les seves dades a l’entitat bancària pel cobrament de la quota sindical.</p>
                 <p>Així mateix, les seves dades podran ser proporcionades a aquelles entitats que ens prestin serveis, com és la FEDERACIO DE PROFESSIONALS DE LA SEGURETAT PUBLICA DE CATALUNYA (FEPOL), amb CIF G66327768 i mateix domicili social que aquest sindicat, en virtut del conveni de col·laboració subscrit.</p>
-                <p>En cas d’utilitzar el whatsapp per relacionar-se amb nosaltres, o amb representants en el marc de les seves funcions, així com si es fa seguidor del nostre compte a les xarxes socials (facebook, twiter, instagram i youtube), li informem que es tracten d’entitats que tenen els seus servidors i/o proveïdors de serveis fora de l’Espai Econòmic Europeu, per tant, es produeix una transferència internacional de dades, si bé compleix amb els estàndards que garanteixen el compliment de la normativa en protecció de dades vigent a la UE, atès que únicament transfereixen dades a països reconeguts com segurs per les Decisions d’adeqüació de la Comissió Europea, o bé perquè té subscrites clàusules contractuals tipus aprovades també per la Comissió Europea, la còpia dels quals por demanar-la a le esmentades entitats o bé ens ho pot demanar a nosaltres en qualsevol moment.</p>
+                <p>En cas d’utilitzar el whatsapp per relacionar-se amb nosaltres, o amb representants en el marc de les seves funcions, així com si es fa seguidor del nostre compte a les xarxes socials (facebook, twiter, instagram i youtube), li informem que es tracten d’entitats que tenen els seus servidors i/o proveïdors de serveis fora de l’Espai Econòmic Europeu, per tant, es produeix una transferència internacional de dades, si bé compleix amb els estàndards que garanteixen el cumplimiento de la normativa en protecció de dades vigent a la UE, atès que únicament transfereixen dades a països reconeguts com segurs per les Decisions d’adeqüació de la Comissió Europea, o bé perquè té subscrites clàusules contractuals tipus aprovades també per la Comissió Europea, la còpia dels quals por demanar-la a le esmentades entitats o bé ens ho pot demanar a nosaltres en qualsevol moment.</p>
 
                 <h4>Drets dels usuaris en protecció de dades</h4>
                 <p>Tota persona té dret a obtenir confirmació sobre si en aquest sindicat estem tractant dades personals que els concerneixin o no. Així mateix, tindran dret a sol·licitar l'accés a les dades personals relatives a l'interessat, la seva rectificació, supressió, la limitació del seu tractament, a oposar-se al tractament, així com a la portabilitat de les dades.</p>

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AUTH.JS (v49.0 - FINAL STABLE & PROFESSIONAL MODALS)
+   AUTH.JS (v50.0 - FINAL STABLE & PROFESSIONAL MODALS)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -109,6 +109,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const passConf = document.getElementById('reg-pass-conf').value;
             const btnSubmit = registerForm.querySelector('button[type="submit"]');
 
+            // VALIDACIÓN QUIRÚRGICA: Mínimo 6 caracteres
+            if (pass.length < 6) {
+                return lanzarModal("Contrasenya massa curta", "La contrasenya ha de tenir almenys 6 caràcters.");
+            }
+
             if(pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
             
             btnSubmit.innerText = "Verificant..."; btnSubmit.disabled = true;
@@ -164,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // ÉXITO REGISTRO -> Modal profesional
                     lanzarModal(
                         "Compte Creat!", 
-                        `Hem trobat el teu email d'afiliat: <strong>${emailAfiliado}</strong><br>Ja pots iniciar sessió.`, 
+                        `Hem trobat el teu email d'afiliat: <strong>${emailAfiliado}</strong>.<br>Ja pots iniciar sessió.`, 
                         false,
                         () => window.location.reload()
                     );
@@ -247,6 +252,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const passConf = document.getElementById('reset-pass-conf').value;
             const btnSubmit = resetForm.querySelector('button');
 
+            // VALIDACIÓN QUIRÚRGICA: Mínimo 6 caracteres
+            if (pass.length < 6) {
+                return lanzarModal("Contrasenya massa curta", "La contrasenya ha de tenir almenys 6 caràcters.");
+            }
+
             if (pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
 
             btnSubmit.innerText = "Canviant..."; btnSubmit.disabled = true;
@@ -278,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     );
                 } else {
-                    lanzarModal("Error", "L'enllaç ha caducat o ja s'ha utilitzat.");
+                    lanzarModal("Error", "L'enllaç ha caducat o ya s'ha utilitzat.");
                 }
             } catch (error) {
                 lanzarModal("Error", "Error de connexió.");
@@ -288,3 +298,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+function togglePasswordVisibility(inputId, iconElement) {
+    const input = document.getElementById(inputId);
+    if (input.type === "password") {
+        input.type = "text";
+        iconElement.classList.replace("fa-eye", "fa-eye-slash");
+    } else {
+        input.type = "password";
+        iconElement.classList.replace("fa-eye-slash", "fa-eye");
+    }
+}

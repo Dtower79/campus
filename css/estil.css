@@ -549,3 +549,52 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     vertical-align: middle;
     border: 1px solid #bbdefb;
 }
+/* Contenidor especial per a contrasenyes amb icones */
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: #1e293b; /* Color fosc de fons */
+    border: 1px solid #334155;
+    border-radius: 25px; /* Molt arrodonit com la imatge */
+    padding: 0 15px;
+    margin-bottom: 5px !important; /* Espai per al text de sota */
+}
+
+.password-wrapper input {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 12px 10px 12px 35px !important; /* Espai per a la icona esquerra */
+    color: white;
+    width: 100%;
+}
+
+/* Icona del cadenat (esquerra) */
+.left-icon {
+    position: absolute;
+    left: 15px;
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+/* Icona de l'ull (dreta) */
+.toggle-password {
+    cursor: pointer;
+    color: #94a3b8;
+    transition: color 0.2s;
+    font-size: 1rem;
+}
+
+.toggle-password:hover {
+    color: #60a5fa; /* Blau al passar el ratolí */
+}
+
+/* Text d'ajuda inferior */
+.input-help {
+    display: block;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-left: 15px;
+    margin-bottom: 15px;
+}

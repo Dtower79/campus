@@ -1,4 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // NUEVO: Si estamos en proceso de reset de contraseña, no arrancar la App
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('code')) {
+        console.log("🔒 Proceso de reset detectado. App en espera.");
+        return;
+    }
+
     if (localStorage.getItem('jwt') && !window.appIniciada) {
         window.iniciarApp();
     }
@@ -184,7 +191,7 @@ async function loadFullProfile() {
     const token = localStorage.getItem('jwt');
     document.getElementById('prof-email').value = user.email;
     try {
-        const res = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, { headers: { 'Authorization': 'Bearer ' + token } });
         const json = await res.json();
         if(json.data && json.data.length > 0) {
             const afi = json.data[0];

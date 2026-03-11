@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (resetCode) {
+        // --- CAMBIO QUIRÚRGICO: Asegurar visibilidad del overlay y vista reset ---
+        document.getElementById('login-overlay').style.display = 'flex';
         switchView('reset');
         document.getElementById('reset-code').value = resetCode;
     } 

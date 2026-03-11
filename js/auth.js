@@ -304,8 +304,10 @@ function togglePasswordVisibility(inputId, iconElement) {
     if (input.type === "password") {
         input.type = "text";
         iconElement.classList.replace("fa-eye", "fa-eye-slash");
+        iconElement.style.color = "var(--brand-blue)"; // Blau quan es veu
     } else {
         input.type = "password";
         iconElement.classList.replace("fa-eye-slash", "fa-eye");
+        iconElement.style.color = "#999"; // Gris quan està ocult
     }
 }

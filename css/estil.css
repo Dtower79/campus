@@ -549,52 +549,73 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     vertical-align: middle;
     border: 1px solid #bbdefb;
 }
-/* Contenidor especial per a contrasenyes amb icones */
+/* Contenidor de la contrasenya (Estil matching amb DNI) */
 .password-wrapper {
     position: relative;
     display: flex;
     align-items: center;
-    background: #1e293b; /* Color fosc de fons */
-    border: 1px solid #334155;
-    border-radius: 25px; /* Molt arrodonit com la imatge */
-    padding: 0 15px;
-    margin-bottom: 5px !important; /* Espai per al text de sota */
+    background: white; /* Mateix fons que el DNI */
+    border: 1px solid #ddd; /* Mateix color de vora */
+    border-radius: 4px; /* El radi estàndard dels teus inputs */
+    padding: 0 12px;
+    margin-bottom: 4px !important;
+    height: 46px; /* Altura estàndard per igualar el DNI */
+    box-sizing: border-box;
 }
 
+/* Treure estils estranys de l'input intern */
 .password-wrapper input {
-    background: transparent !important;
+    background: white !important;
     border: none !important;
     box-shadow: none !important;
-    padding: 12px 10px 12px 35px !important; /* Espai per a la icona esquerra */
-    color: white;
+    padding: 0 35px 0 30px !important; /* Espai per a icones esquerra i dreta */
+    color: #333 !important; /* Text fosc com al DNI */
+    font-size: 1rem;
+    height: 100%;
     width: 100%;
 }
 
 /* Icona del cadenat (esquerra) */
 .left-icon {
     position: absolute;
-    left: 15px;
-    color: #94a3b8;
+    left: 12px;
+    color: #999;
     font-size: 0.9rem;
+    pointer-events: none;
 }
 
 /* Icona de l'ull (dreta) */
 .toggle-password {
+    position: absolute;
+    right: 12px;
     cursor: pointer;
-    color: #94a3b8;
-    transition: color 0.2s;
+    color: #999;
     font-size: 1rem;
+    transition: color 0.2s;
+    z-index: 5;
 }
 
 .toggle-password:hover {
-    color: #60a5fa; /* Blau al passar el ratolí */
+    color: var(--brand-blue);
 }
 
-/* Text d'ajuda inferior */
+/* Text d'ajuda inferior (Alineat a l'esquerra) */
 .input-help {
     display: block;
     font-size: 0.75rem;
-    color: #94a3b8;
-    margin-left: 15px;
+    color: #666;
+    text-align: left;
+    margin-top: 2px;
     margin-bottom: 15px;
+    padding-left: 5px;
+}
+
+/* Ajust per al mode fosc (opcional, si el fas servir) */
+[data-theme="dark"] .password-wrapper {
+    background: #0f172a;
+    border-color: #334155;
+}
+[data-theme="dark"] .password-wrapper input {
+    background: #0f172a !important;
+    color: white !important;
 }

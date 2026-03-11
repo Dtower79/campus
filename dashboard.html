@@ -1,10 +1,10 @@
 /* ==========================================================================
-   DASHBOARD.JS (v58.1 - FINAL MASTER VERSION - FIXED DEFINITIONS)
+   DASHBOARD.JS (v59.0 - FINAL UNIFIED & BUG-FREE)
    ========================================================================== */
 
-console.log("🚀 Carregant Dashboard v58.1...");
+console.log("🚀 Carregant Dashboard v59.0...");
 
-// 1. LÓGICA DE TEMA (MODO NOCHE) - Execució immediata
+// 1. LÓGICA DE TEMA (MODO NOCHE)
 (function initTheme() {
     const currentTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
@@ -26,46 +26,48 @@ console.log("🚀 Carregant Dashboard v58.1...");
     });
 })();
 
-// 2. LÓGICA DE VALIDACIÓ D'USUARI I ARRANQUE
+// 2. LÓGICA DE VALIDACIÓN Y ARRANQUE
 document.addEventListener('DOMContentLoaded', async () => {
-    // PARCHE SEGURETAT: Si estem recuperant clau, no carreguem el dashboard
+    // PARCHE SEGURIDAD: Si estamos reseteando contraseña, abortamos dashboard
     if (window.location.search.includes('code=')) return; 
 
     const token = localStorage.getItem('jwt');
-    
-    // DEFINICIONS CRÍTIQUES (Evita l'error 'not defined')
     const loginOverlay = document.getElementById('login-overlay');
     const appContainer = document.getElementById('app-container');
     const loginView = document.getElementById('login-view'); 
 
     if (!token) return; 
 
-    // UI Feedback durant la validació
+    // Ocultamos la vista de login y mostramos cargando si existe el token
     if(loginView) loginView.style.display = 'none';
     const loginCard = document.querySelector('.login-card');
-    let spinner = document.createElement('div');
-    spinner.id = 'auth-loader';
-    spinner.className = 'loader'; 
-    spinner.style.margin = '20px auto';
-    if(loginCard) loginCard.appendChild(spinner);
+    let spinner = document.getElementById('auth-loader');
+    
+    if(!spinner && loginCard) {
+        spinner = document.createElement('div');
+        spinner.id = 'auth-loader';
+        spinner.className = 'loader'; 
+        spinner.style.margin = '20px auto';
+        loginCard.appendChild(spinner);
+    }
 
     try {
-        const respostaUser = await fetch(`${STRAPI_URL}/api/users/me?populate=*`, {
+        const respuestaUser = await fetch(`${STRAPI_URL}/api/users/me?populate=*`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (respostaUser.ok) {
-            const freshUser = await respostaUser.json();
+        if (respuestaUser.ok) {
+            const freshUser = await respuestaUser.json();
             localStorage.setItem('user', JSON.stringify(freshUser));
 
             if(spinner) spinner.remove();
             if(loginOverlay) loginOverlay.style.display = 'none';
             if(appContainer) appContainer.style.display = 'block';
             
-            console.log("✅ Usuari validat correctament");
+            console.log("✅ Usuari validat");
             if (!window.appIniciada) window.iniciarApp();
         } else {
-            throw new Error('Token caducat');
+            throw new Error('Token caducado');
         }
 
     } catch (error) {
@@ -93,15 +95,15 @@ window.iniciarApp = async function() {
     if(user) {
         const safeText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
 
-        // Dades base del login
+        // Datos inmediatos del usuario
         safeText('dropdown-email', user.email);
         safeText('profile-dni-display', user.username);
         safeText('dropdown-username', user.username);
         safeText('user-initials', user.username.substring(0, 2).toUpperCase());
 
         try {
-            // Creuem amb dades d'Afiliats per Nom Real
-            const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$iEq]=${user.username}`, {
+            // Recuperar nombre real desde Afiliados compatible con Strapi v5
+            const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$iEq] =${user.username}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const jsonAfi = await resAfi.json();
@@ -119,7 +121,7 @@ window.iniciarApp = async function() {
                 safeText('profile-name-display', nombreReal);
                 safeText('profile-avatar-big', initials.toUpperCase());
             }
-        } catch (e) { console.error("Error recuperant nom real:", e); }
+        } catch (e) { console.error("Error nombre real:", e); }
     }
 
     setupDirectClicks();
@@ -149,9 +151,8 @@ window.iniciarApp = async function() {
             const esProfe = user.es_professor === true;
 
             if (esFuturo && !esProfe) {
-                const dateStr = fechaInicio.toLocaleDateString('ca-ES');
                 window.location.href = 'index.html'; 
-                alert(`Aquest curs encara no ha començat. Data d'inici: ${dateStr}`);
+                alert(`Aquest curs encara no ha començat. Data d'inici: ${fechaInicio.toLocaleDateString('ca-ES')}`);
             } else {
                 document.getElementById('dashboard-view').style.display = 'none';
                 document.getElementById('exam-view').style.display = 'flex';
@@ -293,7 +294,7 @@ window.abrirPanelNotificaciones = async function() {
              const pendientes = (jsonM.data || []).filter(m => !window.sesionLeidas.has(m.documentId || m.id));
              if(pendientes.length > 0) {
                  hasContent = true;
-                 html += `<div class="notif-item unread" onclick="openTeacherInbox(this)"><strong>👨‍🏫 Bústia Professor</strong><p>Tens ${pendientes.length} dubtes per respondre.</p></div>`;
+                 html += `<div class="notif-item unread" onclick="openTeacherInbox(this)"><strong>👨‍🏫 Bústia Professor</strong><p>Tens ${pendientes.length} dubtes pendents.</p></div>`;
              }
         }
 
@@ -378,7 +379,7 @@ window.abrirPanelMensajes = async function(modoForzado, filtroHistorial = false)
             msgEl.innerHTML = html + '</div>';
             const c = document.getElementById('chat-container'); if(c) c.scrollTop = filtroHistorial ? 0 : c.scrollHeight;
         }
-    } catch(e) { msgEl.innerHTML = 'Error al carregar missatges.'; }
+    } catch(e) { msgEl.innerHTML = 'Error.'; }
 };
 
 window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, encodedTema) {
@@ -389,13 +390,13 @@ window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, en
     btnElement.innerText = "Enviant..."; btnElement.disabled = true;
 
     try {
-        await fetch(`${API_ROUTES.messages}/${msgId}`, {
+        await fetch(`${STRAPI_URL}/api/missatges/${msgId}`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ data: { resposta_professor: respuesta, estat: 'respost', users_permissions_user: studentId } })
+            body: JSON.stringify({ data: { respuesta_professor: respuesta, estat: 'respost', users_permissions_user: studentId } })
         });
         const card = document.getElementById(`msg-card-${msgId}`); if(card) card.remove();
         if(studentId) {
-            await fetch(API_ROUTES.notifications, {
+            await fetch(`${STRAPI_URL}/api/notificacions`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ data: { titol: "Dubte Respost", missatge: `Resposta sobre: "${decodeURIComponent(encodedTema)}".`, llegida: false, users_permissions_user: studentId } })
             });
@@ -443,7 +444,7 @@ async function renderCoursesLogic(viewMode) {
 
         cursos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
         list.innerHTML = '';
-        if(cursos.length === 0) { list.innerHTML = '<p style="text-align:center; padding:20px;">No hi ha cursos disponibles.</p>'; return; }
+        if(cursos.length === 0) { list.innerHTML = '<p style="text-align:center; padding:20px;">Sense dades.</p>'; return; }
 
         cursos.forEach((rawCurs) => {
             const curs = rawCurs.attributes ? rawCurs.attributes : rawCurs;

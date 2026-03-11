@@ -1,45 +1,40 @@
 /* ==========================================================================
-   DASHBOARD.JS (v57.1 - THEME & SECURITY PATCH)
+   DASHBOARD.JS (v57.2 - THEME LOGIC & RESET PATCH)
    ========================================================================== */
 
-// 1. LÓGICA DE TEMA (MODO NOCHE) - Se ejecuta de inmediato para evitar parpadeos
-(function initTheme() {
+// 1. LÓGICA DE TEMA (MODO NOCHE) - Se ejecuta fuera del DOMContentLoaded para mayor rapidez
+(function() {
     const currentTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
 
-    // Esperamos a que el DOM esté listo solo para vincular el botón
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('load', () => {
         const themeBtn = document.getElementById('theme-toggle');
         if (themeBtn) {
             const icon = themeBtn.querySelector('i');
-            // Inicializar icono
             if (icon) icon.className = currentTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
 
-            themeBtn.addEventListener('click', () => {
+            themeBtn.onclick = () => {
                 const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
                 const nextTheme = isDark ? 'light' : 'dark';
-                
                 document.documentElement.setAttribute('data-theme', nextTheme);
                 localStorage.setItem('theme', nextTheme);
-                
                 if (icon) icon.className = nextTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-            });
+            };
         }
     });
 })();
 
-// 2. LÓGICA DE CARGA Y VALIDACIÓN DEL DASHBOARD
 document.addEventListener('DOMContentLoaded', async () => {
-    // PARCHE SEGURIDAD: Si estamos reseteando contraseña (code en URL), 
-    // abortamos la carga del dashboard para evitar errores 401 y conflictos visuales.
-    if (window.location.search.includes('code=')) return; 
+    // PARCHE SEGURIDAD: Si hay un código de reset en la URL, detenemos el dashboard
+    // Esto evita los errores 401 (Unauthorized) que ves en tu consola.
+    if (window.location.search.includes('code=')) return;
 
     const token = localStorage.getItem('jwt');
     const loginOverlay = document.getElementById('login-overlay');
     const appContainer = document.getElementById('app-container');
-    const loginView = document.getElementById('login-view');
 
     if (!token) return; 
+    // ... resto de tu código de validación de usuario ...
 
     if(loginView) loginView.style.display = 'none';
     const loginCard = document.querySelector('.login-card');

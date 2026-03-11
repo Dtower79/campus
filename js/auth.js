@@ -1,9 +1,8 @@
 /* ==========================================================================
-   AUTH.JS (v51.1 - MASTER VIEW CONTROL & PASSWORD RESET FIX)
+   AUTH.JS (v51.2 - RESET PASSWORD PRIORITY)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Detecció de Paràmetres URL i Token
     const urlParams = new URLSearchParams(window.location.search);
     const resetCode = urlParams.get('code');
     const slugDestino = urlParams.get('slug');
@@ -21,41 +20,28 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function switchView(viewName) {
-        const authViews = [views.login, views.register, views.forgot, views.reset];
-        authViews.forEach(v => { if(v) v.style.display = 'none'; });
+        [views.login, views.register, views.forgot, views.reset].forEach(v => { if(v) v.style.display = 'none'; });
         if(views[viewName]) views[viewName].style.display = 'block';
     }
 
-    // --- LÒGICA D'ARRANQUE (ORDRE DE PRIORITAT CRÍTIC) ---
-
-    // A. MODO RECUPERACIÓ (Prioritat Absoluta)
+    // --- PRIORIDAD 1: SI HAY CÓDIGO DE RECUPERACIÓN ---
     if (resetCode) {
-        console.log("🔑 Modo recuperació detectat. Aturant càrrega d'app.");
-        // Amaguem el dashboard i mostrem la card de login forçant el formulari de reset
-        if(views.app) views.app.style.display = 'none';
-        if(views.overlay) views.overlay.style.display = 'flex';
-        
+        if(views.app) views.app.style.display = 'none'; // Forzar ocultar app
+        if(views.overlay) views.overlay.style.display = 'flex'; // Forzar mostrar login card
         switchView('reset');
-        
         const codeInput = document.getElementById('reset-code');
         if(codeInput) codeInput.value = resetCode;
-        
-        // Bloquegem qualsevol altra execució per evitar errors 401 del dashboard
-        return; 
+        return; // Detener ejecución aquí
     }
 
-    // B. USUARI LOGUEJAT
+    // --- PRIORIDAD 2: REDIRECCIÓN POR SLUG (Si está logueado) ---
     if (token) {
         if(views.overlay) views.overlay.style.display = 'none';
         if(views.app) views.app.style.display = 'block';
-
-        // Lògica de redirecció directa a curs (SLUG)
         if (slugDestino) {
-            console.log("🎯 Redirecció directa a curs detectada:", slugDestino);
             if(views.dashboard) views.dashboard.style.display = 'none';
             if(views.exam) views.exam.style.display = 'flex';
         }
-    } 
     // C. PANTALLA DE LOGIN / REGISTRE
     else {
         if(views.app) views.app.style.display = 'none';

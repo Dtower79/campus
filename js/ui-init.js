@@ -29,4 +29,32 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
         });
     }
+    // --- LÓGICA DE MODALES LEGALES (Sustituye a los onclick) ---
+    const setupLegalModal = (btnId, modalId) => {
+        const btn = document.getElementById(btnId);
+        const modal = document.getElementById(modalId);
+        if (btn && modal) {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                modal.style.display = 'flex';
+            };
+        }
+    };
+
+    setupLegalModal('btn-footer-avis', 'modal-avis');
+    setupLegalModal('btn-footer-privacitat', 'modal-privacitat');
+    setupLegalModal('btn-footer-cookies', 'modal-cookies');
+    
+
 });
+
+// Lógica para abrir modales legales (cumpliendo CSP)
+    ['avis', 'privacitat', 'cookies'].forEach(tipo => {
+        const btn = document.getElementById(`btn-footer-${tipo}`);
+        if (btn) {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                document.getElementById(`modal-${tipo}`).style.display = 'flex';
+            };
+        }
+    });

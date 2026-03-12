@@ -29,6 +29,21 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
         });
     }
+    // Lógica para los ojos (ver contraseña)
+        const setupEye = (eyeId, inputId) => {
+            const eye = document.getElementById(eyeId);
+            if (eye) eye.onclick = () => togglePasswordVisibility(inputId, eye);
+        };
+        setupEye('eye-login', 'login-pass');
+        setupEye('eye-reset-1', 'reset-pass');
+        setupEye('eye-reset-2', 'reset-pass-conf');
+
+        // Lógica para cerrar modales (quitar error CSP)
+        document.querySelectorAll('.modal-card .btn-primary').forEach(btn => {
+            if(btn.innerText === 'Tancar') {
+                btn.onclick = () => btn.closest('.modal-overlay').style.display = 'none';
+            }
+        });
     // --- LÓGICA DE MODALES LEGALES (Sustituye a los onclick) ---
     const setupLegalModal = (btnId, modalId) => {
         const btn = document.getElementById(btnId);
@@ -44,7 +59,25 @@ document.addEventListener('DOMContentLoaded', () => {
     setupLegalModal('btn-footer-avis', 'modal-avis');
     setupLegalModal('btn-footer-privacitat', 'modal-privacitat');
     setupLegalModal('btn-footer-cookies', 'modal-cookies');
-    
+
+    // Activar los ojos (ver contraseña)
+const setupEye = (eyeId, inputId) => {
+    const eye = document.getElementById(eyeId);
+    if (eye) eye.onclick = () => togglePasswordVisibility(inputId, eye);
+};
+setupEye('eye-login', 'login-pass');
+setupEye('eye-reset-1', 'reset-pass');
+setupEye('eye-reset-2', 'reset-pass-conf');
+
+// Activar botones de cerrar modales
+const setupClose = (btnId, modalId) => {
+    const btn = document.getElementById(btnId);
+    if (btn) btn.onclick = () => document.getElementById(modalId).style.display = 'none';
+};
+setupClose('btn-close-avis', 'modal-avis');
+setupClose('btn-close-privacitat', 'modal-privacitat');
+setupClose('btn-close-cookies', 'modal-cookies');
+
 
 });
 

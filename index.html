@@ -45,11 +45,19 @@
                     </div>
                     <!-- CAMBIO QUIRÚRGICO: Login Password -->
                     <div class="input-group password-wrapper">
-                        <i class="fa-solid fa-lock left-icon"></i>
-                        <input type="password" id="login-pass" placeholder="Contrasenya" required autocomplete="current-password" minlength="6">
-                        <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('login-pass', this)"></i>
-                    </div>
-                    <small class="input-help">* Mínim 6 caràcters.</small>
+                    <div class="input-group password-wrapper">
+    <i class="fa-solid fa-lock left-icon"></i>
+    <input type="password" id="reset-pass" placeholder="Nova contrasenya" required minlength="6">
+    <i class="fa-regular fa-eye toggle-password" id="eye-reset-1"></i>
+</div>
+<small class="input-help">* Mínim 6 caràcters.</small>
+
+<div class="input-group password-wrapper">
+    <i class="fa-solid fa-lock left-icon"></i>
+    <input type="password" id="reset-pass-conf" placeholder="Repeteix la contrasenya" required minlength="6">
+    <i class="fa-regular fa-eye toggle-password" id="eye-reset-2"></i>
+</div>
+<small class="input-help">* Mínim 6 caràcters.</small>
                     
                     <button type="submit" class="btn-login">Inicia la sessió</button>
                 </form>
@@ -74,7 +82,8 @@
                     <div class="input-group password-wrapper">
                         <i class="fa-solid fa-lock left-icon"></i>
                         <input type="password" id="reg-pass" placeholder="Crea una contrasenya" required autocomplete="new-password" minlength="6">
-                        <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('reg-pass', this)"></i>
+                        <i class="fa-regular fa-eye toggle-password" id="eye-login"></i>
+                        
                     </div>
                     <small class="input-help">* Mínim 6 caràcters.</small>
 
@@ -112,21 +121,21 @@
                 <form id="reset-form">
                     <input type="hidden" id="reset-code">
                     
-                    <!-- CAMBIO QUIRÚRGICO: Password 1 con Wrapper e Iconos -->
+                    <!-- CAMBIO QUIRÚRGICO: Password 1 -->
                     <div class="input-group password-wrapper">
                         <i class="fa-solid fa-lock left-icon"></i>
                         <input type="password" id="reset-pass" placeholder="Nova contrasenya" required minlength="6">
-                        <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('reset-pass', this)"></i>
+                        <i class="fa-regular fa-eye toggle-password" id="eye-reset-1"></i>
                     </div>
-                    <small class="input-help" style="display:block; margin-bottom:15px; color:#666; text-align:left; padding-left:5px;">* Mínim 6 caràcters.</small>
+                    <small class="input-help" style="display: block; text-align: left; margin-bottom: 15px; color: #666; font-size: 0.75rem;">* Mínim 6 caràcters.</small>
 
-                    <!-- CAMBIO QUIRÚRGICO: Password 2 con Wrapper e Iconos -->
+                    <!-- CAMBIO QUIRÚRGICO: Password 2 -->
                     <div class="input-group password-wrapper">
                         <i class="fa-solid fa-lock left-icon"></i>
                         <input type="password" id="reset-pass-conf" placeholder="Repeteix la contrasenya" required minlength="6">
-                        <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('reset-pass-conf', this)"></i>
+                        <i class="fa-regular fa-eye toggle-password" id="eye-reset-2"></i>
                     </div>
-                    <small class="input-help" style="display:block; margin-bottom:15px; color:#666; text-align:left; padding-left:5px;">* Mínim 6 caràcters.</small>
+                    <small class="input-help" style="display: block; text-align: left; margin-bottom: 15px; color: #666; font-size: 0.75rem;">* Mínim 6 caràcters.</small>
 
                     <button type="submit" class="btn-login" style="background-color: var(--brand-red) !important;">Guardar Canvis</button>
                 </form>
@@ -375,7 +384,7 @@
                 <p>La interpretació i execució d'aquest Avís legal, així com les condicions d'accés a la pàgina web, està subjecte a la legislació espanyola. Per la resolució de qualsevol conflicte que pogués esdevenir-se entre SICAP i l'usuari, seran competents els Jutjats i Tribunals que disposi la llei processal aplicable en vigor.</p>
             </div>
             <div style="text-align: right; margin-top:15px;">
-                <button class="btn-primary" onclick="document.getElementById('modal-avis').style.display='none'" style="width:auto;">Tancar</button>
+                <button class="btn-primary" id="btn-close-avis" ...>Tancar</button>
             </div>
         </div>
     </div>
@@ -437,7 +446,7 @@
                 <p>Si es fa seguidor a les nostres xarxes socials i/o publica algún missatge al nostre compte o espai, consulti la nostra política de xarxes socials ubicada al peu d’aquesta pàgina web.</p>
             </div>
             <div style="text-align: right; margin-top:15px;">
-                <button class="btn-primary" onclick="document.getElementById('modal-privacitat').style.display='none'" style="width:auto;">Tancar</button>
+                <button class="btn-primary" id="btn-close-privacitat" ...>Tancar</button>
             </div>
         </div>
     </div>
@@ -504,7 +513,7 @@
                 </ul>
             </div>
             <div style="text-align: right; margin-top:15px;">
-                <button class="btn-primary" onclick="document.getElementById('modal-cookies').style.display='none'" style="width:auto;">Tancar</button>
+                <button class="btn-primary" id="btn-close-cookies" ...>Tancar</button>
             </div>
         </div>
     </div>
@@ -529,10 +538,10 @@
 
 
     <script src="js/config.js"></script>
-    <script src="js/auth.js?v=50.0"></script>
-    <script src="js/dashboard.js?v=41.0"></script>
-    <script src="js/renderitzadorCurs.js?v=45.0"></script>
-    <script src="js/ui-init.js?v=1.0"></script>
+    <script src="js/auth.js?v=55.0"></script>
+    <script src="js/dashboard.js?v=42.0"></script>
+    <script src="js/renderitzadorCurs.js?v=46.0"></script>
+    <script src="js/ui-init.js?v=2.0"></script>
     
 </body>
 </html>

@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. RESET PASSWORD (AQUÍ ESTÁ LA MAGIA)
+    // 4. RESET PASSWORD (Lógica del botón Guardar Canvis)
     const resetForm = document.getElementById('reset-form');
     if (resetForm) {
         resetForm.addEventListener('submit', async (e) => {
@@ -256,12 +256,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const passConf = document.getElementById('reset-pass-conf').value;
             const btnSubmit = resetForm.querySelector('button');
 
-            // VALIDACIÓN QUIRÚRGICA: Mínimo 6 caracteres
+            // Validación de longitud
             if (pass.length < 6) {
                 return lanzarModal("Contrasenya massa curta", "La contrasenya ha de tenir almenys 6 caràcters.");
             }
 
-            if (pass !== passConf) return lanzarModal("Error", "Les contrasenyes no coincideixen.");
+            // Validación de coincidencia
+            if (pass !== passConf) {
+                return lanzarModal("Error", "Les contrasenyes no coincideixen.");
+            }
 
             btnSubmit.innerText = "Canviant..."; btnSubmit.disabled = true;
 
@@ -278,16 +281,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (res.ok) {
                     const data = await res.json();
+                    // Guardamos la nueva sesión
                     localStorage.setItem('jwt', data.jwt);
                     localStorage.setItem('user', JSON.stringify(data.user));
                     
-                    // MODAL BONITO
                     lanzarModal(
                         "Contrasenya Canviada", 
                         "La teva contrasenya s'ha actualitzat correctament. Iniciant sessió...", 
-                        false, // Color azul
+                        false, 
                         () => {
-                            // Redirigir limpio al Dashboard
+                            // REDIRECCIÓN LIMPIA: Quita el ?code= de la barra de direcciones
                             window.location.href = window.location.pathname.split('?')[0];
                         }
                     );
@@ -295,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     lanzarModal("Error", "L'enllaç ha caducat o ya s'ha utilitzat.");
                 }
             } catch (error) {
-                lanzarModal("Error", "Error de connexió.");
+                lanzarModal("Error de Connexió", "No s'ha pogut conectar amb el servidor.");
             } finally {
                 btnSubmit.innerText = "Guardar Canvis"; btnSubmit.disabled = false;
             }
@@ -308,10 +311,10 @@ function togglePasswordVisibility(inputId, iconElement) {
     if (input.type === "password") {
         input.type = "text";
         iconElement.classList.replace("fa-eye", "fa-eye-slash");
-        iconElement.style.color = "var(--brand-blue)"; // Blau quan es veu
+        iconElement.style.color = "var(--brand-blue)";
     } else {
         input.type = "password";
         iconElement.classList.replace("fa-eye-slash", "fa-eye");
-        iconElement.style.color = "#999"; // Gris quan està ocult
+        iconElement.style.color = "#999";
     }
 }

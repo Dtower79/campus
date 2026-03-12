@@ -112,21 +112,21 @@
                 <form id="reset-form">
                     <input type="hidden" id="reset-code">
                     
-                    <!-- CAMBIO QUIRÚRGICO: Reset Pass 1 -->
+                    <!-- Nueva contrasenya con Ojo y Ayuda -->
                     <div class="input-group password-wrapper">
                         <i class="fa-solid fa-lock left-icon"></i>
                         <input type="password" id="reset-pass" placeholder="Nova contrasenya" required minlength="6">
                         <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('reset-pass', this)"></i>
                     </div>
-                    <small class="input-help">* Mínim 6 caràcters.</small>
+                    <small class="input-help" style="display:block; margin-bottom:15px; color:#666; font-size:0.75rem;">* Mínim 6 caràcters.</small>
 
-                    <!-- CAMBIO QUIRÚRGICO: Reset Pass 2 -->
+                    <!-- Repetir contrasenya con Ojo -->
                     <div class="input-group password-wrapper">
                         <i class="fa-solid fa-lock left-icon"></i>
                         <input type="password" id="reset-pass-conf" placeholder="Repeteix la contrasenya" required minlength="6">
                         <i class="fa-regular fa-eye toggle-password" onclick="togglePasswordVisibility('reset-pass-conf', this)"></i>
                     </div>
-                    <small class="input-help">* Mínim 6 caràcters.</small>
+                    <small class="input-help" style="display:block; margin-bottom:15px; color:#666; font-size:0.75rem;">* Mínim 6 caràcters.</small>
 
                     <button type="submit" class="btn-login" style="background-color: var(--brand-red) !important;">Guardar Canvis</button>
                 </form>

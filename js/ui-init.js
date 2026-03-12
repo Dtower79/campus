@@ -1,13 +1,13 @@
 /* js/ui-init.js */
 
-// 1. Aplicar tema inmediatamente (lo que hacían las líneas 531-533)
+// 1. Aplicar tema inmediatamente para evitar parpadeo blanco
 const savedTheme = localStorage.getItem('theme');
 if(savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
 
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
 
-    // 2. Lógica de vista si hay slug
+    // 2. Router: Lógica de vista si hay slug
     if (urlParams.get('slug')) { 
         const dv = document.getElementById('dashboard-view');
         const ev = document.getElementById('exam-view');
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(ev) ev.style.display = 'flex'; 
     }
 
-    // 3. Lógica del botón de tema
+    // 3. Lógica del botón de tema (Sol/Luna)
     const themeBtn = document.getElementById('theme-toggle'); 
     if (themeBtn) {
         const icon = themeBtn.querySelector('i');
@@ -29,22 +29,24 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
         });
     }
-    // Lógica para los ojos (ver contraseña)
-        const setupEye = (eyeId, inputId) => {
-            const eye = document.getElementById(eyeId);
-            if (eye) eye.onclick = () => togglePasswordVisibility(inputId, eye);
-        };
-        setupEye('eye-login', 'login-pass');
-        setupEye('eye-reset-1', 'reset-pass');
-        setupEye('eye-reset-2', 'reset-pass-conf');
 
-        // Lógica para cerrar modales (quitar error CSP)
-        document.querySelectorAll('.modal-card .btn-primary').forEach(btn => {
-            if(btn.innerText === 'Tancar') {
-                btn.onclick = () => btn.closest('.modal-overlay').style.display = 'none';
-            }
-        });
-    // --- LÓGICA DE MODALES LEGALES (Sustituye a los onclick) ---
+    // 4. Lógica para los OJOS (Ver contraseña)
+    const setupEye = (eyeId, inputId) => {
+        const eye = document.getElementById(eyeId);
+        if (eye) {
+            eye.onclick = () => {
+                // Usamos la función que ya existe en auth.js
+                if (typeof window.togglePasswordVisibility === 'function') {
+                    window.togglePasswordVisibility(inputId, eye);
+                }
+            };
+        }
+    };
+    setupEye('eye-login', 'login-pass');
+    setupEye('eye-reset-1', 'reset-pass');
+    setupEye('eye-reset-2', 'reset-pass-conf');
+
+    // 5. Lógica para abrir MODALES LEGALES (Footer)
     const setupLegalModal = (btnId, modalId) => {
         const btn = document.getElementById(btnId);
         const modal = document.getElementById(modalId);
@@ -55,39 +57,19 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
     };
-
     setupLegalModal('btn-footer-avis', 'modal-avis');
     setupLegalModal('btn-footer-privacitat', 'modal-privacitat');
     setupLegalModal('btn-footer-cookies', 'modal-cookies');
 
-    // Activar los ojos (ver contraseña)
-const setupEye = (eyeId, inputId) => {
-    const eye = document.getElementById(eyeId);
-    if (eye) eye.onclick = () => togglePasswordVisibility(inputId, eye);
-};
-setupEye('eye-login', 'login-pass');
-setupEye('eye-reset-1', 'reset-pass');
-setupEye('eye-reset-2', 'reset-pass-conf');
-
-// Activar botones de cerrar modales
-const setupClose = (btnId, modalId) => {
-    const btn = document.getElementById(btnId);
-    if (btn) btn.onclick = () => document.getElementById(modalId).style.display = 'none';
-};
-setupClose('btn-close-avis', 'modal-avis');
-setupClose('btn-close-privacitat', 'modal-privacitat');
-setupClose('btn-close-cookies', 'modal-cookies');
-
-
-});
-
-// Lógica para abrir modales legales (cumpliendo CSP)
-    ['avis', 'privacitat', 'cookies'].forEach(tipo => {
-        const btn = document.getElementById(`btn-footer-${tipo}`);
-        if (btn) {
-            btn.onclick = (e) => {
-                e.preventDefault();
-                document.getElementById(`modal-${tipo}`).style.display = 'flex';
-            };
+    // 6. Lógica para CERRAR MODALES (Botón Tancar)
+    const setupClose = (btnId, modalId) => {
+        const btn = document.getElementById(btnId);
+        const modal = document.getElementById(modalId);
+        if (btn && modal) {
+            btn.onclick = () => { modal.style.display = 'none'; };
         }
-    });
+    };
+    setupClose('btn-close-avis', 'modal-avis');
+    setupClose('btn-close-privacitat', 'modal-privacitat');
+    setupClose('btn-close-cookies', 'modal-cookies');
+});

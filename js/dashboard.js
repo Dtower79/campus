@@ -989,7 +989,15 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
             </div>
         </div>`;
     
-    setTimeout(() => window.print(), 1500);
+    // Configurar nombre del archivo: SICAP-NombreCurso-Año
+    const anyo = new Date().getFullYear();
+    const nombreLimpio = cursoData.titol.replace(/[^a-z0-9]/gi, '-');
+    document.title = `SICAP-${nombreLimpio}-${anyo}`;
+
+    setTimeout(() => {
+        window.print();
+        setTimeout(() => document.title = "SICAP Campus Virtual", 2000);
+    }, 1500);
 };
 
 window.mostrarModalError = function(msg) {

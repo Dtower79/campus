@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         false, 
                         () => {
                             // REDIRECCIÓN LIMPIA: Quita el ?code= de la barra de direcciones
-                            window.location.href = window.location.pathname.split('?')[0];
+                             window.location.href = 'index.html';
                         }
                     );
                 } else {
@@ -306,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function togglePasswordVisibility(inputId, iconElement) {
+window.togglePasswordVisibility = function(inputId, iconElement) {
     const input = document.getElementById(inputId);
     if (input.type === "password") {
         input.type = "text";

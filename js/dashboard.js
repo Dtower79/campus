@@ -1,7 +1,10 @@
 /* ==========================================================================
    DASHBOARD.JS (v56.8 - SIGNATURE POSITION FIX)
    ========================================================================== */
-
+if (new URLSearchParams(window.location.search).has('code')) {
+    console.log("🛑 Bloqueo preventivo activado: Esperando reset de contraseña.");
+    throw new Error("Reset en curso"); // Esto detiene la ejecución del script
+}
 console.log("🚀 Carregant Dashboard v56.8...");
 
 document.addEventListener('DOMContentLoaded', async () => {

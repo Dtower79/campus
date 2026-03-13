@@ -1,6 +1,10 @@
 /* ==========================================================================
    RENDERITZADORCURS.JS (v57.15 - EXTRA CONTENT & SYNTAX PATCH)
    ========================================================================== */
+if (new URLSearchParams(window.location.search).has('code')) {
+    console.log("🛑 Bloqueo preventivo activado en Renderitzador.");
+    throw new Error("Reset en curso"); 
+}
 
 console.log("🚀 Carregant Renderitzador v57.15...");
 

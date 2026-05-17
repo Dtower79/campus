@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarDatos() {
         // QUERY PATCH PARA STRAPI V5 (Trae es_extra de los módulos)
-        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos][populate]=true&populate[curs][populate][moduls][fields][0]=es_extra&populate[curs][populate][moduls][fields][1]=titol&populate[curs][populate][moduls][fields][2]=resum&populate[curs][populate][moduls][fields][3]=ordre`;
+        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos]=true&populate[curs][populate][moduls][fields][0]=es_extra&populate[curs][populate][moduls][fields][1]=titol&populate[curs][populate][moduls][fields][2]=resum&populate[curs][populate][moduls][fields][3]=ordre&populate[curs][populate][recursos_fitxers]=true`;
         
         const respuestaMat = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const jsonMat = await respuestaMat.json();
@@ -442,31 +442,46 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { container.style.opacity = '1'; }, 50);
 
         if (state.currentView === 'intro') { 
-            // 1. Cridem a la funció que ja sap pintar vídeos, però li passem l'objecte "curso" sencer
             const videoIntroHtml = renderVideoPlayer(state.curso); 
-
             container.innerHTML = `
                 <h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2>
-                
-                <!-- 2. Pintem els vídeos abans o després de la descripció segons prefereixis -->
                 ${videoIntroHtml} 
-
                 <div class="module-content-text" style="margin-top:20px;">
                     ${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}
                 </div>
             `; 
-            
             renderSidebarTools(gridRight, { titol: 'Programa' }); 
             return; 
         }
+
         if (state.currentView === 'glossary') { 
-            const contenidoGlossari = state.curso.glossari ? parseStrapiRichText(state.curso.glossari) : "<p>No hi ha entrades al glossari.</p>"; 
-            container.innerHTML = `<h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2><div class="dashboard-card" style="margin-top:20px;"><div class="module-content-text">${contenidoGlossari}</div></div>`; 
-            renderSidebarTools(gridRight, { titol: 'Glossari' }); 
+            const contenidoGlossari = state.curso.glossari || "<p>No hi ha informació.</p>"; 
+            
+            let archivosHtml = '';
+            if (state.curso.recursos_fitxers) {
+                let archivos = Array.isArray(state.curso.recursos_fitxers) ? state.curso.recursos_fitxers :[state.curso.recursos_fitxers];
+                if (archivos.length > 0) {
+                    archivosHtml = `<div class="materials-section"><span class="materials-title">Fitxers i Documents</span>`;
+                    archivos.forEach(a => {
+                        let fUrl = a.url.startsWith('/') ? STRAPI_URL + a.url : a.url;
+                        let icon = a.mime && a.mime.includes('pdf') ? 'fa-file-pdf' : 'fa-file';
+                        archivosHtml += `<a href="${fUrl}" target="_blank" class="btn-pdf"><i class="fa-solid ${icon}"></i> ${a.name}</a>`;
+                    });
+                    archivosHtml += `</div>`;
+                }
+            }
+
+            container.innerHTML = `
+                <h2><i class="fa-solid fa-book-bookmark"></i> Recursos</h2>
+                ${archivosHtml}
+                <div class="dashboard-card" style="margin-top:20px;">
+                    <div class="module-content-text">${contenidoGlossari}</div>
+                </div>`; 
+            renderSidebarTools(gridRight, { titol: 'Recursos' }); 
             return; 
         }
+
         if (state.currentView === 'examen_final') { 
-            // FIX CRASH: PROTECCIÓN DE RENDERIZADO
             try { renderExamenFinal(container); } 
             catch (e) { console.error(e); container.innerHTML = `<div class="alert alert-danger">Error: ${e.message}</div>`; }
             return; 

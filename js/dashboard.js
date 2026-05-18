@@ -925,7 +925,8 @@ window.imprimirDiplomaCompleto = function(matriculaData, cursoData) {
     const rawInicio = cursoData.fecha_inicio || cursoData.data_inici || cursoData.publishedAt;
     const dataInici = rawInicio ? new Date(rawInicio).toLocaleDateString('ca-ES') : 'N/A';
     const rawFin = cursoData.fecha_fin || cursoData.data_fi;
-    const dataFi = rawFin ? new Date(rawFin).toLocaleDateString('ca-ES') : 'N/A';
+    // Si no hay fecha de cierre, indicamos que es formación permanente
+    const dataFi = rawFin ? new Date(rawFin).toLocaleDateString('ca-ES') : 'Formació Permanent';
     const fechaHoy = new Date().toLocaleDateString('ca-ES', { year:'numeric', month:'long', day:'numeric' });
     
     const currentDomain = window.location.origin;

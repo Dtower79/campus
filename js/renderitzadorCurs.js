@@ -408,8 +408,17 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `</div></div>`;
         });
 
-        const isGlossaryActive = state.currentModuleIndex === 1000;
-        html += `<div class="sidebar-module-group ${isGlossaryActive ? 'open' : ''}" style="border-top:1px solid #eee; margin-top:10px;"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span><i class="fa-solid fa-book-bookmark"></i> Recursos</span></div><div class="sidebar-sub-menu">${renderSubLink(1000, 'glossary', '📚 Glossari de Termes', false, true)}</div></div>`;
+        const isRecursosOpen = state.currentModuleIndex === 1000;
+        html += `
+        <div class="sidebar-module-group ${isRecursosOpen ? 'open' : ''}" style="border-top:1px solid #eee; margin-top:10px;">
+            <div class="sidebar-module-title" onclick="toggleAccordion(this)">
+                <span><i class="fa-solid fa-book-bookmark"></i> Recursos</span>
+            </div>
+            <div class="sidebar-sub-menu">
+                ${renderSubLink(1000, 'glossary', '📚 Glossari de Termes', false, true)}
+                ${renderSubLink(1000, 'extra_resources', '📂 Documents i Material', false, true)}
+            </div>
+        </div>`;
 
         const finalIsLocked = !puedeHacerExamenFinal();
         const isFinalActive = state.currentModuleIndex === 999;
@@ -454,14 +463,27 @@ document.addEventListener('DOMContentLoaded', () => {
             return; 
         }
 
+        // --- VISTA 1: SOLO EL TEXTO DEL GLOSARIO ---
         if (state.currentView === 'glossary') { 
-            const contenidoGlossari = state.curso.glossari || "<p>No hi ha informació.</p>"; 
+            const contenidoGlossari = state.curso.glossari || "<p>No hi ha informació en el glossari.</p>"; 
+            container.innerHTML = `
+                <h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2>
+                <div class="dashboard-card" style="margin-top:20px;">
+                    <div class="module-content-text">${contenidoGlossari}</div>
+                </div>`; 
+            renderSidebarTools(gridRight, { titol: 'Glossari' }); 
+            return; 
+        }
+
+        // --- VISTA 2: SOLO LOS ARCHIVOS ADJUNTOS ---
+        if (state.currentView === 'extra_resources') { 
+            let archivosHtml = '<p style="color:#666;">No hi ha documents addicionals per a aquest curs.</p>';
             
-            let archivosHtml = '';
             if (state.curso.recursos_fitxers) {
-                let archivos = Array.isArray(state.curso.recursos_fitxers) ? state.curso.recursos_fitxers :[state.curso.recursos_fitxers];
+                let archivos = Array.isArray(state.curso.recursos_fitxers) ? state.curso.recursos_fitxers : [state.curso.recursos_fitxers];
                 if (archivos.length > 0) {
-                    archivosHtml = `<div class="materials-section"><span class="materials-title">Fitxers i Documents</span>`;
+                    archivosHtml = `<div class="materials-section" style="border-left-color: var(--brand-blue);">
+                                        <span class="materials-title">Documents, Infografies i Annexos</span>`;
                     archivos.forEach(a => {
                         let fUrl = a.url.startsWith('/') ? STRAPI_URL + a.url : a.url;
                         let icon = a.mime && a.mime.includes('pdf') ? 'fa-file-pdf' : 'fa-file';
@@ -472,12 +494,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             container.innerHTML = `
-                <h2><i class="fa-solid fa-book-bookmark"></i> Recursos</h2>
-                ${archivosHtml}
-                <div class="dashboard-card" style="margin-top:20px;">
-                    <div class="module-content-text">${contenidoGlossari}</div>
+                <h2><i class="fa-solid fa-folder-open"></i> Documents i Material</h2>
+                <div style="margin-top:20px;">
+                    ${archivosHtml}
                 </div>`; 
-            renderSidebarTools(gridRight, { titol: 'Recursos' }); 
+            renderSidebarTools(gridRight, { titol: 'Material' }); 
             return; 
         }
 

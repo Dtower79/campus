@@ -617,3 +617,21 @@ input, textarea, select { background-color: var(--bg-input); border: 1px solid v
     background: #0f172a;
     border-color: #334155;
 }
+
+/* --- MEJORES VISUALES PARA CURSOS ABIERTOS Y DIPLOMAS --- */
+.course-badge {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+}
+
+.course-badge i {
+    font-size: 0.9em;
+}
+
+/* Efecto de calidad para el badge verde de infinito */
+.course-badge[style*="#10b981"] {
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    letter-spacing: 0.5px;
+}

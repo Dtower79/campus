@@ -644,10 +644,14 @@ async function renderCoursesLogic(viewMode) {
             const esProfe = user.es_professor === true;
 
             let badge = '';
+            const rawFin = curs.data_fi || curs.fecha_fin; 
+
             if (curs.mode_esborrany) {
-                badge = `<span class="course-badge" style="background:#6f42c1;">👁️ OCULT (MODE TEST)</span>`;
+                badge = `<span class="course-badge" style="background:#6f42c1;">👁️ MODE TEST</span>`;
             } else if (esFuturo) {
                 badge = `<span class="course-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">Disponible el ${dateStr}</span>`;
+            } else if (!rawFin) {
+                badge = `<span class="course-badge" style="background:#10b981;"><i class="fa-solid fa-infinity"></i> OBERT PERMANENTMENT</span>`;
             } else if (curs.etiqueta) {
                 badge = `<span class="course-badge">${curs.etiqueta}</span>`;
             }
@@ -872,10 +876,17 @@ async function loadGrades() {
                         }
                     }
 
-                    // 5. Verificació final per mostrar o bloquejar el botó
+                    // 5. Verificació final per mostrar o bloquejar el botó (UX Millorada)
                     if (hoy < fechaDesbloqueo) {
                         const fechaStr = fechaDesbloqueo.toLocaleDateString('ca-ES');
-                        btnCert = `<small style="color:#d97706; font-weight:bold; cursor:help;" title="Disponible el ${fechaStr}">Disponible el ${fechaStr}</small>`;
+                        btnCert = `
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+                                <small style="color:#d97706; font-weight:bold;">Disponible el ${fechaStr}</small>
+                                <small style="font-size:0.7rem; color:#999; cursor:help; border-bottom: 1px dashed #ccc;" 
+                                       title="Per normativa de seguretat i permanència mínima, el diploma s'allibera 14 dies després de la matrícula o l'inici del curs.">
+                                    <i class="fa-solid fa-circle-info"></i> Per què he d'esperar?
+                                </small>
+                            </div>`;
                     } else {
                         btnCert = `<button class="btn-small" onclick="window.callPrintDiploma(${idx})"><i class="fa-solid fa-file-invoice"></i> Certificat</button>`;
                     }

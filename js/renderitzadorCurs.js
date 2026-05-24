@@ -738,7 +738,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p>Has esgotat els 2 intents permesos.</p>
                     <div class="btn-centered-container">
                         <button class="btn-primary" onclick="revisarTest(${modIdx})">
-                            <i class="fa-solid fa-eye"></i> Revisar els meus fallos
+                            <i class="fa-solid fa-eye"></i> Revisió de Test
                         </button>
                     </div>
                 </div>`;
@@ -1043,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`; 
             return; 
         }
-        
+
         const savedData = cargarRespuestasLocales('examen_final');
         const isActive = (Object.keys(savedData).length > 0) || state.testEnCurso;
         if (isActive) { state.testEnCurso = true; renderFinalQuestions(container, savedData); } 

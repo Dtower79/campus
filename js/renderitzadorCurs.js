@@ -732,7 +732,16 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
         }
         if (progreso.intentos >= 2 && !state.godMode) {
-             container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">Bloquejat ⛔</h2><p>Has esgotat els 2 intents.</p></div>`;
+             container.innerHTML = `
+                <div class="dashboard-card" style="border-top:5px solid red; text-align:center;">
+                    <h2 style="color:red">Bloquejat ⛔</h2>
+                    <p>Has esgotat els 2 intents permesos.</p>
+                    <div class="btn-centered-container">
+                        <button class="btn-primary" onclick="revisarTest(${modIdx})">
+                            <i class="fa-solid fa-eye"></i> Revisar els meus fallos
+                        </button>
+                    </div>
+                </div>`;
              return;
         }
         let labelIntent = `Intent: ${progreso.intentos + 1} de 2.`;
@@ -1022,9 +1031,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (finalData.intentos >= 2 && !state.godMode) { 
-            container.innerHTML = `<div class="dashboard-card" style="border-top:5px solid red; text-align:center;"><h2 style="color:red">🚫 Bloquejat</h2><p>Intents esgotats.</p></div>`; 
+            container.innerHTML = `
+                <div class="dashboard-card" style="border-top:5px solid red; text-align:center;">
+                    <h2 style="color:red">🚫 Bloquejat</h2>
+                    <p>Has esgotat els 2 intents de l'avaluació final sense assolir la nota de tall.</p>
+                    <div class="btn-centered-container" style="margin-top:20px;">
+                        <button class="btn-primary" onclick="revisarExamenFinal()">
+                            <i class="fa-solid fa-eye"></i> Revisar preguntes de l'examen
+                        </button>
+                    </div>
+                </div>`; 
             return; 
         }
+        
         const savedData = cargarRespuestasLocales('examen_final');
         const isActive = (Object.keys(savedData).length > 0) || state.testEnCurso;
         if (isActive) { state.testEnCurso = true; renderFinalQuestions(container, savedData); } 

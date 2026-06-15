@@ -870,7 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.progreso.modulos[modIdx].historial.push({
                     intento: state.progreso.modulos[modIdx].intentos,
                     nota: nota,
-                    data: new Date().toISOString()
+                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' h'
                 });
                 
                 const payload = { data: { progres_detallat: state.progreso } }; 
@@ -1191,7 +1191,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.progreso.examen_final.historial.push({
                     intento: state.progreso.examen_final.intentos,
                     nota: nota,
-                    data: new Date().toISOString()
+                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' h'
                 });
 
                 let porcentaje = state.progreso.progres || 0;

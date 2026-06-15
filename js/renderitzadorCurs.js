@@ -825,46 +825,80 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (viewName === 'examen_final') renderFinalQuestions(container, state.respuestasTemp);
     }
 
+    window.isTestSubmitting = false;
+
     window.entregarTest = function(modIdx) {
+        if (window.isTestSubmitting) return;
+
         window.mostrarModalConfirmacion("Entregar Test", "Estàs segur?", async () => {
+            if (window.isTestSubmitting) return;
+            window.isTestSubmitting = true;
             document.getElementById('custom-modal').style.display = 'none';
-            const preguntas = window.currentQuestions; 
-            let aciertos = 0;
-            preguntas.forEach((preg, idx) => { 
-                const qId = `q-${idx}`;
-                const userRes = state.respuestasTemp[qId];
-                if (preg.es_multiresposta) {
-                    const userArr = userRes || [];
-                    const correctas = preg.opcions.map((o,i) => (o.esCorrecta || o.correct || o.isCorrect) ? i : -1).filter(i => i !== -1);
-                    const isCorrect = (userArr.length === correctas.length) && userArr.every(val => correctas.includes(val));
-                    if (isCorrect) aciertos++;
-                } else {
-                    const selectedOpt = preg.opcions[userRes];
-                    if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) aciertos++;
-                }
-            });
-            const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); 
-            const aprobado = nota >= 7.0;
-            if (!state.progreso.modulos[modIdx]) state.progreso.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false, flashcards_done: false };
-            state.progreso.modulos[modIdx].intentos += 1; 
-            state.progreso.modulos[modIdx].nota = Math.max(state.progreso.modulos[modIdx].nota, nota); 
-            if (aprobado) state.progreso.modulos[modIdx].aprobado = true;
-            
+
             try {
+                const preguntas = window.currentQuestions; 
+                let aciertos = 0;
+                preguntas.forEach((preg, idx) => { 
+                    const qId = `q-${idx}`;
+                    const userRes = state.respuestasTemp[qId];
+                    if (preg.es_multiresposta) {
+                        const userArr = userRes || [];
+                        const correctas = preg.opcions.map((o,i) => (o.esCorrecta || o.correct || o.isCorrect) ? i : -1).filter(i => i !== -1);
+                        const isCorrect = (userArr.length === correctas.length) && userArr.every(val => correctas.includes(val));
+                        if (isCorrect) aciertos++;
+                    } else {
+                        const selectedOpt = preg.opcions[userRes];
+                        if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) aciertos++;
+                    }
+                });
+                
+                const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); 
+                const aprobado = nota >= 7.0;
+                
+                if (!state.progreso.modulos[modIdx]) {
+                    state.progreso.modulos[modIdx] = { intentos: 0, nota: 0, aprobado: false, flashcards_done: false };
+                }
+                
+                let currentIntentos = parseInt(state.progreso.modulos[modIdx].intentos) || 0;
+                state.progreso.modulos[modIdx].intentos = currentIntentos + 1; 
+                state.progreso.modulos[modIdx].nota = Math.max(parseFloat(state.progreso.modulos[modIdx].nota) || 0, nota); 
+                if (aprobado) state.progreso.modulos[modIdx].aprobado = true;
+                
+                if (!state.progreso.modulos[modIdx].historial) {
+                    state.progreso.modulos[modIdx].historial = [];
+                }
+                state.progreso.modulos[modIdx].historial.push({
+                    intento: state.progreso.modulos[modIdx].intentos,
+                    nota: nota,
+                    data: new Date().toISOString()
+                });
+                
                 const payload = { data: { progres_detallat: state.progreso } }; 
                 const res = await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { 
                     method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) 
                 });
+                
+                if (!res.ok) throw new Error("Error API");
+                
                 const json = await res.json();
                 if (json.data && json.data.progres_detallat) { state.progreso = json.data.progres_detallat; }
                 else if (json.data && json.data.attributes && json.data.attributes.progres_detallat) { state.progreso = json.data.attributes.progres_detallat; }
+                
                 if (aprobado) verificarFinModulo(modIdx);
                 else if (state.progreso.modulos[modIdx].intentos < 2) crearNotificacion("Has d'estudiar una mica més 📖", `Has tret un ${nota}. Et queda 1 intent.`);
-            } catch(e) { console.error(e); }
-            limpiarRespuestasLocales(`test_mod_${modIdx}`); 
-            state.testEnCurso = false; 
-            document.body.classList.remove('exam-active');
-            mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, modIdx, false);
+                
+                limpiarRespuestasLocales(`test_mod_${modIdx}`); 
+                state.testEnCurso = false; 
+                document.body.classList.remove('exam-active');
+                
+                mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, modIdx, false);
+                
+            } catch(e) { 
+                console.error(e);
+                alert("Hi ha hagut un error en enviar el test. Tanca la finestra i torna-ho a intentar.");
+            } finally {
+                window.isTestSubmitting = false;
+            }
         });
     }
 
@@ -1111,63 +1145,98 @@ document.addEventListener('DOMContentLoaded', () => {
     function iniciarCronometro() { const display = document.getElementById('exam-timer'); if(!display) return; const LIMIT_MS = 30 * 60 * 1000; clearInterval(state.timerInterval); state.timerInterval = setInterval(() => { const now = Date.now(); const elapsed = now - state.testStartTime; const remaining = LIMIT_MS - elapsed; if (remaining <= 0) { detenerCronometro(); display.innerText = "00:00"; alert("Temps esgotat!"); entregarExamenFinal(true); return; } const min = Math.floor(remaining / 60000); const sec = Math.floor((remaining % 60000) / 1000); display.innerText = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }, 1000); }
     function detenerCronometro() { clearInterval(state.timerInterval); }
     
+    window.isExamSubmitting = false;
+
     window.entregarExamenFinal = function(forzado = false) {
+        if (window.isExamSubmitting && !forzado) return;
+
         const doDelivery = async () => {
-            detenerCronometro(); const preguntas = window.currentQuestions; let aciertos = 0;
-            preguntas.forEach((preg, idx) => { 
-                const qId = `final-${idx}`; 
-                const userRes = state.respuestasTemp[qId];
-                if (preg.es_multiresposta) {
-                    const userArr = userRes || [];
-                    const correctas = preg.opcions.map((o,i) => (o.esCorrecta || o.correct || o.isCorrect) ? i : -1).filter(i => i !== -1);
-                    const isCorrect = (userArr.length === correctas.length) && userArr.every(val => correctas.includes(val));
-                    if (isCorrect) aciertos++;
-                } else {
-                    const selectedOpt = preg.opcions[userRes];
-                    if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) aciertos++;
-                }
-            });
-            const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); const aprobado = nota >= 7.5; 
-            
-            if (!state.progreso.examen_final) state.progreso.examen_final = { intentos: 0, nota: 0, aprobado: false };
-            state.progreso.examen_final.intentos += 1; 
-            state.progreso.examen_final.nota = Math.max(state.progreso.examen_final.nota, nota); 
-            if (aprobado) state.progreso.examen_final.aprobado = true;
-            
-            let porcentaje = state.progreso.progres || 0;
-            if (aprobado) porcentaje = 100;
-            
-            const payload = { data: { progres_detallat: state.progreso, progres: porcentaje } }; 
-            
-            if (aprobado) { 
-                payload.data.estat = 'completat'; 
-                payload.data.nota_final = nota; 
-                notificarAprobado(state.curso.titol);
-            } else {
-                const intentosGastados = state.progreso.examen_final.intentos;
-                const intentosRestantes = 2 - intentosGastados;
-                if (intentosRestantes > 0) crearNotificacion("Examen Final No Superat ⚠️", `Has tret un ${nota}. Et queda ${intentosRestantes} intent.`);
-                else crearNotificacion("Intents Esgotats ⛔", `Has esgotat els 2 intents amb un ${nota}.`);
-            }
-            
+            if (window.isExamSubmitting) return;
+            window.isExamSubmitting = true;
+
             try {
+                detenerCronometro(); 
+                const preguntas = window.currentQuestions; 
+                let aciertos = 0;
+                
+                preguntas.forEach((preg, idx) => { 
+                    const qId = `final-${idx}`; 
+                    const userRes = state.respuestasTemp[qId];
+                    if (preg.es_multiresposta) {
+                        const userArr = userRes || [];
+                        const correctas = preg.opcions.map((o,i) => (o.esCorrecta || o.correct || o.isCorrect) ? i : -1).filter(i => i !== -1);
+                        const isCorrect = (userArr.length === correctas.length) && userArr.every(val => correctas.includes(val));
+                        if (isCorrect) aciertos++;
+                    } else {
+                        const selectedOpt = preg.opcions[userRes];
+                        if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) aciertos++;
+                    }
+                });
+                
+                const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); 
+                const aprobado = nota >= 7.5; 
+                
+                if (!state.progreso.examen_final) {
+                    state.progreso.examen_final = { intentos: 0, nota: 0, aprobado: false };
+                }
+                
+                let currentIntentos = parseInt(state.progreso.examen_final.intentos) || 0;
+                state.progreso.examen_final.intentos = currentIntentos + 1; 
+                state.progreso.examen_final.nota = Math.max(parseFloat(state.progreso.examen_final.nota) || 0, nota); 
+                if (aprobado) state.progreso.examen_final.aprobado = true;
+                
+                if (!state.progreso.examen_final.historial) {
+                    state.progreso.examen_final.historial = [];
+                }
+                state.progreso.examen_final.historial.push({
+                    intento: state.progreso.examen_final.intentos,
+                    nota: nota,
+                    data: new Date().toISOString()
+                });
+
+                let porcentaje = state.progreso.progres || 0;
+                if (aprobado) porcentaje = 100;
+                
+                const payload = { data: { progres_detallat: state.progreso, progres: porcentaje } }; 
+                
+                if (aprobado) { 
+                    payload.data.estat = 'completat'; 
+                    payload.data.nota_final = nota; 
+                    notificarAprobado(state.curso.titol);
+                } else {
+                    const intentosGastados = state.progreso.examen_final.intentos;
+                    const intentosRestantes = 2 - intentosGastados;
+                    if (intentosRestantes > 0) crearNotificacion("Examen Final No Superat ⚠️", `Has tret un ${nota}. Et queda ${intentosRestantes} intent.`);
+                    else crearNotificacion("Intents Esgotats ⛔", `Has esgotat els 2 intents amb un ${nota}.`);
+                }
+                
                 const res = await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { 
                     method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) 
                 });
+                
+                if (!res.ok) throw new Error("Error API");
+                
                 const json = await res.json();
                 if (json.data && json.data.progres_detallat) { state.progreso = json.data.progres_detallat; }
                 else if (json.data && json.data.attributes && json.data.attributes.progres_detallat) { state.progreso = json.data.attributes.progres_detallat; }
-            } catch (e) { console.error("Error guardant examen:", e); }
-            
-            limpiarRespuestasLocales('examen_final'); 
-            state.testEnCurso = false; 
-            document.body.classList.remove('exam-active');
-            
-            mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, 999, true);
+                
+                limpiarRespuestasLocales('examen_final'); 
+                state.testEnCurso = false; 
+                document.body.classList.remove('exam-active');
+                
+                mostrarFeedback(preguntas, state.respuestasTemp, nota, aprobado, 999, true);
+                
+            } catch (e) { 
+                console.error("Error guardant examen:", e); 
+                alert("Hi ha hagut un error en enviar l'examen. Tanca la finestra i torna-ho a intentar.");
+            } finally {
+                window.isExamSubmitting = false;
+            }
         };
 
-        if(forzado) { doDelivery(); } 
-        else { 
+        if(forzado) { 
+            doDelivery(); 
+        } else { 
             window.mostrarModalConfirmacion("Entregar Examen", "Segur que vols entregar?", () => { 
                 document.getElementById('custom-modal').style.display = 'none'; 
                 doDelivery(); 

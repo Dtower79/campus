@@ -744,7 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
              return;
         }
-        let labelIntent = `Intent: ${progreso.intentos + 1} de 2.`;
+        let labelIntent = `Intents consumits: ${progreso.intentos} de 2`;
         if (progreso.intentos >= 2) labelIntent = `Intent: ${progreso.intentos + 1} (Mode Professor)`;
         container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2>📝 Test d'Avaluació</h2><div class="exam-info-box"><p>✅ <strong>Aprovat:</strong> 70% d'encerts.</p><p>🔄 <strong>${labelIntent}</strong></p></div><br><div class="btn-centered-container"><button class="btn-primary" onclick="iniciarTest()">COMENÇAR EL TEST</button></div></div>`;
     }

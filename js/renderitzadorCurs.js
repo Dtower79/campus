@@ -89,8 +89,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function prepararExamen(mod) {
         const pool = mod.banc_preguntes || [];
-        const limite = pool.length; 
-        let seleccionadas = shuffleArray(pool).slice(0, limite);
+        
+        // Capturamos los límites numéricos de Strapi (0 si no existen o están vacíos)
+        const simplesLimit = parseInt(mod.preguntes_simples_limit) || 0;
+        const multiplesLimit = parseInt(mod.preguntes_multiples_limit) || 0;
+        
+        let seleccionadas = [];
+        
+        // PROGRAMACIÓN DEFENSIVA: Si no hay límites definidos, fallback al comportamiento original (mostrar todo)
+        if (simplesLimit === 0 && multiplesLimit === 0) {
+            seleccionadas = shuffleArray(pool);
+        } else {
+            // Dividimos el banco en simples (es_multiresposta es falso o no existe) y múltiples
+            const simples = pool.filter(p => p.es_multiresposta !== true);
+            const multiples = pool.filter(p => p.es_multiresposta === true);
+            
+            // Barajamos y recortamos cada saco según su límite
+            const simplesMezcladas = shuffleArray(simples).slice(0, simplesLimit);
+            const multiplesMezcladas = shuffleArray(multiples).slice(0, multiplesLimit);
+            
+            // Unimos ambas muestras y las volvemos a mezclar para que no queden todas las múltiples al final
+            seleccionadas = shuffleArray([...simplesMezcladas, ...multiplesMezcladas]);
+        }
+        
         return seleccionadas.map(p => {
             const pClon = JSON.parse(JSON.stringify(p));
             pClon.opcions = shuffleArray(pClon.opcions);
@@ -157,8 +178,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        // QUERY PATCH PARA STRAPI V5 (Trae es_extra de los módulos)
-        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos]=true&populate[curs][populate][moduls][fields][0]=es_extra&populate[curs][populate][moduls][fields][1]=titol&populate[curs][populate][moduls][fields][2]=resum&populate[curs][populate][moduls][fields][3]=ordre&populate[curs][populate][recursos_fitxers]=true`;
+        // QUERY PATCH PARA STRAPI V5 (Trae es_extra y límites de preguntas de los módulos)
+        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos]=true&populate[curs][populate][moduls][fields][0]=es_extra&populate[curs][populate][moduls][fields][1]=titol&populate[curs][populate][moduls][fields][2]=resum&populate[curs][populate][moduls][fields][3]=ordre&populate[curs][populate][moduls][fields][4]=preguntes_simples_limit&populate[curs][populate][moduls][fields][5]=preguntes_multiples_limit&populate[curs][populate][recursos_fitxers]=true`;
         
         const respuestaMat = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const jsonMat = await respuestaMat.json();
@@ -870,7 +891,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.progreso.modulos[modIdx].historial.push({
                     intento: state.progreso.modulos[modIdx].intentos,
                     nota: nota,
-                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h'
+                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h',
+                    // CAJA NEGRA: Guardamos las preguntas exactas que salieron y sus respuestas marcadas
+                    preguntes_guardades: JSON.parse(JSON.stringify(preguntas)),
+                    respostes_guardades: JSON.parse(JSON.stringify(state.respuestasTemp))
                 });
                 
                 const payload = { data: { progres_detallat: state.progreso } }; 
@@ -973,38 +997,101 @@ document.addEventListener('DOMContentLoaded', () => {
     // 10. REVISIÓN POSTERIOR (FIXED GRID UI)
     window.revisarTest = function(modIdx) {
         const mod = state.curso.moduls[modIdx];
-        const todasLasPreguntas = mod.banc_preguntes || [];
-        if (todasLasPreguntas.length === 0) { console.warn("No preguntes."); return; }
+        const modProg = state.progreso.modulos[modIdx];
+        const historial = modProg ? modProg.historial : null;
+        
+        // Buscamos el último intento realizado en el historial
+        const ultimoIntento = (historial && historial.length > 0) ? historial[historial.length - 1] : null;
+        
+        let preguntasParaRenderizar = [];
+        let respuestasParaRenderizar = {};
+        let esCajaNegra = false;
+        
+        // COMPATIBILIDAD DEFENSIVA: Si tiene guardada la "Caja Negra" (nuevos intentos), la cargamos
+        if (ultimoIntento && ultimoIntento.preguntes_guardades && ultimoIntento.respostes_guardades) {
+            preguntasParaRenderizar = ultimoIntento.preguntes_guardades;
+            respuestasParaRenderizar = ultimoIntento.respostes_guardades;
+            esCajaNegra = true;
+        } else {
+            // Si es un intento antiguo sin "Caja Negra", fallback al modo estudio tradicional con todo el banco
+            preguntasParaRenderizar = mod.banc_preguntes || [];
+            esCajaNegra = false;
+        }
+        
+        if (preguntasParaRenderizar.length === 0) { console.warn("No preguntes."); return; }
         const container = document.getElementById('moduls-container');
         
-        // GRID REVISIÓN LIMPIO (SIN TEXTO FEO)
+        // GRID REVISIÓN (Se colorea según aciertos reales en la Caja Negra)
         const gridRight = document.getElementById('quiz-grid'); 
         if (gridRight) {
             gridRight.className = 'grid-container'; 
             gridRight.innerHTML = ''; 
-            todasLasPreguntas.forEach((p, i) => { 
+            preguntasParaRenderizar.forEach((p, i) => { 
                 const div = document.createElement('div'); 
-                div.className = 'grid-item answered'; // Azul neutro
+                div.className = 'grid-item';
                 div.innerText = i + 1; 
+                
+                if (esCajaNegra) {
+                    const qId = `q-${i}`;
+                    const userRes = respuestasParaRenderizar[qId];
+                    let esCorrecta = false;
+                    if (p.es_multiresposta) {
+                        const userArr = userRes || [];
+                        const correctas = p.opcions.map((o, idx) => (o.esCorrecta || o.correct || o.isCorrect) ? idx : -1).filter(idx => idx !== -1);
+                        esCorrecta = (userArr.sort().toString() === correctas.sort().toString());
+                    } else {
+                        const selectedOpt = p.opcions[userRes];
+                        if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) esCorrecta = true;
+                    }
+                    div.style.backgroundColor = esCorrecta ? '#28a745' : '#dc3545';
+                    div.style.color = 'white';
+                } else {
+                    div.classList.add('answered'); // Azul neutro para alumnos antiguos (modo estudio)
+                }
+                
                 div.onclick = () => { const card = document.getElementById(`review-card-${i}`); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; 
                 gridRight.appendChild(div); 
             });
         }
         
-        let html = `<h3>Revisió (Mode Estudi)</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Aquí pots veure totes les preguntes del banc amb les respostes correctes per repassar.</div>`;
-        todasLasPreguntas.forEach((preg, idx) => {
+        let html = esCajaNegra 
+            ? `<h3>Revisió de Test (Intent ${ultimoIntento.intento})</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Estàs veient les preguntes exactes que et van sortir en aquest intent i les respostes que vas marcar.</div>`
+            : `<h3>Revisió (Mode Estudi)</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Aquí pots veure totes les preguntes del banc amb les respostes correctes per repassar.</div>`;
+        
+        preguntasParaRenderizar.forEach((preg, idx) => {
+            const qId = `q-${idx}`;
+            const userRes = esCajaNegra ? respuestasParaRenderizar[qId] : null;
             const isMulti = preg.es_multiresposta === true;
             const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
             const inputType = isMulti ? 'checkbox' : 'radio';
+            
             html += `<div class="question-card review-mode" id="review-card-${idx}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            
             preg.opcions.forEach((opt, oIdx) => {
-                let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                let classes = 'option-item '; 
+                const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                let isSelected = false;
+                
+                if (esCajaNegra) {
+                    if (isMulti) isSelected = (userRes || []).includes(oIdx);
+                    else isSelected = (userRes == oIdx);
+                } else {
+                    isSelected = isCorrect; // Para modo estudio de alumnos antiguos marcamos las correctas
+                }
+                
                 if (isCorrect) classes += 'correct-answer ';
-                html += `<div class="${classes}"><input type="${inputType}" disabled ${isCorrect ? 'checked' : ''}><span>${opt.text}</span></div>`;
+                if (isSelected) {
+                    classes += 'selected ';
+                    if (esCajaNegra && !isCorrect) classes += 'user-wrong ';
+                }
+                
+                const checked = isSelected ? 'checked' : '';
+                html += `<div class="${classes}"><input type="${inputType}" ${checked} disabled><span>${opt.text}</span></div>`;
             });
             if (preg.explicacio) html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
             html += `</div></div>`;
         });
+        
         html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(${modIdx}, 'test')">Tornar</button></div>`;
         container.innerHTML = html; window.scrollTo(0,0);
     }
@@ -1090,12 +1177,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.iniciarExamenFinal = function() {
-        if (!state.curso.examen_final || state.curso.examen_final.length === 0) { alert("Error: No s'han carregat preguntes."); return; }
-        state.preguntasExamenFinal = [...state.curso.examen_final].sort(() => 0.5 - Math.random());
+        const pool = state.curso.examen_final || [];
+        if (pool.length === 0) { alert("Error: No s'han carregat preguntes."); return; }
+        
+        // Capturamos los límites numéricos que hayas configurado en el Curso en Strapi
+        const simplesLimit = parseInt(state.curso.preguntes_simples_limit) || 0;
+        const multiplesLimit = parseInt(state.curso.preguntes_multiples_limit) || 0;
+        
+        let seleccionadas = [];
+        
+        // PROGRAMACIÓN DEFENSIVA: Si no hay límites, se baraja todo el banco de preguntas por defecto
+        if (simplesLimit === 0 && multiplesLimit === 0) {
+            seleccionadas = shuffleArray(pool);
+        } else {
+            // Dividimos el banco del examen final en simples y múltiples
+            const simples = pool.filter(p => p.es_multiresposta !== true);
+            const multiples = pool.filter(p => p.es_multiresposta === true);
+            
+            // Barajamos y recortamos según las cuotas indicadas
+            const simplesMezcladas = shuffleArray(simples).slice(0, simplesLimit);
+            const multiplesMezcladas = shuffleArray(multiples).slice(0, multiplesLimit);
+            
+            // Mezclamos conjuntamente la selección final
+            seleccionadas = shuffleArray([...simplesMezcladas, ...multiplesMezcladas]);
+        }
+        
+        // Clonamos profundamente para no dañar el objeto del curso original y barajamos opciones
+        state.preguntasExamenFinal = seleccionadas.map(p => {
+            const pClon = JSON.parse(JSON.stringify(p));
+            pClon.opcions = shuffleArray(pClon.opcions); // Barajamos opciones para evitar copias pasivas
+            return pClon;
+        });
+        
+        // Guardamos los IDs de las preguntas elegidas para mantener consistencia si se recarga la pestaña
         const orderIds = state.preguntasExamenFinal.map(p => p.id || p.documentId); 
         localStorage.setItem(`sicap_exam_order_${USER.id}_${SLUG}`, JSON.stringify(orderIds));
-        state.testEnCurso = true; state.testStartTime = Date.now(); localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime);
-        state.respuestasTemp = {}; renderExamenFinal(document.getElementById('moduls-container'));
+        
+        state.testEnCurso = true; 
+        state.testStartTime = Date.now(); 
+        localStorage.setItem(`sicap_timer_start_${USER.id}_${SLUG}`, state.testStartTime);
+        state.respuestasTemp = {}; 
+        
+        renderExamenFinal(document.getElementById('moduls-container'));
     }
 
     function renderFinalQuestions(container, savedData) {
@@ -1178,12 +1301,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
                 
-                const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); 
-                const aprobado = nota >= 7.5; 
+                const nota = parseFloat(((aciertos / preguntas.length) * 10).toFixed(2)); const aprobado = nota >= 7.5; 
                 
-                if (!state.progreso.examen_final) {
-                    state.progreso.examen_final = { intentos: 0, nota: 0, aprobado: false };
-                }
+                if (!state.progreso.examen_final) state.progreso.examen_final = { intentos: 0, nota: 0, aprobado: false };
                 
                 let currentIntentos = parseInt(state.progreso.examen_final.intentos) || 0;
                 state.progreso.examen_final.intentos = currentIntentos + 1; 
@@ -1196,7 +1316,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.progreso.examen_final.historial.push({
                     intento: state.progreso.examen_final.intentos,
                     nota: nota,
-                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h'
+                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h',
+                    // CAJA NEGRA: Guardamos el set exacto de preguntas de este intento y lo que marcó el alumno
+                    preguntes_guardades: JSON.parse(JSON.stringify(preguntas)), 
+                    respostes_guardades: JSON.parse(JSON.stringify(state.respuestasTemp))
                 });
 
                 let porcentaje = state.progreso.progres || 0;
@@ -1256,32 +1379,101 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // REVISIÓN EXAMEN FINAL (FIX GRID UI)
     window.revisarExamenFinal = function() {
-        const container = document.getElementById('moduls-container');
-        const preguntas = state.curso.examen_final || [];
-        if (preguntas.length === 0) { alert("No s'han trobat preguntes."); return; }
+        const finalProg = state.progreso.examen_final;
+        const historial = finalProg ? finalProg.historial : null;
         
+        // Buscamos el último intento guardado en el historial
+        const ultimoIntento = (historial && historial.length > 0) ? historial[historial.length - 1] : null;
+        
+        let preguntasParaRenderizar = [];
+        let respuestasParaRenderizar = {};
+        let esCajaNegra = false;
+        
+        // COMPATIBILIDAD DEFENSIVA: Si tiene "Caja Negra", la cargamos
+        if (ultimoIntento && ultimoIntento.preguntes_guardades && ultimoIntento.respostes_guardades) {
+            preguntasParaRenderizar = ultimoIntento.preguntes_guardades;
+            respuestasParaRenderizar = ultimoIntento.respostes_guardades;
+            esCajaNegra = true;
+        } else {
+            // Fallback para intentos históricos antiguos
+            preguntasParaRenderizar = state.curso.examen_final || [];
+            esCajaNegra = false;
+        }
+        
+        if (preguntasParaRenderizar.length === 0) { alert("No s'han trobat preguntes."); return; }
+        const container = document.getElementById('moduls-container');
+        
+        // GRID REVISIÓN (Se colorea según aciertos del Examen Final real)
         const gridRight = document.getElementById('quiz-grid'); 
         if (gridRight) {
             gridRight.className = 'grid-container'; 
             gridRight.innerHTML = ''; 
-            // SIN TEXTO FEO
-            preguntas.forEach((p, i) => { 
-                const div = document.createElement('div'); div.className = 'grid-item answered'; div.innerText = i + 1; 
+            preguntasParaRenderizar.forEach((p, i) => { 
+                const div = document.createElement('div'); 
+                div.className = 'grid-item';
+                div.innerText = i + 1; 
+                
+                if (esCajaNegra) {
+                    const qId = `final-${i}`;
+                    const userRes = respuestasParaRenderizar[qId];
+                    let esCorrecta = false;
+                    if (p.es_multiresposta) {
+                        const userArr = userRes || [];
+                        const correctas = p.opcions.map((o, idx) => (o.esCorrecta || o.correct || o.isCorrect) ? idx : -1).filter(idx => idx !== -1);
+                        esCorrecta = (userArr.sort().toString() === correctas.sort().toString());
+                    } else {
+                        const selectedOpt = p.opcions[userRes];
+                        if (selectedOpt && (selectedOpt.esCorrecta || selectedOpt.correct || selectedOpt.isCorrect)) esCorrecta = true;
+                    }
+                    div.style.backgroundColor = esCorrecta ? '#28a745' : '#dc3545';
+                    div.style.color = 'white';
+                } else {
+                    div.classList.add('answered'); // Azul neutro legacy
+                }
+                
                 div.onclick = () => { const card = document.getElementById(`review-card-final-${i}`); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; 
                 gridRight.appendChild(div); 
             });
         }
-        let html = `<h3>Revisió Examen Final</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px;"><i class="fa-solid fa-eye"></i> Mode lectura.</div>`;
-        preguntas.forEach((preg, idx) => {
-            html += `<div class="question-card review-mode" id="review-card-final-${idx}"><div class="q-header">Pregunta ${idx + 1}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
-            preg.opcions.forEach((opt) => {
-                let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+        
+        let html = esCajaNegra
+            ? `<h3>Revisió de l'Examen Final (Intent ${ultimoIntento.intento})</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Estàs veient les preguntes exactes que et van sortir en aquest intent i les respostes que vas marcar.</div>`
+            : `<h3>Revisió Examen Final</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Mode lectura.</div>`;
+            
+        preguntasParaRenderizar.forEach((preg, idx) => {
+            const qId = `final-${idx}`;
+            const userRes = esCajaNegra ? respuestasParaRenderizar[qId] : null;
+            const isMulti = preg.es_multiresposta === true;
+            const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
+            const inputType = isMulti ? 'checkbox' : 'radio';
+            
+            html += `<div class="question-card review-mode" id="review-card-final-${idx}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            
+            preg.opcions.forEach((opt, oIdx) => {
+                let classes = 'option-item '; 
+                const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                let isSelected = false;
+                
+                if (esCajaNegra) {
+                    if (isMulti) isSelected = (userRes || []).includes(oIdx);
+                    else isSelected = (userRes == oIdx);
+                } else {
+                    isSelected = isCorrect; // Legacy
+                }
+                
                 if (isCorrect) classes += 'correct-answer '; 
-                html += `<div class="${classes}"><input type="radio" disabled ${isCorrect ? 'checked' : ''}><span>${opt.text}</span></div>`;
+                if (isSelected) {
+                    classes += 'selected ';
+                    if (esCajaNegra && !isCorrect) classes += 'user-wrong ';
+                }
+                
+                const checked = isSelected ? 'checked' : '';
+                html += `<div class="${classes}"><input type="${inputType}" ${checked} disabled><span>${opt.text}</span></div>`;
             });
             if (preg.explicacio) html += `<div class="explanation-box"><strong>Explicació:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
             html += `</div></div>`;
         });
+        
         html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(999, 'examen_final')">Tornar</button></div>`;
         container.innerHTML = html; window.scrollTo(0,0);
     }

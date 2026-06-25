@@ -870,7 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.progreso.modulos[modIdx].historial.push({
                     intento: state.progreso.modulos[modIdx].intentos,
                     nota: nota,
-                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' h'
+                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h'
                 });
                 
                 const payload = { data: { progres_detallat: state.progreso } }; 
@@ -895,7 +895,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 
             } catch(e) { 
                 console.error(e);
-                alert("Hi ha hagut un error en enviar el test. Tanca la finestra i torna-ho a intentar.");
+                // ROLLBACK: Si falla Internet, restem l'intent fantasma
+                if (state.progreso.modulos[modIdx].intentos > 0) {
+                    state.progreso.modulos[modIdx].intentos -= 1;
+                    state.progreso.modulos[modIdx].historial.pop();
+                }
+                alert("Error de connexió. Les respostes NO s'han esborrat. Torna a fer clic a Entregar.");
             } finally {
                 window.isTestSubmitting = false;
             }
@@ -1191,7 +1196,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.progreso.examen_final.historial.push({
                     intento: state.progreso.examen_final.intentos,
                     nota: nota,
-                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' h'
+                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h'
                 });
 
                 let porcentaje = state.progreso.progres || 0;
@@ -1228,7 +1233,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 
             } catch (e) { 
                 console.error("Error guardant examen:", e); 
-                alert("Hi ha hagut un error en enviar l'examen. Tanca la finestra i torna-ho a intentar.");
+                // ROLLBACK: Si falla Internet, restem l'intent fantasma
+                if (state.progreso.examen_final.intentos > 0) {
+                    state.progreso.examen_final.intentos -= 1;
+                    state.progreso.examen_final.historial.pop();
+                }
+                alert("Error de connexió. Les respostes NO s'han esborrat. Torna a fer clic a Entregar.");
             } finally {
                 window.isExamSubmitting = false;
             }

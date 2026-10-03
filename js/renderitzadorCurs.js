@@ -685,41 +685,66 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         headerHtml += `</div>`; 
         let html = `<h3>Targetes de Repàs</h3>${headerHtml}<div class="flashcards-grid-view">`;
-        const distractors = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
+        const distractorsFallback = ["Règim", "Junta", "DERT", "Aïllament", "Seguretat", "Infermeria", "Ingrés", "Comunicació", "Especialista", "Jurista", "Educador", "Director", "Reglament", "Funcionari"];
+        
         cards.forEach((card, idx) => {
             const isDone = isReallyCompleted || flippedIndices.includes(idx) || state.godMode;
             const flipClass = isDone ? 'flipped' : '';
             let tempDiv = document.createElement("div");
             try {
                 if (typeof card.resposta === 'object') tempDiv.innerHTML = parseStrapiRichText(card.resposta);
-                else tempDiv.innerHTML = card.resposta;
-            } catch (e) { tempDiv.innerText = String(card.resposta); }
+                else tempDiv.innerHTML = card.resposta || "";
+            } catch (e) { tempDiv.innerText = String(card.resposta || ""); }
             let answerText = (tempDiv.innerText || tempDiv.textContent || "").trim().replace(/\s\s+/g, ' ');
-            let words = answerText.split(" ");
-            let targetWord = "", hiddenIndex = -1;
-            for (let i = 0; i < words.length; i++) {
-                let clean = words[i].replace(/[.,;:"'()]/g, '');
-                if (clean.length > 4) { targetWord = words[i]; hiddenIndex = i; break; }
+
+            let targetClean = "";
+            let options = [];
+            let fullAnswerDisplay = "";
+            let questionText = "";
+
+            // DETECCIÓN INTELIGENTE: ¿Usa la sintaxis nueva {Correcta|Trampa1|Trampa2}?
+            const match = answerText.match(/^\{([^}]+)\}\s*(.*)$/);
+
+            if (match) {
+                const parts = match[1].split('|').map(s => s.trim());
+                targetClean = parts[0]; // La primera es siempre la correcta
+                const remainingText = match[2];
+
+                fullAnswerDisplay = `${targetClean} ${remainingText}`.trim();
+                questionText = `<span class="cloze-blank">_______</span> ${remainingText}`.trim();
+                options = [...parts].sort(() => Math.random() - 0.5); // Barajamos las 3 opciones pedagógicas
+            } else {
+                // FALLBACK RETROCOMPATIBLE: Tarjetas antiguas sin delimitador
+                fullAnswerDisplay = answerText;
+                let words = answerText.split(" ");
+                let targetWord = "", hiddenIndex = -1;
+                for (let i = 0; i < words.length; i++) {
+                    let clean = words[i].replace(/[.,;:"'()]/g, '');
+                    if (clean.length > 4) { targetWord = words[i]; hiddenIndex = i; break; }
+                }
+                if (hiddenIndex === -1 && words.length > 0) { targetWord = words[words.length - 1]; hiddenIndex = words.length - 1; }
+                targetClean = targetWord.replace(/[.,;:"'()]/g, '');
+                options = [targetClean];
+                while (options.length < 3) {
+                    let rand = distractorsFallback[Math.floor(Math.random() * distractorsFallback.length)];
+                    if (!options.includes(rand) && rand.toLowerCase() !== targetClean.toLowerCase()) options.push(rand);
+                }
+                options.sort(() => Math.random() - 0.5);
+                questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
             }
-            if(hiddenIndex === -1 && words.length > 0) { targetWord = words[words.length-1]; hiddenIndex = words.length-1; }
-            let targetClean = targetWord.replace(/[.,;:"'()]/g, '');
-            let options = [targetClean];
-            while(options.length < 3) {
-                let rand = distractors[Math.floor(Math.random() * distractors.length)];
-                if(!options.includes(rand) && rand.toLowerCase() !== targetClean.toLowerCase()) options.push(rand);
-            }
-            options.sort(() => Math.random() - 0.5);
+
             let backContent = '';
             if (isDone) {
-                backContent = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;"><i class="fa-solid fa-check-circle" style="font-size:2.5rem; color:#fff; margin-bottom:10px;"></i><p style="font-size:1rem; color:white; font-weight:bold;">${answerText}</p></div>`;
+                backContent = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;"><i class="fa-solid fa-check-circle" style="font-size:2.5rem; color:#fff; margin-bottom:10px;"></i><p style="font-size:1rem; color:white; font-weight:bold;">${fullAnswerDisplay}</p></div>`;
             } else {
-                let questionText = words.map((w, i) => i === hiddenIndex ? `<span class="cloze-blank">_______</span>` : w).join(" ");
                 let buttonsHtml = options.map(opt => `<button class="btn-flash-option" data-selected="${encodeURIComponent(opt)}" data-correct="${encodeURIComponent(targetClean)}" data-idx="${idx}" data-mod="${modIdx}" data-total="${cards.length}" onclick="checkFlashcardFromDOM(event, this)">${opt}</button>`).join('');
                 backContent = `<div class="flashcard-game-container"><div class="flashcard-question-text">${questionText}</div><div class="flashcard-options">${buttonsHtml}</div></div>`;
             }
+
             const clickAttr = `onclick="handleFlip(this)"`; 
             html += `<div class="flashcard ${flipClass}" ${clickAttr}><div class="flashcard-inner"><div class="flashcard-front"><h4>Targeta ${idx + 1}</h4><div class="flashcard-front-text">${card.pregunta}</div><small>${isDone ? '✅ Completada' : '<i class="fa-solid fa-rotate"></i> Clic per jugar'}</small></div><div class="flashcard-back">${backContent}</div></div></div>`;
         });
+
         html += `</div>`;
         container.innerHTML = html;
     }

@@ -771,8 +771,22 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = `✅ ${btn.innerText}`;
         } else {
             btn.classList.add('wrong');
-            if(blankSpan) { blankSpan.innerText = selected; blankSpan.classList.add('filled-wrong'); }
             btn.innerHTML = `❌ ${btn.innerText}`;
+
+            // 1. Busquem i marquem el botó que era el correcte en verd
+            buttons.forEach(b => {
+                const val = decodeURIComponent(b.getAttribute('data-selected'));
+                if (val.toLowerCase() === correct.toLowerCase()) {
+                    b.classList.add('correct');
+                    b.innerHTML = `✅ ${b.innerText}`;
+                }
+            });
+
+            // 2. A la frase mostrem el fallo tatxat i la solució correcta en verd
+            if(blankSpan) { 
+                blankSpan.innerHTML = `<span style="text-decoration: line-through; opacity: 0.8; margin-right: 6px;">${selected}</span><span style="color: #155724; background: #d4edda; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${correct}</span>`;
+                blankSpan.classList.remove('cloze-blank');
+            }
         }
         if (count >= totalCards) {
             const headerContainer = document.getElementById('fc-header-container');

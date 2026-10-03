@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarDatos() {
         // QUERY PATCH PARA STRAPI V5 (Trae es_extra y límites de preguntas de los módulos)
-        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos]=true&populate[curs][populate][moduls][fields][0]=es_extra&populate[curs][populate][moduls][fields][1]=titol&populate[curs][populate][moduls][fields][2]=resum&populate[curs][populate][moduls][fields][3]=ordre&populate[curs][populate][moduls][fields][4]=preguntes_simples_limit&populate[curs][populate][moduls][fields][5]=preguntes_multiples_limit&populate[curs][populate][recursos_fitxers]=true`;
+        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos]=true&populate[curs][populate][moduls][fields][0]=es_extra&populate[curs][populate][moduls][fields][1]=titol&populate[curs][populate][moduls][fields][2]=resum&populate[curs][populate][moduls][fields][3]=ordre&populate[curs][populate][moduls][fields][4]=preguntes_simples_limit&populate[curs][populate][moduls][fields][5]=preguntes_multiples_limit&populate[curs][populate][recursos_fitxers]=true&populate[curs][populate][glossari_fitxer]=true`;
         
         const respuestaMat = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const jsonMat = await respuestaMat.json();
@@ -484,13 +484,33 @@ document.addEventListener('DOMContentLoaded', () => {
             return; 
         }
 
-        // --- VISTA 1: SOLO EL TEXTO DEL GLOSARIO ---
+        // --- VISTA 1: DESCARGA DEL GLOSARIO EN PDF ---
         if (state.currentView === 'glossary') { 
-            const contenidoGlossari = state.curso.glossari || "<p>No hi ha informació en el glossari.</p>"; 
+            let glossariHtml = '<p style="color:#666;">No hi ha cap document de glossari disponible per a aquest curs.</p>';
+            
+            const fitxer = state.curso.glossari_fitxer;
+            if (fitxer && fitxer.url) {
+                const pdfUrl = fitxer.url.startsWith('/') ? STRAPI_URL + fitxer.url : fitxer.url;
+                const nomFitxer = fitxer.name || 'Glossari de Termes.pdf';
+                const mida = fitxer.size ? `(${(fitxer.size / 1024).toFixed(2)} MB)` : '';
+                
+                glossariHtml = `
+                    <div class="materials-section" style="border-left: 4px solid var(--brand-blue); background: var(--bg-card); padding: 25px; border-radius: 8px;">
+                        <h3 style="margin-top:0; color:var(--brand-blue);"><i class="fa-solid fa-book-bookmark"></i> Document de Consulta Oficial</h3>
+                        <p style="color:var(--text-secondary); margin-bottom: 20px; font-size: 0.95rem;">
+                            Pots descarregar el glossari complet en format PDF per consultar les definicions i conceptes clau durant el curs o per imprimir-lo.
+                        </p>
+                        <a href="${pdfUrl}" target="_blank" class="btn-pdf" style="display:inline-flex; width:auto; padding: 12px 20px; font-size: 1rem;">
+                            <i class="fa-solid fa-file-pdf" style="color:var(--brand-red); font-size:1.4rem;"></i> 
+                            <span>Descarregar ${nomFitxer} <small style="color:#888;">${mida}</small></span>
+                        </a>
+                    </div>`;
+            }
+
             container.innerHTML = `
                 <h2><i class="fa-solid fa-spell-check"></i> Glossari de Termes</h2>
-                <div class="dashboard-card" style="margin-top:20px;">
-                    <div class="module-content-text">${contenidoGlossari}</div>
+                <div style="margin-top:20px;">
+                    ${glossariHtml}
                 </div>`; 
             renderSidebarTools(gridRight, { titol: 'Glossari' }); 
             return; 

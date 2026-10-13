@@ -604,8 +604,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     const cleanId = videoId.split('&')[0];
                     embedUrl = `https://www.youtube.com/embed/${cleanId}`;
                 } else if (vid.url.includes('vimeo.com')) {
-                    const videoId = vid.url.split('/').pop();
-                    embedUrl = `https://player.vimeo.com/video/${videoId}`;
+                    // Suport complet per a enllaços privats i protegits de Vimeo (amb hash de seguretat)
+                    const urlNeta = vid.url.split('?')[0].replace(/\/$/, '');
+                    const segments = urlNeta.split('/');
+                    
+                    if (segments.length >= 5) {
+                        // Enllaç privat tipus: vimeo.com/123456789/hash123
+                        const videoId = segments[segments.length - 2];
+                        const hash = segments[segments.length - 1];
+                        embedUrl = `https://player.vimeo.com/video/${videoId}?h=${hash}`;
+                    } else {
+                        // Enllaç estàndard tipus: vimeo.com/123456789
+                        const videoId = segments.pop();
+                        embedUrl = `https://player.vimeo.com/video/${videoId}`;
+                    }
                 }
 
                 if (embedUrl) {

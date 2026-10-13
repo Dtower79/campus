@@ -452,8 +452,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (state.currentView === 'intro') { 
             const videoIntroHtml = renderVideoPlayer(state.curso); 
+            
+            // BANNER DINÀMIC D'AULA VIRTUAL ZOOM (NOMÉS PER A OPOSICIONS)
+            let zoomCardHtml = '';
+            if (state.curso.es_oposicio && state.curso.enllac_zoom) {
+                const horari = state.curso.horari_zoom || 'A concretar per secretaria';
+                zoomCardHtml = `
+                    <div class="materials-section" style="border-left: 4px solid #2d8cff; background: var(--bg-card); padding: 22px; border-radius: 8px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+                            <div>
+                                <span style="display:inline-flex; align-items:center; gap:6px; background:#e0f2fe; color:#0369a1; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:bold; text-transform:uppercase; margin-bottom:8px;">
+                                    <i class="fa-solid fa-video"></i> Aula Virtual en Directe
+                                </span>
+                                <h3 style="margin:5px 0; color:var(--brand-blue);"><i class="fa-solid fa-chalkboard-user"></i> Classe d'Oposicions per Zoom</h3>
+                                <p style="margin:0; font-size:0.9rem; color:var(--text-secondary);">
+                                    <i class="fa-regular fa-clock"></i> <strong>Horari establert:</strong> ${horari}
+                                </p>
+                            </div>
+                            <div>
+                                <a href="${state.curso.enllac_zoom}" target="_blank" rel="noopener noreferrer" class="btn-primary" style="background:#2d8cff !important; width:auto; padding:12px 24px; font-size:0.95rem; text-decoration:none; display:inline-flex; align-items:center; gap:8px; border-radius:6px; font-weight:bold; box-shadow: 0 2px 6px rgba(45,140,255,0.3);">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Entrar a la Sala Zoom
+                                </a>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
             container.innerHTML = `
-                <h2><i class="fa-solid fa-book-open"></i> Programa del Curs</h2>
+                <h2><i class="fa-solid fa-book-open"></i> Programa de la Formació</h2>
+                ${zoomCardHtml}
                 ${videoIntroHtml} 
                 <div class="module-content-text" style="margin-top:20px;">
                     ${parseStrapiRichText(state.curso.descripcio || "Descripció no disponible.")}

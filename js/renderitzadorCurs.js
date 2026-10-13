@@ -1133,7 +1133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedData = cargarRespuestasLocales('examen_final');
         const isActive = (Object.keys(savedData).length > 0) || state.testEnCurso;
         if (isActive) { state.testEnCurso = true; renderFinalQuestions(container, savedData); } 
-        else { container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2 style="color:var(--brand-blue);">🏆 Examen Final</h2><div class="exam-info-box"><p>⏱️ 30 minuts.</p><p>🎯 Nota tall: 7.5</p><p>🔄 Intents: ${finalData.intentos}/2</p></div><br><div class="btn-centered-container"><button class="btn-primary" onclick="iniciarExamenFinal()">COMENÇAR EXAMEN FINAL</button></div></div>`; }
+        else { container.innerHTML = `<div class="dashboard-card" style="text-align:center; padding: 40px;"><h2 style="color:var(--brand-blue);">🏆 Examen Final</h2><div class="exam-info-box"><p>⏱️ ${parseInt(state.curso?.temps_examen_minuts) || 30} minuts.</p><p>🎯 Nota tall: 7.5</p><p>🔄 Intents: ${finalData.intentos}/2</p></div><br><div class="btn-centered-container"><button class="btn-primary" onclick="iniciarExamenFinal()">COMENÇAR EXAMEN FINAL</button></div></div>`; }
     }
 
     window.iniciarExamenFinal = function() {
@@ -1196,7 +1196,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const gridRight = document.getElementById('quiz-grid'); 
         gridRight.className = ''; 
-        gridRight.innerHTML = `<div id="exam-timer-container"><div id="exam-timer" class="timer-box">30:00</div></div><div id="grid-inner-numbers"></div>`; 
+        const duradaInicial = parseInt(state.curso?.temps_examen_minuts) || 30;
+gridRight.innerHTML = `<div id="exam-timer-container"><div id="exam-timer" class="timer-box">${duradaInicial.toString().padStart(2, '0')}:00</div></div><div id="grid-inner-numbers"></div>`; 
         iniciarCronometro();
 
         const gridInner = document.getElementById('grid-inner-numbers');
@@ -1246,7 +1247,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function iniciarCronometro() { 
         const display = document.getElementById('exam-timer'); 
         if(!display) return; 
-        const LIMIT_MS = 30 * 60 * 1000; 
+        const minutsConfigurats = parseInt(state.curso?.temps_examen_minuts) || 30;
+        const LIMIT_MS = minutsConfigurats * 60 * 1000; 
         clearInterval(state.timerInterval); 
         state.timerInterval = setInterval(() => { 
             const now = Date.now(); 

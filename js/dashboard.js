@@ -882,8 +882,8 @@ async function loadGrades() {
                         btnCert = `
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
                                 <small style="color:#d97706; font-weight:bold;">Disponible el ${fechaStr}</small>
-                                <small style="font-size:0.7rem; color:#999; cursor:help; border-bottom: 1px dashed #ccc;" 
-                                       title="Per normativa de seguretat i permanència mínima, el diploma s'allibera 14 dies després de la matrícula o l'inici del curs.">
+                                <small style="font-size:0.75rem; color:var(--brand-blue); cursor:pointer; text-decoration:underline; display:inline-flex; align-items:center; gap:4px; margin-top:2px;" 
+                                       onclick="window.mostrarModalError('Per normativa de seguretat i compliment del temps de permanència mínima, el certificat d\\'aprofitament s\\'allibera automàticament un cop transcorreguts <strong>14 dies</strong> des de la data d\\'inici del curs o de la teva matrícula.')">
                                     <i class="fa-solid fa-circle-info"></i> Per què he d'esperar?
                                 </small>
                             </div>`;

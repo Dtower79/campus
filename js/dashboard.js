@@ -178,10 +178,11 @@ function setupDirectClicks() {
     document.getElementById('btn-notifs').onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     document.getElementById('btn-messages').onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
     
-    // Mostrem la pestanya d'Oposicions si l'usuari és professor
+    // Mostrem la pestanya d'Oposicions si l'usuari és professor global o preparador d'oposicions
     const user = JSON.parse(localStorage.getItem('user'));
     const navOpos = document.getElementById('nav-oposicions');
-    if (navOpos && user && user.es_professor === true) {
+    const tePermisOpos = user && (user.es_professor === true || user.es_professor_oposicions === true);
+    if (navOpos && tePermisOpos) {
         navOpos.style.display = 'inline-block';
     }
 
@@ -588,7 +589,8 @@ window.loadOposicions = async function() {
         const jsonCat = await resCat.json();
         const oposActives = (jsonCat.data || []).filter(c => {
             if (!c) return false;
-            if (user.es_professor === true) return true;
+            // Admin global o preparador d'oposicions poden veure el curs en mode esborrany
+            if (user.es_professor === true || user.es_professor_oposicions === true) return true;
             return c.mode_esborrany !== true;
         });
 

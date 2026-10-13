@@ -134,7 +134,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const fechaInicio = new Date(rawInicio);
             fechaInicio.setHours(0, 0, 0, 0); 
 
-            if (fechaInicio > hoy && USER.es_professor !== true) {
+            // El preparador només pot entrar abans de data si és un curs d'oposicions
+            const potSaltarData = USER.es_professor === true || (USER.es_professor_oposicions === true && state.curso?.es_oposicio === true);
+            if (fechaInicio > hoy && !potSaltarData) {
                 alert(`Aquest curs encara no ha començat. Data d'inici: ${fechaInicio.toLocaleDateString('ca-ES')}`);
                 window.location.href = 'index.html';
                 return;
@@ -367,7 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('curs-titol').innerText = state.curso.titol;
 
         let html = '';
-        if (USER.es_professor === true) {
+        const potActivarModeDocent = USER.es_professor === true || (USER.es_professor_oposicions === true && state.curso?.es_oposicio === true);
+        if (potActivarModeDocent) {
             html += `<div style="margin-bottom:15px; padding:10px; border-bottom:1px solid #eee; text-align:center; background:#fff3cd; border-radius:6px;"><label style="font-size:0.85rem; cursor:pointer; font-weight:bold; color:#856404;"><input type="checkbox" ${state.godMode ? 'checked' : ''} onchange="toggleGodMode(this)"> 🕵️ Mode Professor</label></div>`;
         }
         

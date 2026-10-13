@@ -150,6 +150,7 @@
                         <a href="#" id="nav-catalog" class="nav-link">Catàleg de Formació</a>
                         <a href="#" id="nav-profile" class="nav-link">Àrea personal</a>
                         <a href="#" id="nav-dashboard" class="nav-link active">Els meus cursos</a>
+                        <a href="#" id="nav-oposicions" class="nav-link" style="display: none;">Oposicions</a>
                     </nav>
                 </div>
         
@@ -255,6 +256,23 @@
                     </thead>
                     <tbody id="grades-table-body"></tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- VISTA EXCLUSIVA OPOSICIONS (PROGRAMA ÚNIC) -->
+        <div id="oposicions-view" class="container-dashboard" style="display: none;">
+            <div class="dashboard-card" style="border-top-color: #0284c7;">
+                <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 25px;">
+                    <h1 style="color: #0284c7; margin: 0; display: inline-flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-graduation-cap"></i> Preparació d'Oposicions
+                    </h1>
+                    <p style="color: var(--text-secondary); margin: 6px 0 0 0; font-size: 0.95rem;">
+                        Programa oficial de preparació per als processos selectius de la Generalitat de Catalunya.
+                    </p>
+                </div>
+                <div id="oposicions-content">
+                    <div class="loader"></div>
+                </div>
             </div>
         </div>
 

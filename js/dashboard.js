@@ -152,12 +152,12 @@ window.showView = function(viewName) {
     const html5Videos = document.querySelectorAll('video');
     html5Videos.forEach(video => { video.pause(); });
 
-    ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view'].forEach(id => {
+    ['catalog-view', 'dashboard-view', 'profile-view', 'grades-view', 'exam-view', 'oposicions-view'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
 
-    const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view' };
+    const map = { 'home': 'catalog-view', 'dashboard': 'dashboard-view', 'profile': 'profile-view', 'grades': 'grades-view', 'exam': 'exam-view', 'oposicions': 'oposicions-view' };
     const target = document.getElementById(map[viewName]);
     if(target) target.style.display = viewName === 'exam' ? 'flex' : 'block';
 
@@ -165,18 +165,27 @@ window.showView = function(viewName) {
     if(viewName === 'home') document.getElementById('nav-catalog')?.classList.add('active');
     if(viewName === 'dashboard') document.getElementById('nav-dashboard')?.classList.add('active');
     if(viewName === 'profile') document.getElementById('nav-profile')?.classList.add('active');
+    if(viewName === 'oposicions') document.getElementById('nav-oposicions')?.classList.add('active');
 
     if(viewName === 'dashboard') loadUserCourses();
     if(viewName === 'home') loadCatalog();
     if(viewName === 'profile') loadFullProfile();
     if(viewName === 'grades') loadGrades();
+    if(viewName === 'oposicions') loadOposicions();
 };
 
 function setupDirectClicks() {
     document.getElementById('btn-notifs').onclick = (e) => { e.stopPropagation(); abrirPanelNotificaciones(); };
     document.getElementById('btn-messages').onclick = (e) => { e.stopPropagation(); abrirPanelMensajes(); };
     
-    const navs = {'nav-catalog': 'home', 'nav-profile': 'profile', 'nav-dashboard': 'dashboard'};
+    // Mostrem la pestanya d'Oposicions si l'usuari és professor
+    const user = JSON.parse(localStorage.getItem('user'));
+    const navOpos = document.getElementById('nav-oposicions');
+    if (navOpos && user && user.es_professor === true) {
+        navOpos.style.display = 'inline-block';
+    }
+
+    const navs = {'nav-catalog': 'home', 'nav-profile': 'profile', 'nav-dashboard': 'dashboard', 'nav-oposicions': 'oposicions'};
     for(const [id, view] of Object.entries(navs)) {
         const el = document.getElementById(id);
         if(el) el.onclick = (e) => { e.preventDefault(); window.showView(view); };
@@ -551,6 +560,129 @@ window.enviarRespostaProfessor = async function(btnElement, msgId, studentId, en
 // --- CARGA DE CURSOS ---
 window.loadUserCourses = async function() { await renderCoursesLogic('dashboard'); };
 window.loadCatalog = async function() { await renderCoursesLogic('home'); };
+window.loadOposicions = async function() {
+    const container = document.getElementById('oposicions-content');
+    if (!container) return;
+    
+    const token = localStorage.getItem('jwt');
+    const user = JSON.parse(localStorage.getItem('user'));
+    container.innerHTML = '<div class="loader"></div>';
+    
+    const extractPlainText = (blocks) => {
+        if (!blocks) return "";
+        if (typeof blocks === 'string') return blocks.split('\n')[0];
+        if (Array.isArray(blocks) && blocks.length > 0) {
+            const firstBlock = blocks[0];
+            if (firstBlock.children) return firstBlock.children.map(c => c.text || "").join("").split('\n')[0];
+        }
+        return "";
+    };
+
+    try {
+        const ts = new Date().getTime();
+        
+        // 1. Busquem les oposicions actives
+        const resCat = await fetch(`${STRAPI_URL}/api/cursos?filters[es_oposicio][$eq]=true&populate=imatge&_t=${ts}`, { 
+            headers: { 'Authorization': `Bearer ${token}` } 
+        });
+        const jsonCat = await resCat.json();
+        const oposActives = (jsonCat.data || []).filter(c => {
+            if (!c) return false;
+            if (user.es_professor === true) return true;
+            return c.mode_esborrany !== true;
+        });
+
+        // 2. Comprovem si l'alumne està matriculat
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${user.id}&populate[curs][populate]=imatge&_t=${ts}`, { 
+            headers: { 'Authorization': `Bearer ${token}` } 
+        });
+        const jsonMat = await resMat.json();
+        const userMatriculas = jsonMat.data || [];
+
+        if (oposActives.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:50px 20px; color:var(--text-secondary);">
+                    <i class="fa-solid fa-graduation-cap" style="font-size:3.5rem; color:#ccc; margin-bottom:15px; display:block;"></i>
+                    <h3 style="color:var(--text-main); margin-bottom:5px;">No hi ha convocatòries actives</h3>
+                    <p style="margin:0; font-size:0.95rem;">Actualment no hi ha cap procés d'oposicions en marxa. Informarem puntualment quan s'obri el període.</p>
+                </div>`;
+            return;
+        }
+
+        // 3. Pintem la fitxa destacada del programa únic
+        const opos = oposActives[0]; // La oposició activa
+        const oposId = opos.documentId || opos.id;
+        const safeTitle = (opos.titol || '').replace(/'/g, "\\'");
+        
+        let imgUrl = 'img/logo-sicap.png';
+        if (opos.imatge) {
+            const img = Array.isArray(opos.imatge) ? opos.imatge[0] : opos.imatge;
+            if (img?.url) imgUrl = img.url.startsWith('/') ? STRAPI_URL + img.url : img.url;
+        }
+
+        const matricula = userMatriculas.find(m => {
+            if (!m || !m.curs) return false;
+            const mCursId = m.curs.documentId || m.curs.id;
+            return mCursId === oposId;
+        });
+
+        let badgeHtml = opos.mode_esborrany 
+            ? `<span class="course-badge" style="background:#6f42c1;">👁️ MODE TEST (PROFESSOR)</span>` 
+            : `<span class="course-badge" style="background:#0284c7;"><i class="fa-solid fa-bullhorn"></i> CONVOCATÒRIA OFICIAL</span>`;
+
+        let actionHtml = '';
+        if (matricula) {
+            actionHtml = `
+                <a href="index.html?slug=${opos.slug}" class="btn-primary" style="background:#0284c7 !important; width:auto; padding:14px 32px; font-size:1.05rem; display:inline-flex; align-items:center; gap:10px; border-radius:6px; font-weight:bold; box-shadow:0 4px 10px rgba(2,132,199,0.3);">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Accedir a la Preparació
+                </a>`;
+        } else {
+            actionHtml = `
+                <button class="btn-enroll" style="background:#0284c7 !important; width:auto; padding:14px 32px; font-size:1.05rem; display:inline-flex; align-items:center; gap:10px; border-radius:6px; font-weight:bold;" onclick="window.solicitarMatricula('${oposId}', '${safeTitle}')">
+                    <i class="fa-solid fa-user-plus"></i> Inscriure'm al Procés Selectiu
+                </button>`;
+        }
+
+        const descripcioNeta = extractPlainText(opos.descripcio) || "Preparació integral per al cos d'especialistes: temari complet, supòsits pràctics, classes en directe i resolució de dubtes.";
+
+        container.innerHTML = `
+            <div style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+                <div style="position:relative; width:100%; height:260px; background-image:url('${imgUrl}'); background-size:cover; background-position:center;">
+                    <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.6));"></div>
+                    <div style="position:absolute; top:20px; left:20px;">
+                        ${badgeHtml}
+                    </div>
+                </div>
+                
+                <div style="padding:35px 30px; display:flex; flex-direction:column; gap:20px;">
+                    <div>
+                        <h2 style="font-size:1.6rem; color:var(--brand-blue); margin:0 0 10px 0; line-height:1.3;">${opos.titol}</h2>
+                        <p style="font-size:1rem; color:var(--text-secondary); line-height:1.6; margin:0;">${descripcioNeta}</p>
+                    </div>
+
+                    <div style="display:flex; flex-wrap:wrap; gap:15px; padding:15px 0; border-top:1px solid var(--border-color); border-bottom:1px solid var(--border-color);">
+                        <div style="display:inline-flex; align-items:center; gap:8px; font-size:0.9rem; color:var(--text-main);">
+                            <i class="fa-solid fa-video" style="color:#0284c7;"></i> <strong>Classes per Zoom:</strong> En directe i enregistrades
+                        </div>
+                        <div style="display:inline-flex; align-items:center; gap:8px; font-size:0.9rem; color:var(--text-main); margin-left:15px;">
+                            <i class="fa-solid fa-file-pdf" style="color:var(--brand-red);"></i> <strong>Material:</strong> Temari i qüestionaris d'examen
+                        </div>
+                        <div style="display:inline-flex; align-items:center; gap:8px; font-size:0.9rem; color:var(--text-main); margin-left:15px;">
+                            <i class="fa-solid fa-user-clock" style="color:#10b981;"></i> <strong>Ritme:</strong> Accés lliure 24/7
+                        </div>
+                    </div>
+
+                    <div style="margin-top:10px;">
+                        ${actionHtml}
+                    </div>
+                </div>
+            </div>`;
+
+    } catch (e) {
+        console.error("Error carregant oposicions:", e);
+        container.innerHTML = '<p style="color:red; text-align:center;">Error carregant la informació d\'oposicions.</p>';
+    }
+};
 
 async function renderCoursesLogic(viewMode) {
     const listId = viewMode === 'dashboard' ? 'courses-list' : 'catalog-list';
@@ -599,6 +731,8 @@ async function renderCoursesLogic(viewMode) {
 
         const debeMostrarse = (curs) => {
             if (!curs) return false;
+            // AISLAR: Si es una Oposición, NO mostrar en catálogo general ni en cursos ordinarios
+            if (curs.es_oposicio === true) return false;
             if (user.es_professor === true) return true;
             return curs.mode_esborrany !== true;
         };

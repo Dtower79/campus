@@ -389,6 +389,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const openClass = isOpen ? 'open' : '';
 
             html += `<div class="sidebar-module-group ${lockedClass} ${openClass}"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span></div><div class="sidebar-sub-menu">`;
+            
+            // Si el mòdul té vídeos, afegim pestanya dedicada per a les classes
+            if (mod.videos && mod.videos.length > 0) {
+                html += renderSubLink(idx, 'videos', '🎥 Classes Enregistrades', isLocked);
+            }
+            
             html += renderSubLink(idx, 'teoria', '📖 Temari i PDF', isLocked);
             
             if ((!isLocked || state.godMode) && mod.material_pdf) {
@@ -561,7 +567,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const mod = state.curso.moduls[state.currentModuleIndex];
         if (!mod) { container.innerHTML = `<div class="alert alert-warning">Mòdul no trobat.</div>`; return; }
         
-        if (state.currentView === 'teoria') { renderTeoria(container, mod); renderSidebarTools(gridRight, mod); }
+        if (state.currentView === 'videos') {
+            const videosHtml = renderVideoPlayer(mod);
+            container.innerHTML = `
+                <h2><i class="fa-solid fa-video"></i> Classes Enregistrades</h2>
+                <p style="color:var(--text-secondary); margin-bottom:20px; font-size:0.95rem;">
+                    Enregistraments de les sessions de preparació corresponents a: <strong>${mod.titol}</strong>.
+                </p>
+                ${videosHtml}
+            `;
+            renderSidebarTools(gridRight, mod);
+        }
+        else if (state.currentView === 'teoria') { renderTeoria(container, mod); renderSidebarTools(gridRight, mod); }
         else if (state.currentView === 'flashcards') { renderFlashcards(container, mod.targetes_memoria, state.currentModuleIndex); renderSidebarTools(gridRight, mod); }
         else if (state.currentView === 'test') {
             const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
@@ -636,9 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderTeoria(container, mod) {
-        const videoHtml = renderVideoPlayer(mod);
         let html = `<h2>${mod.titol}</h2>`;
-        html += videoHtml;
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
         if (mod.material_pdf) {
             let archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];

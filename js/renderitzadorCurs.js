@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos]=true&populate[curs][populate][moduls][fields][0]=es_extra&populate[curs][populate][moduls][fields][1]=titol&populate[curs][populate][moduls][fields][2]=resum&populate[curs][populate][moduls][fields][3]=ordre&populate[curs][populate][moduls][fields][4]=preguntes_simples_limit&populate[curs][populate][moduls][fields][5]=preguntes_multiples_limit&populate[curs][populate][recursos_fitxers]=true&populate[curs][populate][glossari_fitxer]=true`;
+        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][banc_preguntes][fields][0]=nom_test&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][targetes_memoria][fields][0]=nom_grup&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos]=true&populate[curs][populate][moduls][fields][0]=es_extra&populate[curs][populate][moduls][fields][1]=titol&populate[curs][populate][moduls][fields][2]=resum&populate[curs][populate][moduls][fields][3]=ordre&populate[curs][populate][moduls][fields][4]=preguntes_simples_limit&populate[curs][populate][moduls][fields][5]=preguntes_multiples_limit&populate[curs][populate][recursos_fitxers]=true&populate[curs][populate][glossari_fitxer]=true`;
         
         const respuestaMat = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const jsonMat = await respuestaMat.json();
@@ -408,12 +408,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             }
+            // 1. GESTIONAR TARGETES DE REPÀS (Si n'hi ha)
             if (tieneFlash) {
-                const fCheck = flashDone ? '✓' : '';
-                html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);
+                const gruposFlash = [...new Set(mod.targetes_memoria.map(t => t.nom_grup || 'Principal'))];
+                if (gruposFlash.length > 1 || (gruposFlash.length === 1 && gruposFlash[0] !== 'Principal')) {
+                    // Si tenen nom_grup, pintem un sub-botó per a cada mazo
+                    gruposFlash.forEach(grup => {
+                        html += renderSubLink(idx, `flashcards_${encodeURIComponent(grup)}`, `🔄 Targetes: ${grup}`, isLocked);
+                    });
+                } else {
+                    const fCheck = flashDone ? '✓' : '';
+                    html += renderSubLink(idx, 'flashcards', `🔄 Targetes de Repàs ${fCheck}`, isLocked);
+                }
             }
-            const tCheck = testDone ? '✓' : '';
-            html += renderSubLink(idx, 'test', `📝 Test Avaluació ${tCheck}`, isLocked);
+
+            // 2. GESTIONAR TESTS D'AVALUACIÓ (Si n'hi ha)
+            const bancPreguntes = mod.banc_preguntes || [];
+            if (bancPreguntes.length > 0) {
+                const testsUnics = [...new Set(bancPreguntes.map(p => p.nom_test || 'Principal'))];
+                if (testsUnics.length > 1 || (testsUnics.length === 1 && testsUnics[0] !== 'Principal')) {
+                    // Si tenen nom_test, pintem un sub-botó independent per a cada test
+                    testsUnics.forEach(testNom => {
+                        html += renderSubLink(idx, `test_${encodeURIComponent(testNom)}`, `📝 ${testNom}`, isLocked);
+                    });
+                } else {
+                    const tCheck = testDone ? '✓' : '';
+                    html += renderSubLink(idx, 'test', `📝 Test Avaluació ${tCheck}`, isLocked);
+                }
+            }
+            
             html += `</div></div>`;
         });
 
@@ -579,19 +602,33 @@ document.addEventListener('DOMContentLoaded', () => {
             renderSidebarTools(gridRight, mod);
         }
         else if (state.currentView === 'teoria') { renderTeoria(container, mod); renderSidebarTools(gridRight, mod); }
-        else if (state.currentView === 'flashcards') { renderFlashcards(container, mod.targetes_memoria, state.currentModuleIndex); renderSidebarTools(gridRight, mod); }
-        else if (state.currentView === 'test') {
-            const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}`);
-            const hayDatosGuardados = Object.keys(savedData).length > 0;
-            const moduloAprobado = (state.progreso.modulos && state.progreso.modulos[state.currentModuleIndex]) ? state.progreso.modulos[state.currentModuleIndex].aprobado : false;
+        else if (state.currentView.startsWith('flashcards')) {
+            let subCards = mod.targetes_memoria || [];
+            if (state.currentView.includes('_')) {
+                const targetGrup = decodeURIComponent(state.currentView.split('_')[1]);
+                subCards = subCards.filter(t => (t.nom_grup || 'Principal') === targetGrup);
+            }
+            renderFlashcards(container, subCards, state.currentModuleIndex); 
+            renderSidebarTools(gridRight, mod);
+        }
+        else if (state.currentView.startsWith('test')) {
+            let subPreguntes = mod.banc_preguntes || [];
+            if (state.currentView.includes('_')) {
+                const targetTest = decodeURIComponent(state.currentView.split('_')[1]);
+                subPreguntes = subPreguntes.filter(p => (p.nom_test || 'Principal') === targetTest);
+            }
+            const modFiltrat = { ...mod, banc_preguntes: subPreguntes };
             
-            if ((state.testEnCurso || hayDatosGuardados) && !moduloAprobado) {
+            const savedData = cargarRespuestasLocales(`test_mod_${state.currentModuleIndex}_${state.currentView}`);
+            const hayDatosGuardados = Object.keys(savedData).length > 0;
+            
+            if (state.testEnCurso || hayDatosGuardados) {
                 if (gridRight) gridRight.className = 'grid-container';
                 state.respuestasTemp = savedData;
                 state.testEnCurso = true;
-                renderTestQuestions(container, mod, state.currentModuleIndex);
+                renderTestQuestions(container, modFiltrat, state.currentModuleIndex);
             } else {
-                renderTestIntro(container, mod, state.currentModuleIndex);
+                renderTestIntro(container, modFiltrat, state.currentModuleIndex);
                 renderSidebarTools(gridRight, mod);
             }
         }
@@ -1000,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (aprobado) verificarFinModulo(modIdx);
                 else if (state.progreso.modulos[modIdx].intentos < 2) crearNotificacion("Has d'estudiar una mica més 📖", `Has tret un ${nota}. Et queda 1 intent.`);
                 
-                limpiarRespuestasLocales(`test_mod_${modIdx}`); 
+                limpiarRespuestasLocales(`test_mod_${modIdx}_${state.currentView}`); 
                 state.testEnCurso = false; 
                 document.body.classList.remove('exam-active');
                 

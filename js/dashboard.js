@@ -65,6 +65,7 @@ window.appIniciada = false;
 window.sesionLeidas = new Set(); 
 
 window.iniciarApp = async function() {
+    if (window.appIniciada) return;
     window.appIniciada = true;
     const token = localStorage.getItem('jwt');
     const user = JSON.parse(localStorage.getItem('user'));
@@ -72,14 +73,12 @@ window.iniciarApp = async function() {
     if(user) {
         const safeText = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
 
-        // 1. Cargamos datos básicos inmediatos (evita ver placeholders o puntos)
         safeText('dropdown-email', user.email);
         safeText('profile-dni-display', user.username);
         safeText('dropdown-username', user.username);
         safeText('user-initials', user.username.substring(0, 2).toUpperCase());
 
         try {
-            // 2. Buscamos en la tabla afiliados usando el DNI (username) para obtener el nombre real
             const resAfi = await fetch(`${STRAPI_URL}/api/afiliados?filters[dni][$eq]=${user.username}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -88,11 +87,10 @@ window.iniciarApp = async function() {
             if (jsonAfi.data && jsonAfi.data.length > 0) {
                 const afi = jsonAfi.data[0];
                 const nombreReal = `${afi.nombre} ${afi.apellidos}`;
-                localStorage.setItem('user_fullname', nombreReal); // Guardamos para diplomas y dudas
+                localStorage.setItem('user_fullname', nombreReal);
                 
                 let initials = afi.nombre.charAt(0) + (afi.apellidos ? afi.apellidos.charAt(0) : "");
                 
-                // Actualizamos la UI con el nombre real e iniciales correctas
                 safeText('dropdown-username', nombreReal);
                 safeText('user-initials', initials.toUpperCase());
                 safeText('profile-name-display', nombreReal);
@@ -106,20 +104,14 @@ window.iniciarApp = async function() {
     setupDirectClicks();
     checkRealNotifications();
 
-    // 3. Control de redirección por Slug
     const urlParams = new URLSearchParams(window.location.search);
     const slug = urlParams.get('slug');
 
-    // --- CHIVATOS DE DEPUFRACIÓ ---
     console.log("🔍 SLUG detectat:", slug);
-    const currentUserForDebug = JSON.parse(localStorage.getItem('user'));
-    console.log("👤 Usuari actual:", currentUserForDebug);
-    // -----------------------------
 
     if (!slug) {
         window.showView('home'); 
     } else {
-        // Verificamos acceso al curso específico si hay un slug en la URL
         fetch(`${STRAPI_URL}/api/cursos?filters[slug][$eq]=${slug}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
@@ -131,16 +123,21 @@ window.iniciarApp = async function() {
             const hoy = new Date();
             const rawInicio = curs.data_inici || curs.fecha_inicio || curs.publishedAt;
             const fechaInicio = new Date(rawInicio);
-            const esFuturo = fechaInicio > hoy;
-            const esProfe = user.es_professor === true;
+            fechaInicio.setHours(0, 0, 0, 0); 
+            hoy.setHours(0, 0, 0, 0);
 
-            if (esFuturo && !esProfe) {
-                // SI ES FUTURO Y NO ES PROFE: Redirigimos al catálogo con aviso
+            // CORRECCIÓN CLAVE: Reconoce admin global o preparador DENTRO de un curso de oposiciones
+            const esAdminGlobal = user.es_professor === true;
+            const esPreparadorOpos = user.es_professor_oposicions === true && curs.es_oposicio === true;
+            const tienePrivilegiosDocentes = esAdminGlobal || esPreparadorOpos;
+
+            const esFuturo = fechaInicio > hoy;
+
+            if (esFuturo && !tienePrivilegiosDocentes) {
                 const dateStr = fechaInicio.toLocaleDateString('ca-ES');
                 window.location.href = 'index.html'; 
                 alert(`Aquest curs encara no ha començat. Data d'inici: ${dateStr}`);
             } else {
-                // SI TODO ES CORRECTO: Mostramos la vista de examen/curso
                 document.getElementById('dashboard-view').style.display = 'none';
                 document.getElementById('exam-view').style.display = 'flex';
             }

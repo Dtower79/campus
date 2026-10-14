@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0); 
-            const rawInicio = state.curso.data_inici || state.curso.fecha_inicio || state.curso.publishedAt;
+            const rawInicio = state.curso?.data_inici || state.curso?.fecha_inicio || state.curso?.publishedAt || new Date();
             const fechaInicio = new Date(rawInicio);
             fechaInicio.setHours(0, 0, 0, 0); 
 
@@ -187,7 +187,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         state.matriculaId = mat.documentId || mat.id;
         state.matriculaCreatedAt = dataM.createdAt;
-        state.curso = dataM.curs;
+        
+        // NORMALITZACIÓ ESTRAPI V5: Assegurem que state.curso recull els atributs plans o anidats
+        const rawCurs = dataM.curs;
+        if (rawCurs) {
+            state.curso = rawCurs.attributes ? rawCurs.attributes : rawCurs;
+            // Assegurem documentId o id al curs
+            state.curso.id = rawCurs.documentId || rawCurs.id || rawCurs.attributes?.documentId;
+        } else {
+            state.curso = {};
+        }
+
         if (!state.curso.moduls) state.curso.moduls = [];
         state.progreso = dataM.progres_detallat || {};
         localStorage.setItem(`sicap_last_matricula_${SLUG}`, String(state.matriculaId));

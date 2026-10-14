@@ -144,7 +144,8 @@ window.iniciarApp = async function() {
         })
         .catch(err => {
             console.error("Error validant accés:", err);
-            window.location.href = 'index.html';
+            alert("DEBUG ACCÉS FALLIT: " + err.message);
+            // window.location.href = 'index.html'; // COMENTAT PER EVITAR REBOT
         });
     }
 };

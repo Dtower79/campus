@@ -110,6 +110,12 @@ window.iniciarApp = async function() {
     const urlParams = new URLSearchParams(window.location.search);
     const slug = urlParams.get('slug');
 
+    // --- CHIVATOS DE DEPUFRACIÓ ---
+    console.log("🔍 SLUG detectat:", slug);
+    const currentUserForDebug = JSON.parse(localStorage.getItem('user'));
+    console.log("👤 Usuari actual:", currentUserForDebug);
+    // -----------------------------
+
     if (!slug) {
         window.showView('home'); 
     } else {

@@ -420,8 +420,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             html += `<div class="sidebar-module-group ${lockedClass} ${openClass}"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span></div><div class="sidebar-sub-menu">`;
             
-            // Si el mòdul té vídeos, afegim pestanya dedicada per a les classes
-            if (mod.videos && mod.videos.length > 0) {
+            // Si el mòdul té vídeos I ÉS UNA OPOSICIÓ, afegim pestanya dedicada
+            if (mod.videos && mod.videos.length > 0 && state.curso?.es_oposicio === true) {
                 html += renderSubLink(idx, 'videos', '🎥 Classes Enregistrades', isLocked);
             }
             
@@ -721,6 +721,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTeoria(container, mod) {
         let html = `<h2>${mod.titol}</h2>`;
+        
+        // Si NO és oposició, el vídeo es mostra al principi del temari com abans
+        if (state.curso?.es_oposicio !== true) {
+            html += renderVideoPlayer(mod);
+        }
+        
         if (mod.resum) html += `<div class="module-content-text">${parseStrapiRichText(mod.resum)}</div>`;
         if (mod.material_pdf) {
             let archivos = Array.isArray(mod.material_pdf) ? mod.material_pdf : [mod.material_pdf];

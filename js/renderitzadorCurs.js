@@ -172,8 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        // PAS 1: Carreguem el curs directament pel seu slug (evita l'error 400 de relacions de Strapi v5)
-        const queryCursComplet = `filters[slug][$eq]=${SLUG}&populate[moduls][populate][banc_preguntes][populate][opcions]=true&populate[moduls][populate][banc_preguntes][fields][0]=nom_test&populate[moduls][populate][material_pdf]=true&populate[moduls][populate][targetes_memoria][populate]=true&populate[moduls][populate][targetes_memoria][fields][0]=nom_grup&populate[moduls][populate][videos][populate]=true&populate[examen_final][populate][opcions]=true&populate[imatge]=true&populate[videos]=true&populate[moduls][fields][0]=es_extra&populate[moduls][fields][1]=titol&populate[moduls][fields][2]=resum&populate[moduls][fields][3]=ordre&populate[moduls][fields][4]=preguntes_simples_limit&populate[moduls][fields][5]=preguntes_multiples_limit&populate[recursos_fitxers]=true&populate[glossari_fitxer]=true`;
+        // PAS 1: Carreguem el curs directament pel seu slug amb una query neta per a Strapi v5
+        const queryCursComplet = `filters[slug][$eq]=${SLUG}&populate[moduls][populate][banc_preguntes][populate][opcions]=true&populate[moduls][populate][material_pdf]=true&populate[moduls][populate][targetes_memoria][populate]=true&populate[moduls][populate][videos][populate]=true&populate[examen_final][populate][opcions]=true&populate[imatge]=true&populate[videos]=true&populate[moduls][fields][0]=es_extra&populate[moduls][fields][1]=titol&populate[moduls][fields][2]=resum&populate[moduls][fields][3]=ordre&populate[moduls][fields][4]=preguntes_simples_limit&populate[moduls][fields][5]=preguntes_multiples_limit&populate[recursos_fitxers]=true&populate[glossari_fitxer]=true`;
         
         const resCurs = await fetch(`${STRAPI_URL}/api/cursos?${queryCursComplet}`, { 
             headers: { 'Authorization': `Bearer ${TOKEN}` } 

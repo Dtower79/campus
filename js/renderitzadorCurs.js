@@ -177,9 +177,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const respuestaMat = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
         const jsonMat = await respuestaMat.json();
 
+        // VALIDACIÓ CRÍTICA: Si l'usuari no està matriculat en aquest curs, el rebotem al dashboard
         if (!jsonMat.data || jsonMat.data.length === 0) {
+            console.warn("⚠️ Intenti d'accés a un curs sense matrícula prèvia.");
             window.location.href = 'index.html'; 
-            return;
+            throw new Error("Usuari no matriculat en aquest curs.");
         }
         
         const mat = jsonMat.data[0];

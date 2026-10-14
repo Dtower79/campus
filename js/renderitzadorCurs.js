@@ -172,37 +172,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        const query = `filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][slug][$eq]=${SLUG}&populate[curs][populate][moduls][populate][banc_preguntes][populate][opcions]=true&populate[curs][populate][moduls][populate][banc_preguntes][fields][0]=nom_test&populate[curs][populate][moduls][populate][material_pdf]=true&populate[curs][populate][moduls][populate][targetes_memoria]=true&populate[curs][populate][moduls][populate][targetes_memoria][fields][0]=nom_grup&populate[curs][populate][moduls][populate][videos][populate]=true&populate[curs][populate][examen_final][populate][opcions]=true&populate[curs][populate][imatge]=true&populate[curs][populate][videos]=true&populate[curs][populate][moduls][fields][0]=es_extra&populate[curs][populate][moduls][fields][1]=titol&populate[curs][populate][moduls][fields][2]=resum&populate[curs][populate][moduls][fields][3]=ordre&populate[curs][populate][moduls][fields][4]=preguntes_simples_limit&populate[curs][populate][moduls][fields][5]=preguntes_multiples_limit&populate[curs][populate][recursos_fitxers]=true&populate[curs][populate][glossari_fitxer]=true`;
+        // PAS 1: Carreguem el curs directament pel seu slug (evita l'error 400 de relacions de Strapi v5)
+        const queryCursComplet = `filters[slug][$eq]=${SLUG}&populate[moduls][populate][banc_preguntes][populate][opcions]=true&populate[moduls][populate][banc_preguntes][fields][0]=nom_test&populate[moduls][populate][material_pdf]=true&populate[moduls][populate][targetes_memoria][populate]=true&populate[moduls][populate][targetes_memoria][fields][0]=nom_grup&populate[moduls][populate][videos][populate]=true&populate[examen_final][populate][opcions]=true&populate[imatge]=true&populate[videos]=true&populate[moduls][fields][0]=es_extra&populate[moduls][fields][1]=titol&populate[moduls][fields][2]=resum&populate[moduls][fields][3]=ordre&populate[moduls][fields][4]=preguntes_simples_limit&populate[moduls][fields][5]=preguntes_multiples_limit&populate[recursos_fitxers]=true&populate[glossari_fitxer]=true`;
         
-        const respuestaMat = await fetch(`${STRAPI_URL}/api/matriculas?${query}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
-        const jsonMat = await respuestaMat.json();
+        const resCurs = await fetch(`${STRAPI_URL}/api/cursos?${queryCursComplet}`, { 
+            headers: { 'Authorization': `Bearer ${TOKEN}` } 
+        });
+        const jsonCurs = await resCurs.json();
 
-        // VALIDACIÓ CRÍTICA: Si l'usuari no està matriculat en aquest curs, el rebotem al dashboard
-        if (!jsonMat.data || jsonMat.data.length === 0) {
-            console.warn("⚠️ Intenti d'accés a un curs sense matrícula prèvia.");
+        if (!jsonCurs.data || jsonCurs.data.length === 0) {
             window.location.href = 'index.html'; 
-            throw new Error("Usuari no matriculat en aquest curs.");
-        }
-        
-        const mat = jsonMat.data[0];
-        const dataM = mat.attributes ? mat.attributes : mat;
-
-        state.matriculaId = mat.documentId || mat.id;
-        state.matriculaCreatedAt = dataM.createdAt;
-        
-        // NORMALITZACIÓ ESTRAPI V5: Assegurem que state.curso recull els atributs plans o anidats
-        const rawCurs = dataM.curs;
-        if (rawCurs) {
-            state.curso = rawCurs.attributes ? rawCurs.attributes : rawCurs;
-            // Assegurem documentId o id al curs
-            state.curso.id = rawCurs.documentId || rawCurs.id || rawCurs.attributes?.documentId;
-        } else {
-            state.curso = {};
+            return;
         }
 
+        const cursoData = jsonCurs.data[0];
+        state.curso = cursoData.attributes ? cursoData.attributes : cursoData;
+        const cursoId = cursoData.documentId || cursoData.id || cursoData.attributes?.documentId;
+        state.curso.id = cursoId;
         if (!state.curso.moduls) state.curso.moduls = [];
-        state.progreso = dataM.progres_detallat || {};
-        localStorage.setItem(`sicap_last_matricula_${SLUG}`, String(state.matriculaId));
+
+        // PAS 2: Busquem si l'usuari té matrícula per a aquest curs de manera independent
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][documentId][$eq]=${cursoId}`, { 
+            headers: { 'Authorization': `Bearer ${TOKEN}` } 
+        });
+        const jsonMat = await resMat.json();
+
+        if (jsonMat.data && jsonMat.data.length === 0) {
+            // Intent secundari cercant per ID numèric si el documentId no coincideix
+            const resMatAlt = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][id][$eq]=${cursoId}`, { 
+                headers: { 'Authorization': `Bearer ${TOKEN}` } 
+            });
+            const jsonMatAlt = await resMatAlt.json();
+            if (jsonMatAlt.data && jsonMatAlt.data.length > 0) {
+                jsonMat.data = jsonMatAlt.data;
+            }
+        }
+
+        if (jsonMat.data && jsonMat.data.length > 0) {
+            const mat = jsonMat.data[0];
+            const dataM = mat.attributes ? mat.attributes : mat;
+            state.matriculaId = mat.documentId || mat.id;
+            state.matriculaCreatedAt = dataM.createdAt;
+            state.progreso = dataM.progres_detallat || {};
+            localStorage.setItem(`sicap_last_matricula_${SLUG}`, String(state.matriculaId));
+        } else {
+            // Si no té matrícula (per exemple, un administrador o professor provant el curs en borrador)
+            state.matriculaId = "temp_" + Date.now();
+            state.matriculaCreatedAt = new Date().toISOString();
+            state.progreso = { modulos: [], examen_final: { aprobado: false, nota: 0, intentos: 0 } };
+        }
     }
 
     async function inicializarProgresoEnStrapi() {

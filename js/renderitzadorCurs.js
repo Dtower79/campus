@@ -1050,13 +1050,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.progreso.modulos[modIdx].nota = Math.max(parseFloat(state.progreso.modulos[modIdx].nota) || 0, nota); 
                 if (aprobado) state.progreso.modulos[modIdx].aprobado = true;
                 
+                const registreRespostes = preguntas.map((preg, idx) => {
+                    const qId = `q-${idx}`;
+                    const userRes = state.respuestasTemp[qId];
+                    let marcades = [];
+                    if (preg.es_multiresposta) {
+                        const userArr = userRes || [];
+                        marcades = userArr.map(i => preg.opcions[i].text);
+                    } else {
+                        if (userRes !== undefined && preg.opcions[userRes]) {
+                            marcades.push(preg.opcions[userRes].text);
+                        }
+                    }
+                    return { id: preg.id || preg.documentId || preg.text, marcades: marcades };
+                });
+
                 if (!state.progreso.modulos[modIdx].historial) {
                     state.progreso.modulos[modIdx].historial = [];
                 }
                 state.progreso.modulos[modIdx].historial.push({
                     intento: state.progreso.modulos[modIdx].intentos,
                     nota: nota,
-                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h'
+                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h',
+                    respostes_alumne: registreRespostes
                 });
                 
                 // FIX CRÍTIC: Guardem utilitzant la funció centralitzada per recalcular el % de la barra de progrés
@@ -1148,6 +1164,101 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 10. REVISIÓN POSTERIOR LIMPIA (MODO ESTUDIO)
     window.revisarTest = function(modIdx) {
+        const mod = state.curso.moduls[modIdx];
+        const modProg = state.progreso.modulos[modIdx];
+        const historial = modProg ? modProg.historial : null;
+        const ultimoIntento = (historial && historial.length > 0) ? historial[historial.length - 1] : null;
+        
+        const todasLasPreguntas = mod.banc_preguntes || [];
+        if (todasLasPreguntas.length === 0) { console.warn("No preguntes."); return; }
+        
+        let preguntasParaRenderizar = [];
+        let mapaMarcades = {};
+        let esCajaLigera = false;
+        
+        if (ultimoIntento && ultimoIntento.respostes_alumne) {
+            esCajaLigera = true;
+            ultimoIntento.respostes_alumne.forEach(r => { mapaMarcades[r.id] = r.marcades || []; });
+            
+            // Reconstruïm l'examen amb l'ordre exacte de les preguntes que li van tocar
+            preguntasParaRenderizar = ultimoIntento.respostes_alumne.map(r => {
+                return todasLasPreguntas.find(p => (p.id || p.documentId || p.text) === r.id);
+            }).filter(p => p !== undefined);
+        } else {
+            preguntasParaRenderizar = todasLasPreguntas;
+        }
+
+        const container = document.getElementById('moduls-container');
+        const gridRight = document.getElementById('quiz-grid'); 
+        if (gridRight) {
+            gridRight.className = 'grid-container'; 
+            gridRight.innerHTML = ''; 
+            preguntasParaRenderizar.forEach((p, i) => { 
+                const div = document.createElement('div'); 
+                div.className = 'grid-item'; 
+                div.innerText = i + 1; 
+                
+                if (esCajaLigera) {
+                    const pId = p.id || p.documentId || p.text;
+                    const marcades = mapaMarcades[pId] || [];
+                    const correctas = p.opcions.filter(o => o.esCorrecta || o.correct || o.isCorrect).map(o => o.text);
+                    
+                    let esCorrecta = false;
+                    if (p.es_multiresposta) {
+                        esCorrecta = (marcades.length === correctas.length) && marcades.every(val => correctas.includes(val));
+                    } else {
+                        esCorrecta = marcades.length > 0 && correctas.includes(marcades[0]);
+                    }
+                    div.style.backgroundColor = esCorrecta ? '#28a745' : '#dc3545';
+                    div.style.color = 'white';
+                } else {
+                    div.classList.add('answered');
+                }
+                
+                div.onclick = () => { const card = document.getElementById(`review-card-${i}`); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; 
+                gridRight.appendChild(div); 
+            });
+        }
+        
+        let html = esCajaLigera
+            ? `<h3>Revisió de Test (Intent ${ultimoIntento.intento})</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Estàs veient les teves respostes i els teus errors d'aquest intent.</div>`
+            : `<h3>Revisió (Mode Estudi)</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Aquí pots veure les preguntes del banc amb les respostes correctes per repassar.</div>`;
+        
+        preguntasParaRenderizar.forEach((preg, idx) => {
+            const pId = preg.id || preg.documentId || preg.text;
+            const marcades = esCajaLigera ? (mapaMarcades[pId] || []) : [];
+            const isMulti = preg.es_multiresposta === true;
+            const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
+            const inputType = isMulti ? 'checkbox' : 'radio';
+            
+            html += `<div class="question-card review-mode" id="review-card-${idx}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            
+            preg.opcions.forEach((opt) => {
+                let classes = 'option-item '; 
+                const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                let isSelected = false;
+                
+                if (esCajaLigera) {
+                    isSelected = marcades.includes(opt.text);
+                } else {
+                    isSelected = isCorrect;
+                }
+                
+                if (isCorrect) classes += 'correct-answer '; 
+                if (isSelected) {
+                    classes += 'selected ';
+                    if (esCajaLigera && !isCorrect) classes += 'user-wrong ';
+                }
+                
+                const checked = isSelected ? 'checked' : '';
+                html += `<div class="${classes}"><input type="${inputType}" disabled ${checked}><span>${opt.text}</span></div>`;
+            });
+            if (preg.explicacio) html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
+            html += `</div></div>`;
+        });
+        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(${modIdx}, 'test')">Tornar</button></div>`;
+        container.innerHTML = html; window.scrollTo(0,0);
+    };
         const mod = state.curso.moduls[modIdx];
         const todasLasPreguntas = mod.banc_preguntes || [];
         if (todasLasPreguntas.length === 0) { console.warn("No preguntes."); return; }
@@ -1429,13 +1540,29 @@ gridRight.innerHTML = `<div id="exam-timer-container"><div id="exam-timer" class
                 state.progreso.examen_final.nota = Math.max(parseFloat(state.progreso.examen_final.nota) || 0, nota); 
                 if (aprobado) state.progreso.examen_final.aprobado = true;
                 
+                const registreRespostes = preguntas.map((preg, idx) => {
+                    const qId = `final-${idx}`;
+                    const userRes = state.respuestasTemp[qId];
+                    let marcades = [];
+                    if (preg.es_multiresposta) {
+                        const userArr = userRes || [];
+                        marcades = userArr.map(i => preg.opcions[i].text);
+                    } else {
+                        if (userRes !== undefined && preg.opcions[userRes]) {
+                            marcades.push(preg.opcions[userRes].text);
+                        }
+                    }
+                    return { id: preg.id || preg.documentId || preg.text, marcades: marcades };
+                });
+
                 if (!state.progreso.examen_final.historial) {
                     state.progreso.examen_final.historial = [];
                 }
                 state.progreso.examen_final.historial.push({
                     intento: state.progreso.examen_final.intentos,
                     nota: nota,
-                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h'
+                    data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h',
+                    respostes_alumne: registreRespostes
                 });
 
                 let porcentaje = state.progreso.progres || 0;
@@ -1494,34 +1621,97 @@ gridRight.innerHTML = `<div id="exam-timer-container"><div id="exam-timer" class
 
     // REVISIÓN EXAMEN FINAL LIMPIA (MODO ESTUDIO)
     window.revisarExamenFinal = function() {
+        const finalProg = state.progreso.examen_final;
+        const historial = finalProg ? finalProg.historial : null;
+        const ultimoIntento = (historial && historial.length > 0) ? historial[historial.length - 1] : null;
+
+        const todasLasPreguntas = state.curso.examen_final || [];
+        if (todasLasPreguntas.length === 0) { alert("No s'han trobat preguntes."); return; }
         const container = document.getElementById('moduls-container');
-        const preguntas = state.curso.examen_final || [];
-        if (preguntas.length === 0) { alert("No s'han trobat preguntes."); return; }
-        
+
+        let preguntasParaRenderizar = [];
+        let mapaMarcades = {};
+        let esCajaLigera = false;
+
+        if (ultimoIntento && ultimoIntento.respostes_alumne) {
+            esCajaLigera = true;
+            ultimoIntento.respostes_alumne.forEach(r => { mapaMarcades[r.id] = r.marcades || []; });
+            
+            preguntasParaRenderizar = ultimoIntento.respostes_alumne.map(r => {
+                return todasLasPreguntas.find(p => (p.id || p.documentId || p.text) === r.id);
+            }).filter(p => p !== undefined);
+        } else {
+            preguntasParaRenderizar = todasLasPreguntas;
+        }
+
         const gridRight = document.getElementById('quiz-grid'); 
         if (gridRight) {
             gridRight.className = 'grid-container'; 
             gridRight.innerHTML = ''; 
-            preguntas.forEach((p, i) => { 
-                const div = document.createElement('div'); div.className = 'grid-item answered'; div.innerText = i + 1; 
+            preguntasParaRenderizar.forEach((p, i) => { 
+                const div = document.createElement('div'); 
+                div.className = 'grid-item'; 
+                div.innerText = i + 1; 
+                
+                if (esCajaLigera) {
+                    const pId = p.id || p.documentId || p.text;
+                    const marcades = mapaMarcades[pId] || [];
+                    const correctas = p.opcions.filter(o => o.esCorrecta || o.correct || o.isCorrect).map(o => o.text);
+                    
+                    let esCorrecta = false;
+                    if (p.es_multiresposta) {
+                        esCorrecta = (marcades.length === correctas.length) && marcades.every(val => correctas.includes(val));
+                    } else {
+                        esCorrecta = marcades.length > 0 && correctas.includes(marcades[0]);
+                    }
+                    div.style.backgroundColor = esCorrecta ? '#28a745' : '#dc3545';
+                    div.style.color = 'white';
+                } else {
+                    div.classList.add('answered');
+                }
+                
                 div.onclick = () => { const card = document.getElementById(`review-card-final-${i}`); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; 
                 gridRight.appendChild(div); 
             });
         }
-        let html = `<h3>Revisió Examen Final</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Mode lectura per repassar les respostes correctes.</div>`;
-        preguntas.forEach((preg, idx) => {
+        
+        let html = esCajaLigera
+            ? `<h3>Revisió de l'Examen Final (Intent ${ultimoIntento.intento})</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Estàs veient les teves respostes i els teus errors d'aquest intent.</div>`
+            : `<h3>Revisió Examen Final</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Mode lectura per repassar les respostes correctes.</div>`;
+            
+        preguntasParaRenderizar.forEach((preg, idx) => {
+            const pId = preg.id || preg.documentId || preg.text;
+            const marcades = esCajaLigera ? (mapaMarcades[pId] || []) : [];
             const isMulti = preg.es_multiresposta === true;
             const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
             const inputType = isMulti ? 'checkbox' : 'radio';
+            
             html += `<div class="question-card review-mode" id="review-card-final-${idx}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
+            
             preg.opcions.forEach((opt) => {
-                let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
-                if (isCorrect) classes += 'correct-answer selected '; 
-                html += `<div class="${classes}"><input type="${inputType}" disabled ${isCorrect ? 'checked' : ''}><span>${opt.text}</span></div>`;
+                let classes = 'option-item '; 
+                const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
+                let isSelected = false;
+                
+                if (esCajaLigera) {
+                    isSelected = marcades.includes(opt.text);
+                } else {
+                    isSelected = isCorrect;
+                }
+                
+                if (isCorrect) classes += 'correct-answer '; 
+                if (isSelected) {
+                    classes += 'selected ';
+                    if (esCajaLigera && !isCorrect) classes += 'user-wrong ';
+                }
+                
+                const checked = isSelected ? 'checked' : '';
+                html += `<div class="${classes}"><input type="${inputType}" disabled ${checked}><span>${opt.text}</span></div>`;
             });
             if (preg.explicacio) html += `<div class="explanation-box"><strong>Explicació:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
             html += `</div></div>`;
         });
+        
         html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(999, 'examen_final')">Tornar</button></div>`;
         container.innerHTML = html; window.scrollTo(0,0);
     };

@@ -172,15 +172,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        // PAS 1: Carreguem el curs directament pel seu slug amb una query neta per a Strapi v5
-        const queryCursComplet = `filters[slug][$eq]=${SLUG}&populate[moduls][populate][banc_preguntes][populate][opcions]=true&populate[moduls][populate][material_pdf]=true&populate[moduls][populate][targetes_memoria][populate]=true&populate[moduls][populate][videos][populate]=true&populate[examen_final][populate][opcions]=true&populate[imatge]=true&populate[videos]=true&populate[moduls][fields][0]=es_extra&populate[moduls][fields][1]=titol&populate[moduls][fields][2]=resum&populate[moduls][fields][3]=ordre&populate[moduls][fields][4]=preguntes_simples_limit&populate[moduls][fields][5]=preguntes_multiples_limit&populate[recursos_fitxers]=true&populate[glossari_fitxer]=true`;
+        // PAS 1: Carreguem el curs directament pel slug de manera neta (query compatible amb Strapi v5)
+        const queryCursComplet = `filters[slug][$eq]=${SLUG}&populate[moduls][populate][banc_preguntes][populate]=opcions&populate[moduls][populate]=material_pdf&populate[moduls][populate]=targetes_memoria&populate[moduls][populate]=videos&populate[examen_final][populate]=opcions&populate=imatge&populate=recursos_fitxers&populate=glossari_fitxer`;
         
         const resCurs = await fetch(`${STRAPI_URL}/api/cursos?${queryCursComplet}`, { 
             headers: { 'Authorization': `Bearer ${TOKEN}` } 
         });
+        
+        if (!resCurs.ok) {
+            console.error("Error resposta cursos Strapi:", resCurs.status);
+            window.location.href = 'index.html';
+            return;
+        }
+
         const jsonCurs = await resCurs.json();
 
         if (!jsonCurs.data || jsonCurs.data.length === 0) {
+            console.warn("Curs no trobat a la base de dades.");
             window.location.href = 'index.html'; 
             return;
         }
@@ -191,32 +199,34 @@ document.addEventListener('DOMContentLoaded', () => {
         state.curso.id = cursoId;
         if (!state.curso.moduls) state.curso.moduls = [];
 
-        // PAS 2: Busquem si l'usuari té matrícula per a aquest curs de manera independent
-        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][documentId][$eq]=${cursoId}`, { 
+        // PAS 2: Busquem les matrícules de l'usuari i filtrem per JS (evita l'error 400 de relacions a Strapi v5)
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${USER.id}&populate=curs`, { 
             headers: { 'Authorization': `Bearer ${TOKEN}` } 
         });
-        const jsonMat = await resMat.json();
-
-        if (jsonMat.data && jsonMat.data.length === 0) {
-            // Intent secundari cercant per ID numèric si el documentId no coincideix
-            const resMatAlt = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${USER.id}&filters[curs][id][$eq]=${cursoId}`, { 
-                headers: { 'Authorization': `Bearer ${TOKEN}` } 
-            });
-            const jsonMatAlt = await resMatAlt.json();
-            if (jsonMatAlt.data && jsonMatAlt.data.length > 0) {
-                jsonMat.data = jsonMatAlt.data;
-            }
+        
+        let userMatriculas = [];
+        if (resMat.ok) {
+            const jsonMat = await resMat.json();
+            userMatriculas = jsonMat.data || [];
         }
 
-        if (jsonMat.data && jsonMat.data.length > 0) {
-            const mat = jsonMat.data[0];
+        // Busquem la matrícula d'aquest curs concret de manera segura
+        const mat = userMatriculas.find(m => {
+            const dataM = m.attributes ? m.attributes : m;
+            const cursRel = dataM.curs?.data ? dataM.curs.data : dataM.curs;
+            if (!cursRel) return false;
+            const mCursId = cursRel.documentId || cursRel.id || cursRel.attributes?.documentId;
+            return mCursId && (mCursId === cursoId || String(mCursId) === String(cursoId));
+        });
+
+        if (mat) {
             const dataM = mat.attributes ? mat.attributes : mat;
             state.matriculaId = mat.documentId || mat.id;
             state.matriculaCreatedAt = dataM.createdAt;
             state.progreso = dataM.progres_detallat || {};
             localStorage.setItem(`sicap_last_matricula_${SLUG}`, String(state.matriculaId));
         } else {
-            // Si no té matrícula (per exemple, un administrador o professor provant el curs en borrador)
+            // Si no té matrícula (per exemple, professor/admin provant en mode esborrany)
             state.matriculaId = "temp_" + Date.now();
             state.matriculaCreatedAt = new Date().toISOString();
             state.progreso = { modulos: [], examen_final: { aprobado: false, nota: 0, intentos: 0 } };
@@ -1252,41 +1262,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const checked = isSelected ? 'checked' : '';
                 html += `<div class="${classes}"><input type="${inputType}" disabled ${checked}><span>${opt.text}</span></div>`;
-            });
-            if (preg.explicacio) html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
-            html += `</div></div>`;
-        });
-        html += `<div class="btn-centered-container"><button class="btn-primary" onclick="window.cambiarVista(${modIdx}, 'test')">Tornar</button></div>`;
-        container.innerHTML = html; window.scrollTo(0,0);
-    };
-        const mod = state.curso.moduls[modIdx];
-        const todasLasPreguntas = mod.banc_preguntes || [];
-        if (todasLasPreguntas.length === 0) { console.warn("No preguntes."); return; }
-        const container = document.getElementById('moduls-container');
-        
-        const gridRight = document.getElementById('quiz-grid'); 
-        if (gridRight) {
-            gridRight.className = 'grid-container'; 
-            gridRight.innerHTML = ''; 
-            todasLasPreguntas.forEach((p, i) => { 
-                const div = document.createElement('div'); 
-                div.className = 'grid-item answered'; 
-                div.innerText = i + 1; 
-                div.onclick = () => { const card = document.getElementById(`review-card-${i}`); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; 
-                gridRight.appendChild(div); 
-            });
-        }
-        
-        let html = `<h3>Revisió (Mode Estudi)</h3><div class="alert-info" style="margin-bottom:20px; background:#e8f0fe; padding:15px; border-radius:6px; color:#0d47a1;"><i class="fa-solid fa-eye"></i> Aquí pots veure les preguntes del banc amb les respostes correctes per repassar.</div>`;
-        todasLasPreguntas.forEach((preg, idx) => {
-            const isMulti = preg.es_multiresposta === true;
-            const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
-            const inputType = isMulti ? 'checkbox' : 'radio';
-            html += `<div class="question-card review-mode" id="review-card-${idx}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
-            preg.opcions.forEach((opt) => {
-                let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
-                if (isCorrect) classes += 'correct-answer selected ';
-                html += `<div class="${classes}"><input type="${inputType}" disabled ${isCorrect ? 'checked' : ''}><span>${opt.text}</span></div>`;
             });
             if (preg.explicacio) html += `<div class="explanation-box"><strong>Info:</strong><br>${parseStrapiRichText(preg.explicacio)}</div>`;
             html += `</div></div>`;

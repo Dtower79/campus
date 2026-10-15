@@ -134,7 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const fechaInicio = new Date(rawInicio);
             fechaInicio.setHours(0, 0, 0, 0); 
 
-            // El preparador només pot entrar abans de data si és un curs d'oposicions
             const potSaltarData = USER.es_professor === true || (USER.es_professor_oposicions === true && state.curso?.es_oposicio === true);
             if (fechaInicio > hoy && !potSaltarData) {
                 alert(`Aquest curs encara no ha començat. Data d'inici: ${fechaInicio.toLocaleDateString('ca-ES')}`);
@@ -172,24 +171,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarDatos() {
-        // PAS 1: Carreguem el curs directament pel slug de manera neta (query compatible amb Strapi v5)
-        const queryCursComplet = `filters[slug][$eq]=${SLUG}&populate[moduls][populate][banc_preguntes][populate]=opcions&populate[moduls][populate]=material_pdf&populate[moduls][populate]=targetes_memoria&populate[moduls][populate]=videos&populate[examen_final][populate]=opcions&populate=imatge&populate=recursos_fitxers&populate=glossari_fitxer`;
+        // Query neta, estable i 100% compatible amb Strapi v5 (sense camps inventats)
+        const queryCurs = `filters[slug][$eq]=${SLUG}&populate[moduls][populate][banc_preguntes][populate]=opcions&populate[moduls][populate]=material_pdf&populate[moduls][populate]=targetes_memoria&populate[moduls][populate]=videos&populate[examen_final][populate]=opcions&populate[imatge]=true&populate[recursos_fitxers]=true`;
         
-        const resCurs = await fetch(`${STRAPI_URL}/api/cursos?${queryCursComplet}`, { 
-            headers: { 'Authorization': `Bearer ${TOKEN}` } 
+        const resCurs = await fetch(`${STRAPI_URL}/api/cursos?${queryCurs}`, {
+            headers: { 'Authorization': `Bearer ${TOKEN}` }
         });
         
         if (!resCurs.ok) {
-            console.error("Error resposta cursos Strapi:", resCurs.status);
+            console.error("Error al carregar curs:", resCurs.status);
             window.location.href = 'index.html';
             return;
         }
 
         const jsonCurs = await resCurs.json();
-
         if (!jsonCurs.data || jsonCurs.data.length === 0) {
-            console.warn("Curs no trobat a la base de dades.");
-            window.location.href = 'index.html'; 
+            window.location.href = 'index.html';
             return;
         }
 
@@ -199,24 +196,23 @@ document.addEventListener('DOMContentLoaded', () => {
         state.curso.id = cursoId;
         if (!state.curso.moduls) state.curso.moduls = [];
 
-        // PAS 2: Busquem les matrícules de l'usuari i filtrem per JS (evita l'error 400 de relacions a Strapi v5)
-        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${USER.id}&populate=curs`, { 
-            headers: { 'Authorization': `Bearer ${TOKEN}` } 
+        // Busquem les matrícules de l'usuari
+        const resMat = await fetch(`${STRAPI_URL}/api/matriculas?filters[users_permissions_user][id][$eq]=${USER.id}&populate=curs`, {
+            headers: { 'Authorization': `Bearer ${TOKEN}` }
         });
-        
+
         let userMatriculas = [];
         if (resMat.ok) {
             const jsonMat = await resMat.json();
             userMatriculas = jsonMat.data || [];
         }
 
-        // Busquem la matrícula d'aquest curs concret de manera segura
         const mat = userMatriculas.find(m => {
             const dataM = m.attributes ? m.attributes : m;
             const cursRel = dataM.curs?.data ? dataM.curs.data : dataM.curs;
             if (!cursRel) return false;
             const mCursId = cursRel.documentId || cursRel.id || cursRel.attributes?.documentId;
-            return mCursId && (mCursId === cursoId || String(mCursId) === String(cursoId));
+            return mCursId && (String(mCursId) === String(cursoId));
         });
 
         if (mat) {
@@ -226,7 +222,6 @@ document.addEventListener('DOMContentLoaded', () => {
             state.progreso = dataM.progres_detallat || {};
             localStorage.setItem(`sicap_last_matricula_${SLUG}`, String(state.matriculaId));
         } else {
-            // Si no té matrícula (per exemple, professor/admin provant en mode esborrany)
             state.matriculaId = "temp_" + Date.now();
             state.matriculaCreatedAt = new Date().toISOString();
             state.progreso = { modulos: [], examen_final: { aprobado: false, nota: 0, intentos: 0 } };
@@ -430,7 +425,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             html += `<div class="sidebar-module-group ${lockedClass} ${openClass}"><div class="sidebar-module-title" onclick="toggleAccordion(this)"><span><i class="fa-regular fa-folder-open"></i> ${mod.titol} ${check}</span></div><div class="sidebar-sub-menu">`;
             
-            // Si el mòdul té vídeos I ÉS UNA OPOSICIÓ, afegim pestanya dedicada
             if (mod.videos && mod.videos.length > 0 && state.curso?.es_oposicio === true) {
                 html += renderSubLink(idx, 'videos', '🎥 Classes Enregistrades', isLocked);
             }
@@ -448,11 +442,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             }
-            // 1. GESTIONAR TARGETES DE REPÀS (Si n'hi ha)
+
             if (tieneFlash) {
                 const gruposFlash = [...new Set(mod.targetes_memoria.map(t => t.nom_grup || 'Principal'))];
                 if (gruposFlash.length > 1 || (gruposFlash.length === 1 && gruposFlash[0] !== 'Principal')) {
-                    // Si tenen nom_grup, pintem un sub-botó per a cada mazo
                     gruposFlash.forEach(grup => {
                         html += renderSubLink(idx, `flashcards_${encodeURIComponent(grup)}`, `🔄 Targetes: ${grup}`, isLocked);
                     });
@@ -462,12 +455,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // 2. GESTIONAR TESTS D'AVALUACIÓ (Si n'hi ha)
             const bancPreguntes = mod.banc_preguntes || [];
             if (bancPreguntes.length > 0) {
                 const testsUnics = [...new Set(bancPreguntes.map(p => p.nom_test || 'Principal'))];
                 if (testsUnics.length > 1 || (testsUnics.length === 1 && testsUnics[0] !== 'Principal')) {
-                    // Si tenen nom_test, pintem un sub-botó independent per a cada test
                     testsUnics.forEach(testNom => {
                         html += renderSubLink(idx, `test_${encodeURIComponent(testNom)}`, `📝 ${testNom}`, isLocked);
                     });
@@ -525,7 +516,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.currentView === 'intro') { 
             const videoIntroHtml = renderVideoPlayer(state.curso); 
             
-            // BANNER DINÀMIC D'AULA VIRTUAL ZOOM (NOMÉS PER A OPOSICIONS)
             let zoomCardHtml = '';
             if (state.curso.es_oposicio && state.curso.enllac_zoom) {
                 const horari = state.curso.horari_zoom || 'A concretar per secretaria';
@@ -562,27 +552,27 @@ document.addEventListener('DOMContentLoaded', () => {
             return; 
         }
 
-        // --- VISTA 1: DESCARGA DEL GLOSARIO EN PDF ---
         if (state.currentView === 'glossary') { 
             let glossariHtml = '<p style="color:#666;">No hi ha cap document de glossari disponible per a aquest curs.</p>';
             
-            const fitxer = state.curso.glossari_fitxer;
-            if (fitxer && fitxer.url) {
-                const pdfUrl = fitxer.url.startsWith('/') ? STRAPI_URL + fitxer.url : fitxer.url;
-                const nomFitxer = fitxer.name || 'Glossari de Termes.pdf';
-                const mida = fitxer.size ? `(${(fitxer.size / 1024).toFixed(2)} MB)` : '';
+            if (state.curso.recursos_fitxers) {
+                let fitxers = Array.isArray(state.curso.recursos_fitxers) ? state.curso.recursos_fitxers : [state.curso.recursos_fitxers];
+                let glossariPdf = fitxers.find(f => f.name && f.name.toLowerCase().includes('glossari'));
                 
-                glossariHtml = `
-                    <div class="materials-section" style="border-left: 4px solid var(--brand-blue); background: var(--bg-card); padding: 25px; border-radius: 8px;">
-                        <h3 style="margin-top:0; color:var(--brand-blue);"><i class="fa-solid fa-book-bookmark"></i> Document de Consulta Oficial</h3>
-                        <p style="color:var(--text-secondary); margin-bottom: 20px; font-size: 0.95rem;">
-                            Pots descarregar el glossari complet en format PDF per consultar les definicions i conceptes clau durant el curs o per imprimir-lo.
-                        </p>
-                        <a href="${pdfUrl}" target="_blank" class="btn-pdf" style="display:inline-flex; width:auto; padding: 12px 20px; font-size: 1rem;">
-                            <i class="fa-solid fa-file-pdf" style="color:var(--brand-red); font-size:1.4rem;"></i> 
-                            <span>Descarregar ${nomFitxer} <small style="color:#888;">${mida}</small></span>
-                        </a>
-                    </div>`;
+                if (glossariPdf) {
+                    const pdfUrl = glossariPdf.url.startsWith('/') ? STRAPI_URL + glossariPdf.url : glossariPdf.url;
+                    glossariHtml = `
+                        <div class="materials-section" style="border-left: 4px solid var(--brand-blue); background: var(--bg-card); padding: 25px; border-radius: 8px;">
+                            <h3 style="margin-top:0; color:var(--brand-blue);"><i class="fa-solid fa-book-bookmark"></i> Document de Consulta Oficial</h3>
+                            <p style="color:var(--text-secondary); margin-bottom: 20px; font-size: 0.95rem;">
+                                Pots descarregar el glossari complet en format PDF per consultar les definicions i conceptes clau durant el curs o per imprimir-lo.
+                            </p>
+                            <a href="${pdfUrl}" target="_blank" class="btn-pdf" style="display:inline-flex; width:auto; padding: 12px 20px; font-size: 1rem;">
+                                <i class="fa-solid fa-file-pdf" style="color:var(--brand-red); font-size:1.4rem;"></i> 
+                                <span>Descarregar ${glossariPdf.name}</span>
+                            </a>
+                        </div>`;
+                }
             }
 
             container.innerHTML = `
@@ -594,7 +584,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return; 
         }
 
-        // --- VISTA 2: SOLO LOS ARCHIVOS ADJUNTOS ---
         if (state.currentView === 'extra_resources') { 
             let archivosHtml = '<p style="color:#666;">No hi ha documents addicionals per a aquest curs.</p>';
             
@@ -698,17 +687,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     const cleanId = videoId.split('&')[0];
                     embedUrl = `https://www.youtube.com/embed/${cleanId}`;
                 } else if (vid.url.includes('vimeo.com')) {
-                    // Suport complet per a enllaços privats i protegits de Vimeo (amb hash de seguretat)
                     const urlNeta = vid.url.split('?')[0].replace(/\/$/, '');
                     const segments = urlNeta.split('/');
                     
                     if (segments.length >= 5) {
-                        // Enllaç privat tipus: vimeo.com/123456789/hash123
                         const videoId = segments[segments.length - 2];
                         const hash = segments[segments.length - 1];
                         embedUrl = `https://player.vimeo.com/video/${videoId}?h=${hash}`;
                     } else {
-                        // Enllaç estàndard tipus: vimeo.com/123456789
                         const videoId = segments.pop();
                         embedUrl = `https://player.vimeo.com/video/${videoId}`;
                     }
@@ -732,7 +718,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTeoria(container, mod) {
         let html = `<h2>${mod.titol}</h2>`;
         
-        // Si NO és oposició, el vídeo es mostra al principi del temari com abans
         if (state.curso?.es_oposicio !== true) {
             html += renderVideoPlayer(mod);
         }
@@ -888,7 +873,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('wrong');
             btn.innerHTML = `❌ ${btn.innerText}`;
 
-            // Marcar el botón correcto en verde
             buttons.forEach(b => {
                 const val = decodeURIComponent(b.getAttribute('data-selected'));
                 if (val.toLowerCase() === correct.toLowerCase()) {
@@ -897,7 +881,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Mostrar el fallo tachado y la solución correcta en verde
             if(blankSpan) { 
                 blankSpan.innerHTML = `<span style="text-decoration: line-through; opacity: 0.8; margin-right: 6px;">${selected}</span><span style="color: #155724; background: #d4edda; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${correct}</span>`;
                 blankSpan.classList.remove('cloze-blank');
@@ -1085,7 +1068,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     respostes_alumne: registreRespostes
                 });
                 
-                // FIX CRÍTIC: Guardem utilitzant la funció centralitzada per recalcular el % de la barra de progrés
                 await guardarProgreso(state.progreso);
                 
                 if (aprobado) verificarFinModulo(modIdx);
@@ -1153,6 +1135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const userRes = respuestasUsuario[qId];
             const isMulti = preg.es_multiresposta === true;
             const typeLabel = isMulti ? '<span class="q-type-badge"><i class="fa-solid fa-list-check"></i> Multiresposta</span>' : '';
+            const inputType = isMulti ? 'checkbox' : 'radio';
             html += `<div class="question-card review-mode" id="${cardId}"><div class="q-header">Pregunta ${idx + 1} ${typeLabel}</div><div class="q-text">${preg.text}</div><div class="options-list">`;
             preg.opcions.forEach((opt, oIdx) => {
                 let classes = 'option-item '; const isCorrect = opt.esCorrecta === true || opt.isCorrect === true || opt.correct === true;
@@ -1190,7 +1173,6 @@ document.addEventListener('DOMContentLoaded', () => {
             esCajaLigera = true;
             ultimoIntento.respostes_alumne.forEach(r => { mapaMarcades[r.id] = r.marcades || []; });
             
-            // Reconstruïm l'examen amb l'ordre exacte de les preguntes que li van tocar
             preguntasParaRenderizar = ultimoIntento.respostes_alumne.map(r => {
                 return todasLasPreguntas.find(p => (p.id || p.documentId || p.text) === r.id);
             }).filter(p => p !== undefined);

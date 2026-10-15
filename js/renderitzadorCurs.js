@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function cargarDatos() {
         // Query neta, estable i 100% compatible amb Strapi v5 (sense camps inventats)
-        const queryCurs = `filters[slug][$eq]=${SLUG}&populate[moduls][populate][banc_preguntes][populate]=opcions&populate[moduls][populate]=material_pdf&populate[moduls][populate]=targetes_memoria&populate[moduls][populate]=videos&populate[examen_final][populate]=opcions&populate[imatge]=true&populate[recursos_fitxers]=true`;
+        const queryCurs = `filters[slug][$eq]=${SLUG}&populate[moduls][populate][banc_preguntes][populate][opcions]=true&populate[moduls][populate][material_pdf]=true&populate[moduls][populate][targetes_memoria]=true&populate[moduls][populate][videos][populate]=true&populate[examen_final][populate][opcions]=true&populate[imatge]=true&populate[recursos_fitxers]=true`;
         
         const resCurs = await fetch(`${STRAPI_URL}/api/cursos?${queryCurs}`, {
             headers: { 'Authorization': `Bearer ${TOKEN}` }

@@ -801,8 +801,20 @@ async function renderCoursesLogic(viewMode) {
 
             if (curs._matricula) {
                 const mat = curs._matricula;
-                let pct = mat.progres || 0;
-                if(mat.progres_detallat?.examen_final?.aprobado) { pct = 100; }
+                const dataMat = mat.attributes ? mat.attributes : mat; // Normalitzem
+                
+                let pct = dataMat.progres || 0;
+                
+                // RECALCUL SALVAVIDES: Si la BD diu 0% però l'alumne té mòduls aprovats, ho calculem a l'instant
+                if (pct === 0 && dataMat.progres_detallat?.modulos) {
+                    const mods = dataMat.progres_detallat.modulos;
+                    const aprovats = mods.filter(m => m && m.aprobado === true).length;
+                    if (aprovats > 0) {
+                        pct = Math.min(99, Math.round((aprovats / mods.length) * 100));
+                    }
+                }
+                
+                if (dataMat.progres_detallat?.examen_final?.aprobado) { pct = 100; }
                 
                 const color = pct >= 100 ? '#10b981' : 'var(--brand-blue)';
                 progressHtml = `

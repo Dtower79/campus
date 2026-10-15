@@ -1059,16 +1059,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     data: new Date().toLocaleString('ca-ES', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' h'
                 });
                 
-                const payload = { data: { progres_detallat: state.progreso } }; 
-                const res = await fetch(`${STRAPI_URL}/api/matriculas/${state.matriculaId}`, { 
-                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` }, body: JSON.stringify(payload) 
-                });
-                
-                if (!res.ok) throw new Error("Error API");
-                
-                const json = await res.json();
-                if (json.data && json.data.progres_detallat) { state.progreso = json.data.progres_detallat; }
-                else if (json.data && json.data.attributes && json.data.attributes.progres_detallat) { state.progreso = json.data.attributes.progres_detallat; }
+                // FIX CRÍTIC: Guardem utilitzant la funció centralitzada per recalcular el % de la barra de progrés
+                await guardarProgreso(state.progreso);
                 
                 if (aprobado) verificarFinModulo(modIdx);
                 else if (state.progreso.modulos[modIdx].intentos < 2) crearNotificacion("Has d'estudiar una mica més 📖", `Has tret un ${nota}. Et queda 1 intent.`);
